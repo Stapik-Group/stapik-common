@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 FetchContent_Declare(
-        json
+        nlohmann_json
         URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
 )
-FetchContent_MakeAvailable(json)
+FetchContent_MakeAvailable(nlohmann_json)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
