@@ -17,6 +17,7 @@ pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 add_library(stapikcommon STATIC
         src/stapik/locale/LocalizationEngine.cpp
         src/stapik/cloud/CloudStorageClient.cpp
+        src/stapik/storage/AppPaths.cpp
 )
 
 target_include_directories(stapikcommon PUBLIC
