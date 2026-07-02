@@ -18,6 +18,8 @@ add_library(stapikcommon STATIC
         src/stapik/locale/LocalizationEngine.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/storage/AppPaths.cpp
+        src/stapik/sync/Timestamp.cpp
+        src/stapik/sync/SyncEnvelope.cpp
 )
 
 target_include_directories(stapikcommon PUBLIC
