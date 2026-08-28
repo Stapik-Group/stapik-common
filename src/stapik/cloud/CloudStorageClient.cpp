@@ -37,6 +37,7 @@ CloudStorageClient::RawResponse CloudStorageClient::performGet() const
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIMEOUT_SECONDS);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     const auto result = curl_easy_perform(curl);
 
