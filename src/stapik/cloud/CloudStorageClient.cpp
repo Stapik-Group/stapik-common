@@ -3,6 +3,7 @@
 
 #include <curl/curl.h>
 #include <ctime>
+#include <glib.h>
 
 CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey):
     m_config(std::move(config)),
@@ -123,7 +124,10 @@ std::optional<CloudDocument> CloudStorageClient::loadDocument() const
 CloudWriteResult CloudStorageClient::saveDocument(const nlohmann::json& data, const std::chrono::system_clock::time_point clientLastKnownUpdate) const
 {
     if (!m_config.isConfigured())
+    {
+        g_debug("saveDocument: NOT configured! apiUrl='%s' apiKey.empty=%d", m_config.apiUrl.c_str(), m_config.apiKey.empty());
         throw CloudStorageException("Cloud sync is not configured");
+    }
 
     const nlohmann::json payload = {
         { "content", data.dump() },
@@ -150,24 +154,32 @@ CloudWriteResult CloudStorageClient::saveDocument(const nlohmann::json& data, co
 
 std::string CloudStorageClient::formatIso8601(const std::chrono::system_clock::time_point tp)
 {
-    return std::format("{:%Y-%m-%dT%H:%M:%SZ}", std::chrono::floor<std::chrono::seconds>(tp));
+    return std::format("{:%Y-%m-%dT%H:%M:%SZ}", std::chrono::floor<std::chrono::microseconds>(tp));
 }
 
 std::chrono::system_clock::time_point CloudStorageClient::parseIso8601(const std::string& str)
 {
-    if (str.size() < 19)
+    if (str.size() < 20 || str.back() != 'Z')
         throw CloudStorageException("Invalid ISO-8601 timestamp: " + str);
 
     std::tm tm{};
     tm.tm_year = std::stoi(str.substr(0, 4)) - 1900;
-    tm.tm_mon = std::stoi(str.substr(5, 2)) - 1;
+    tm.tm_mon  = std::stoi(str.substr(5, 2)) - 1;
     tm.tm_mday = std::stoi(str.substr(8, 2));
     tm.tm_hour = std::stoi(str.substr(11, 2));
-    tm.tm_min = std::stoi(str.substr(14, 2));
-    tm.tm_sec = std::stoi(str.substr(17, 2));
+    tm.tm_min  = std::stoi(str.substr(14, 2));
+    tm.tm_sec  = std::stoi(str.substr(17, 2));
 
-    const auto time = timegm(&tm);
-    return std::chrono::system_clock::from_time_t(time);
+    auto tp = std::chrono::system_clock::from_time_t(timegm(&tm));
+
+    if (str.size() > 20 && str[19] == '.')
+    {
+        std::string fraction = str.substr(20, str.size() - 21); // bez końcowego 'Z'
+        fraction.resize(6, '0');                                 // dopełnij/przytnij do mikrosekund
+        tp += std::chrono::microseconds(std::stoll(fraction.substr(0, 6)));
+    }
+
+    return tp;
 }
 
 size_t CloudStorageClient::writeCallback(const char* ptr, const size_t size, const size_t nmemb, std::string* response)
