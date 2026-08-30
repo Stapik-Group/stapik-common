@@ -25,5 +25,12 @@ void AppStyleProvider::apply(const Theme theme)
 
 std::filesystem::path AppStyleProvider::cssPath(const Theme theme) const
 {
-    return m_resourcesDir / (theme == Theme::Modern ? "style-modern.css" : "style-classic.css");
+    switch (theme)
+    {
+        using enum Theme;
+        case Modern: return m_resourcesDir / "style-modern.css";
+        case ClassicPink: return m_resourcesDir / "style-classic-pink.css";
+        case Classic:
+        default: return m_resourcesDir / "style-classic.css";
+    }
 }

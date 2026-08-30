@@ -2,10 +2,20 @@
 
 std::string themeToFileString(const Theme theme)
 {
-    return theme == Theme::Modern ? "modern" : "classic";
+    switch (theme)
+    {
+        using enum Theme;
+        case Modern: return "modern";
+        case ClassicPink: return "classic-pink";
+        case Classic:
+        default: return "classic";
+    }
 }
 
 Theme themeFromFileString(const std::string& value)
 {
-    return value == "modern" ? Theme::Modern : Theme::Classic;
+    using enum Theme;
+    if (value == "modern") return Modern;
+    if (value == "classic-pink") return ClassicPink;
+    return Classic;
 }
