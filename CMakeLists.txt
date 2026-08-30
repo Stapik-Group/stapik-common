@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.2)
-project(stapikcommon VERSION 1.1.3 LANGUAGES CXX)
+project(stapikcommon VERSION 1.1.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +27,8 @@ add_library(stapikcommon STATIC
         src/stapik/ui/dialog/DialogUtils.cpp
         src/stapik/ui/dialog/ConnectDialog.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
+        src/stapik/theme/Theme.cpp
+        src/stapik/theme/ThemeManager.cpp
 )
 
 target_include_directories(stapikcommon PUBLIC
