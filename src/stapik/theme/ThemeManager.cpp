@@ -37,7 +37,7 @@ void ThemeManager::saveTheme(const Theme theme) const
     const auto path = themeConfigPath();
     std::filesystem::create_directories(path.parent_path());
     std::ofstream file(path);
-    file << toFileString(theme);
+    file << themeToFileString(theme);
 }
 
 Theme ThemeManager::loadSavedTheme() const
@@ -50,7 +50,7 @@ Theme ThemeManager::loadSavedTheme() const
         return Theme::Classic;
     std::string content;
     file >> content;
-    return fromFileString(content);
+    return themeFromFileString(content);
 }
 
 std::filesystem::path ThemeManager::themeConfigPath() const

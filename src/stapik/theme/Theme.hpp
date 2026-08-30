@@ -3,5 +3,5 @@
 
 enum class Theme { Classic, Modern };
 
-std::string toFileString(Theme theme);
-Theme fromFileString(const std::string& value);
+std::string themeToFileString(Theme theme);
+Theme themeFromFileString(const std::string& value);
