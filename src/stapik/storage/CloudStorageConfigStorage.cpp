@@ -1,5 +1,7 @@
 #include "CloudStorageConfigStorage.hpp"
+
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/log/Log.hpp"
 
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -18,7 +20,7 @@ namespace
             errorCode);
 
         if (errorCode)
-            g_warning("Cannot restrict permissions of %s: %s", path.c_str(), errorCode.message().c_str());
+            stapik::log::warning("Cannot restrict permissions of {}: {}", path.string(), errorCode.message());
     }
 }
 

@@ -1,6 +1,8 @@
 #include "CloudStorageClient.hpp"
 #include "CloudStorageException.hpp"
 
+#include "stapik/log/Log.hpp"
+
 #include <curl/curl.h>
 #include <ctime>
 #include <glib.h>
@@ -24,7 +26,7 @@ CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string sl
     m_slotKey(std::move(slotKey))
 {
     if (m_config.isConfigured() && !m_config.isSecure())
-        g_warning("Cloud API URL does not use https - the API key and documents are sent unencrypted. This is not a secure connection.");
+        stapik::log::warning("Cloud API URL does not use https:// - the API key and documents are sent unencrypted. This is not a secure connection.");
 }
 
 std::string CloudStorageClient::documentUrl() const
@@ -142,7 +144,7 @@ CloudWriteResult CloudStorageClient::saveDocument(const nlohmann::json& data, co
 {
     if (!m_config.isConfigured())
     {
-        g_debug("saveDocument: NOT configured! apiUrl='%s' apiKey.empty=%d", m_config.apiUrl.c_str(), m_config.apiKey.empty());
+        stapik::log::debug("saveDocument: not configured (apiUrl='{}', apiKey empty: {})", m_config.apiUrl, m_config.apiKey.empty());
         throw CloudStorageException("Cloud sync is not configured");
     }
 

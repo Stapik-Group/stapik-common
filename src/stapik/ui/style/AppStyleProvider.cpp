@@ -1,4 +1,7 @@
 #include "AppStyleProvider.hpp"
+
+#include "stapik/log/Log.hpp"
+
 #include <gtkmm/stylecontext.h>
 
 AppStyleProvider::AppStyleProvider(std::filesystem::path resourcesDir) :
@@ -13,7 +16,7 @@ void AppStyleProvider::apply(const Theme theme)
     m_currentProvider->signal_parsing_error().connect(
         [](const Glib::RefPtr<const Gtk::CssSection>&, const Glib::Error& error)
         {
-            g_warning("CSS parsing error: %s", error.what());
+            stapik::log::warning("CSS parsing error: {}", error.what());
         });
     m_currentProvider->load_from_path(cssPath(theme).string());
     Gtk::StyleContext::add_provider_for_display(
