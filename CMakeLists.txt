@@ -21,10 +21,12 @@ pkg_check_modules(SIGCPP REQUIRED IMPORTED_TARGET sigc++-3.0)
 find_package(CURL REQUIRED)
 
 add_library(stapikcommon STATIC
+        src/stapik/app/AppContext.cpp
         src/stapik/locale/LocalizationEngine.cpp
         src/stapik/locale/LocaleManager.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/log/Log.cpp
+        src/stapik/settings/AppSettings.cpp
         src/stapik/settings/SettingsStore.cpp
         src/stapik/storage/AppPaths.cpp
         src/stapik/storage/AtomicFile.cpp

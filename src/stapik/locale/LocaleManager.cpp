@@ -1,29 +1,48 @@
 #include "LocaleManager.hpp"
 
-#include "stapik/log/Log.hpp"
+#include "stapik/app/AppContext.hpp"
+#include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
-#include "stapik/storage/AtomicFile.hpp"
 
-#include <fstream>
-#include <utility>
-
-LocaleManager& LocaleManager::instance(const std::string& appName)
+namespace
 {
-    static LocaleManager manager(appName);
+    stapik::settings::SettingsStore& localeSettingsStore(const std::string& appName)
+    {
+        auto& store = stapik::settings::appSettingsStore(appName);
+
+        stapik::settings::importLegacyTextSetting(
+            store,
+            "locale",
+            AppPaths::userDataDir(appName) / "locale.txt",
+            [](const std::string& value) { return std::string(toFileString(fromFileString(value))); });
+
+        return store;
+    }
+}
+
+LocaleManager& LocaleManager::instance()
+{
+    static LocaleManager manager(stapik::app::AppContext::instance().info().internalName);
     return manager;
 }
 
-LocaleManager::LocaleManager(std::string appName) :
-    m_engine(AppPaths::resourcesDir() / "locales"),
-    m_appName(std::move(appName))
+LocaleManager& LocaleManager::instance(const std::string& appName)
 {
-    m_engine.setLocale(loadSavedLocale());
+    stapik::app::AppContext::initializeFromLegacyName(appName);
+    return instance();
+}
+
+LocaleManager::LocaleManager(const std::string& appName) :
+    m_engine(AppPaths::resourcesDir() / "locales"),
+    m_locale(localeSettingsStore(appName), "locale", Locale::EN)
+{
+    m_engine.setLocale(m_locale.get());
 }
 
 void LocaleManager::setLocale(const Locale locale)
 {
+    m_locale.set(locale);
     m_engine.setLocale(locale);
-    saveLocale(locale);
     m_signalLocaleChanged.emit();
 }
 
@@ -40,32 +59,4 @@ std::string LocaleManager::translate(const std::string &key) const
 sigc::signal<void()>& LocaleManager::signalLocaleChanged()
 {
     return m_signalLocaleChanged;
-}
-
-void LocaleManager::saveLocale(const Locale locale) const
-{
-    const auto path = localeConfigPath();
-    if (!stapik::storage::writeFileAtomically(localeConfigPath(), toFileString(locale)))
-        stapik::log::warning("Cannot save locale setting");
-}
-
-Locale LocaleManager::loadSavedLocale() const
-{
-    const auto path = localeConfigPath();
-    if (!std::filesystem::exists(path))
-        return Locale::EN;
-
-    std::ifstream file(path);
-    if (!file.is_open())
-        return Locale::EN;
-
-    std::string content;
-    file >> content;
-
-    return fromFileString(content);
-}
-
-std::filesystem::path LocaleManager::localeConfigPath() const
-{
-    return AppPaths::userDataDir(m_appName) / "locale.txt";
 }

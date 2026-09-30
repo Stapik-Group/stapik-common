@@ -1,47 +1,22 @@
 #include "stapik/storage/AppPaths.hpp"
 
+#include "support/ScopedEnvironment.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cstdlib>
-#include <optional>
-#include <string>
 
 namespace
 {
     namespace fs = std::filesystem;
 
-    class ScopedEnvironment
-    {
-    public:
-        explicit ScopedEnvironment(std::string name) : m_name(std::move(name))
-        {
-            if (const auto* value = std::getenv(m_name.c_str()))
-                m_original = value;
-        }
-
-        ~ScopedEnvironment()
-        {
-            if (m_original)
-                setenv(m_name.c_str(), m_original->c_str(), 1);
-            else
-                unsetenv(m_name.c_str());
-        }
-
-        ScopedEnvironment(const ScopedEnvironment&) = delete;
-        ScopedEnvironment& operator=(const ScopedEnvironment&) = delete;
-
-    private:
-        std::string m_name;
-        std::optional<std::string> m_original;
-    };
-
     class AppPathsTest : public testing::Test
     {
     protected:
-        ScopedEnvironment m_home{ "HOME" };
-        ScopedEnvironment m_dataHome{ "XDG_DATA_HOME" };
-        ScopedEnvironment m_configHome{ "XDG_CONFIG_HOME" };
-        ScopedEnvironment m_cacheHome{ "XDG_CACHE_HOME" };
+        stapik::test::ScopedEnvironment m_home{ "HOME" };
+        stapik::test::ScopedEnvironment m_dataHome{ "XDG_DATA_HOME" };
+        stapik::test::ScopedEnvironment m_configHome{ "XDG_CONFIG_HOME" };
+        stapik::test::ScopedEnvironment m_cacheHome{ "XDG_CACHE_HOME" };
     };
 }
 
