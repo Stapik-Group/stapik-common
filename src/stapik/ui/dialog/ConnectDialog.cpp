@@ -44,10 +44,13 @@ std::optional<CloudStorageConfig> ConnectDialog::getResult() const
     const auto apiUrl = m_apiUrlEntry.get_text();
     const auto apiKey = m_apiKeyEntry.get_text();
 
-    if (apiUrl.empty() || apiKey.empty())
+    CloudStorageConfig config{ .apiUrl = apiUrl, .apiKey = apiKey };
+    config.apiUrl = config.normalizedApiUrl();
+
+    if (config.apiUrl.empty() || config.apiKey.empty())
         return std::nullopt;
 
-    return CloudStorageConfig{ apiUrl, apiKey };
+    return config;
 }
 
 void ConnectDialog::prefillConfig(const CloudStorageConfig& config)

@@ -29,7 +29,7 @@ CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string sl
 
 std::string CloudStorageClient::documentUrl() const
 {
-    return m_config.apiUrl + "/api/v1/documents/" + m_slotKey;
+    return m_config.normalizedApiUrl() + "/api/v1/documents/" + m_slotKey;
 }
 
 curl_slist* CloudStorageClient::buildHeaders() const
