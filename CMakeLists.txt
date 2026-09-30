@@ -26,6 +26,7 @@ add_library(stapikcommon STATIC
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/log/Log.cpp
         src/stapik/storage/AppPaths.cpp
+        src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
         src/stapik/sync/Timestamp.cpp
         src/stapik/sync/SyncEnvelope.cpp

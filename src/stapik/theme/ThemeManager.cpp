@@ -1,5 +1,9 @@
 #include "ThemeManager.hpp"
+
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/AtomicFile.hpp"
+#include "stapik/log/Log.hpp"
+
 #include <fstream>
 #include <utility>
 
@@ -34,10 +38,8 @@ sigc::signal<void()>& ThemeManager::signalThemeChanged()
 
 void ThemeManager::saveTheme(const Theme theme) const
 {
-    const auto path = themeConfigPath();
-    std::filesystem::create_directories(path.parent_path());
-    std::ofstream file(path);
-    file << themeToFileString(theme);
+    if (!stapik::storage::writeFileAtomically(themeConfigPath(), themeToFileString(theme)))
+        stapik::log::warning("Cannot save theme setting");
 }
 
 Theme ThemeManager::loadSavedTheme() const
