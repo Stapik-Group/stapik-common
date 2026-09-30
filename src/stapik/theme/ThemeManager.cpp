@@ -1,11 +1,23 @@
 #include "ThemeManager.hpp"
 
+#include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
-#include "stapik/storage/AtomicFile.hpp"
-#include "stapik/log/Log.hpp"
 
-#include <fstream>
-#include <utility>
+namespace
+{
+    stapik::settings::SettingsStore& themeSettingsStore(const std::string& appName)
+    {
+        auto& store = stapik::settings::appSettingsStore(appName);
+
+        stapik::settings::importLegacyTextSetting(
+            store,
+            "theme",
+            AppPaths::userDataDir(appName) / "theme.txt",
+            [](const std::string& value) { return themeToFileString(themeFromFileString(value)); });
+
+        return store;
+    }
+}
 
 ThemeManager& ThemeManager::instance(const std::string& appName)
 {
@@ -13,49 +25,22 @@ ThemeManager& ThemeManager::instance(const std::string& appName)
     return manager;
 }
 
-ThemeManager::ThemeManager(std::string appName) :
-    m_appName(std::move(appName))
-{
-    m_theme = loadSavedTheme();
-}
+ThemeManager::ThemeManager(const std::string& appName) :
+    m_theme(themeSettingsStore(appName), "theme", Theme::Classic)
+{}
 
 void ThemeManager::setTheme(const Theme theme)
 {
-    m_theme = theme;
-    saveTheme(theme);
+    m_theme.set(theme);
     m_signalThemeChanged.emit();
 }
 
 Theme ThemeManager::getTheme() const
 {
-    return m_theme;
+    return m_theme.get();
 }
 
 sigc::signal<void()>& ThemeManager::signalThemeChanged()
 {
     return m_signalThemeChanged;
-}
-
-void ThemeManager::saveTheme(const Theme theme) const
-{
-    if (!stapik::storage::writeFileAtomically(themeConfigPath(), themeToFileString(theme)))
-        stapik::log::warning("Cannot save theme setting");
-}
-
-Theme ThemeManager::loadSavedTheme() const
-{
-    const auto path = themeConfigPath();
-    if (!std::filesystem::exists(path))
-        return Theme::Classic;
-    std::ifstream file(path);
-    if (!file.is_open())
-        return Theme::Classic;
-    std::string content;
-    file >> content;
-    return themeFromFileString(content);
-}
-
-std::filesystem::path ThemeManager::themeConfigPath() const
-{
-    return AppPaths::userDataDir(m_appName) / "theme.txt";
 }

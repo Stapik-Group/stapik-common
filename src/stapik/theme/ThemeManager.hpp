@@ -1,7 +1,10 @@
 #pragma once
+
 #include "Theme.hpp"
+
+#include "stapik/settings/ObservableSetting.hpp"
+
 #include <sigc++/signal.h>
-#include <filesystem>
 #include <string>
 
 class ThemeManager
@@ -12,11 +15,7 @@ public:
     [[nodiscard]] Theme getTheme() const;
     sigc::signal<void()>& signalThemeChanged();
 private:
-    explicit ThemeManager(std::string appName);
-    Theme m_theme;
-    std::string m_appName;
+    explicit ThemeManager(const std::string& appName);
+    stapik::settings::ObservableSetting<Theme> m_theme;
     sigc::signal<void()> m_signalThemeChanged;
-    void saveTheme(Theme theme) const;
-    [[nodiscard]] Theme loadSavedTheme() const;
-    [[nodiscard]] std::filesystem::path themeConfigPath() const;
 };
