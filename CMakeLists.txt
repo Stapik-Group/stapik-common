@@ -25,6 +25,7 @@ add_library(stapikcommon STATIC
         src/stapik/locale/LocaleManager.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/log/Log.cpp
+        src/stapik/settings/SettingsStore.cpp
         src/stapik/storage/AppPaths.cpp
         src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
