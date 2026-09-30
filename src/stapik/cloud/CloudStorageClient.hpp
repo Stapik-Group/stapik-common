@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CloudStorageConfig.hpp"
+#include "ICloudStorage.hpp"
+
 #include <nlohmann/json.hpp>
 #include <string>
 #include <chrono>
@@ -8,28 +10,13 @@
 
 struct curl_slist;
 
-struct CloudDocument
-{
-    nlohmann::json content;
-    std::chrono::system_clock::time_point updatedAt;
-};
-
-struct CloudWriteResult
-{
-    CloudDocument document;
-    bool conflict{};
-};
-
-class CloudStorageClient
+class CloudStorageClient : public ICloudStorage
 {
 public:
     CloudStorageClient(CloudStorageConfig config, std::string slotKey);
 
-    [[nodiscard]] std::optional<CloudDocument> loadDocument() const;
-
-    [[nodiscard]] CloudWriteResult saveDocument(
-        const nlohmann::json& data,
-        std::chrono::system_clock::time_point clientLastKnownUpdate) const;
+    [[nodiscard]] std::optional<CloudDocument> loadDocument() const override;
+    [[nodiscard]] CloudWriteResult saveDocument(const nlohmann::json& data, std::chrono::system_clock::time_point clientLastKnownUpdate) const override;
 
 private:
     static constexpr long TIMEOUT_SECONDS = 8L;
