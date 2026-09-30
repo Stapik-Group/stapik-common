@@ -47,3 +47,9 @@ target_link_libraries(stapikcommon PUBLIC
         nlohmann_json::nlohmann_json
         CURL::libcurl
 )
+
+option(STAPIK_COMMON_BUILD_TESTS "Build the stapik-common unit tests" OFF)
+if(STAPIK_COMMON_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
