@@ -13,6 +13,8 @@ include(GoogleTest)
 add_executable(stapikcommon_tests
         cloud/CloudStorageConfigTest.cpp
         log/LogTest.cpp
+        settings/ObservableSettingTest.cpp
+        settings/SettingsStoreTest.cpp
         storage/AppPathsTest.cpp
         storage/AtomicFileTest.cpp
         sync/TimestampTest.cpp
