@@ -1,5 +1,8 @@
 #include "CloudStorageConfigStorage.hpp"
+
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/AtomicFile.hpp"
+#include "stapik/log/Log.hpp"
 
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -13,28 +16,25 @@ namespace
         std::error_code errorCode;
         std::filesystem::permissions(
             path,
-            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
+            stapik::storage::OWNER_READ_WRITE,
             std::filesystem::perm_options::replace,
             errorCode);
 
         if (errorCode)
-            g_warning("Cannot restrict permissions of %s: %s", path.c_str(), errorCode.message().c_str());
+            stapik::log::warning("Cannot restrict permissions of {}: {}", path.string(), errorCode.message());
     }
 }
 
-void CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName)
+bool CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName)
 {
     const auto path = AppPaths::userDataDir(appName) / "config.json";
-    std::filesystem::create_directories(path.parent_path());
 
     const nlohmann::json json = {
         { "apiUrl", config.apiUrl },
         { "apiKey", config.apiKey }
     };
 
-    std::ofstream file(path, std::ios::trunc);
-    restrictToOwner(path);
-    file << json.dump(2);
+    return stapik::storage::writeFileAtomically(path, json.dump(2), stapik::storage::OWNER_READ_WRITE);
 }
 
 std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::string& appName)

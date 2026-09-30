@@ -1,6 +1,9 @@
 #include "CloudStorageClient.hpp"
 #include "CloudStorageException.hpp"
 
+#include "stapik/log/Log.hpp"
+#include "stapik/sync/Timestamp.hpp"
+
 #include <curl/curl.h>
 #include <ctime>
 #include <glib.h>
@@ -24,7 +27,7 @@ CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string sl
     m_slotKey(std::move(slotKey))
 {
     if (m_config.isConfigured() && !m_config.isSecure())
-        g_warning("Cloud API URL does not use https - the API key and documents are sent unencrypted. This is not a secure connection.");
+        stapik::log::warning("Cloud API URL does not use https:// - the API key and documents are sent unencrypted. This is not a secure connection.");
 }
 
 std::string CloudStorageClient::documentUrl() const
@@ -113,7 +116,7 @@ CloudDocument CloudStorageClient::parseDocumentResponse(const std::string& body)
     if (!contentString.empty())
         content = nlohmann::json::parse(contentString);
 
-    return CloudDocument{ .content = content, .updatedAt = parseIso8601(updatedAtString) };
+    return CloudDocument{ .content = content, .updatedAt = parseTimestamp(updatedAtString) };
 }
 
 std::optional<CloudDocument> CloudStorageClient::loadDocument() const
@@ -142,13 +145,13 @@ CloudWriteResult CloudStorageClient::saveDocument(const nlohmann::json& data, co
 {
     if (!m_config.isConfigured())
     {
-        g_debug("saveDocument: NOT configured! apiUrl='%s' apiKey.empty=%d", m_config.apiUrl.c_str(), m_config.apiKey.empty());
+        stapik::log::debug("saveDocument: not configured (apiUrl='{}', apiKey empty: {})", m_config.apiUrl, m_config.apiKey.empty());
         throw CloudStorageException("Cloud sync is not configured");
     }
 
     const nlohmann::json payload = {
         { "content", data.dump() },
-        { "clientLastKnownUpdate", formatIso8601(clientLastKnownUpdate) }
+        { "clientLastKnownUpdate", stapik::sync::toIso8601(clientLastKnownUpdate, stapik::sync::TimestampPrecision::Microseconds) }
     };
 
     const auto [httpStatus, body] = performPut(payload.dump());
@@ -169,34 +172,13 @@ CloudWriteResult CloudStorageClient::saveDocument(const nlohmann::json& data, co
     }
 }
 
-std::string CloudStorageClient::formatIso8601(const std::chrono::system_clock::time_point tp)
+std::chrono::system_clock::time_point CloudStorageClient::parseTimestamp(const std::string& text)
 {
-    return std::format("{:%Y-%m-%dT%H:%M:%SZ}", std::chrono::floor<std::chrono::microseconds>(tp));
-}
+    const auto timestamp = stapik::sync::parseIso8601(text);
+    if (!timestamp)
+        throw CloudStorageException("Invalid ISO-8601 timestamp: " + text);
 
-std::chrono::system_clock::time_point CloudStorageClient::parseIso8601(const std::string& str)
-{
-    if (str.size() < 20 || str.back() != 'Z')
-        throw CloudStorageException("Invalid ISO-8601 timestamp: " + str);
-
-    std::tm tm{};
-    tm.tm_year = std::stoi(str.substr(0, 4)) - 1900;
-    tm.tm_mon  = std::stoi(str.substr(5, 2)) - 1;
-    tm.tm_mday = std::stoi(str.substr(8, 2));
-    tm.tm_hour = std::stoi(str.substr(11, 2));
-    tm.tm_min  = std::stoi(str.substr(14, 2));
-    tm.tm_sec  = std::stoi(str.substr(17, 2));
-
-    auto tp = std::chrono::system_clock::from_time_t(timegm(&tm));
-
-    if (str.size() > 20 && str[19] == '.')
-    {
-        std::string fraction = str.substr(20, str.size() - 21);
-        fraction.resize(6, '0');
-        tp += std::chrono::microseconds(std::stoll(fraction.substr(0, 6)));
-    }
-
-    return tp;
+    return *timestamp;
 }
 
 size_t CloudStorageClient::writeCallback(const char* ptr, const size_t size, const size_t nmemb, std::string* response)

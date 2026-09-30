@@ -1,5 +1,7 @@
 #include "LocalizationEngine.hpp"
 
+#include "stapik/log/Log.hpp"
+
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <glib.h>
@@ -28,9 +30,9 @@ void LocalizationEngine::loadLocaleFile(const Locale locale, const std::string &
     {
         for (const auto json = nlohmann::json::parse(file); const auto &[key, value]: json.items())
             m_translations[locale][key] = value.get<std::string>();
-    } catch (const nlohmann::json::exception &)
+    } catch (const nlohmann::json::exception &e)
     {
-        g_warning("No translations for locale %s, empty map.", toString(locale));
+        stapik::log::warning("Cannot parse translations for locale {} from {}: {}", toString(locale), filePath, e.what());
     }
 }
 

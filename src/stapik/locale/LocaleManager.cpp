@@ -1,6 +1,8 @@
 #include "LocaleManager.hpp"
 
+#include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/AtomicFile.hpp"
 
 #include <fstream>
 #include <utility>
@@ -43,9 +45,8 @@ sigc::signal<void()>& LocaleManager::signalLocaleChanged()
 void LocaleManager::saveLocale(const Locale locale) const
 {
     const auto path = localeConfigPath();
-    std::filesystem::create_directories(path.parent_path());
-    std::ofstream file(path);
-    file << toFileString(locale);
+    if (!stapik::storage::writeFileAtomically(localeConfigPath(), toFileString(locale)))
+        stapik::log::warning("Cannot save locale setting");
 }
 
 Locale LocaleManager::loadSavedLocale() const

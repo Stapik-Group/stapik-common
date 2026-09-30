@@ -49,8 +49,7 @@ private:
     [[nodiscard]] std::string documentUrl() const;
 
     static CloudDocument parseDocumentResponse(const std::string& body);
-    static std::string formatIso8601(std::chrono::system_clock::time_point tp);
-    static std::chrono::system_clock::time_point parseIso8601(const std::string& str);
+    static std::chrono::system_clock::time_point parseTimestamp(const std::string& text);
 
     static size_t writeCallback(const char* ptr, size_t size, size_t nmemb, std::string* response);
 };
