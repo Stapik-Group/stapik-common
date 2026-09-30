@@ -1,5 +1,6 @@
 #include "ThemeManager.hpp"
 
+#include "stapik/app/AppContext.hpp"
 #include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
 
@@ -19,10 +20,16 @@ namespace
     }
 }
 
+ThemeManager& ThemeManager::instance()
+{
+    static ThemeManager manager(stapik::app::AppContext::instance().info().internalName);
+    return manager;
+}
+
 ThemeManager& ThemeManager::instance(const std::string& appName)
 {
-    static ThemeManager manager(appName);
-    return manager;
+    stapik::app::AppContext::initializeFromLegacyName(appName);
+    return instance();
 }
 
 ThemeManager::ThemeManager(const std::string& appName) :

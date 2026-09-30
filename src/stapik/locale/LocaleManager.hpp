@@ -10,7 +10,8 @@
 class LocaleManager
 {
 public:
-    static LocaleManager& instance(const std::string& appName = "");
+    static LocaleManager& instance();
+    static LocaleManager& instance(const std::string& appName);
     void setLocale(Locale locale);
     [[nodiscard]] Locale getLocale() const;
     [[nodiscard]] std::string translate(const std::string& key) const;

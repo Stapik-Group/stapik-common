@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
 add_executable(stapikcommon_tests
+        app/AppContextTest.cpp
         cloud/CloudStorageConfigTest.cpp
         log/LogTest.cpp
         settings/AppSettingsTest.cpp

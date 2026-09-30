@@ -1,5 +1,6 @@
 #include "LocaleManager.hpp"
 
+#include "stapik/app/AppContext.hpp"
 #include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
 
@@ -19,10 +20,16 @@ namespace
     }
 }
 
+LocaleManager& LocaleManager::instance()
+{
+    static LocaleManager manager(stapik::app::AppContext::instance().info().internalName);
+    return manager;
+}
+
 LocaleManager& LocaleManager::instance(const std::string& appName)
 {
-    static LocaleManager manager(appName);
-    return manager;
+    stapik::app::AppContext::initializeFromLegacyName(appName);
+    return instance();
 }
 
 LocaleManager::LocaleManager(const std::string& appName) :

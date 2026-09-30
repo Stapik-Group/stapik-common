@@ -10,7 +10,8 @@
 class ThemeManager
 {
 public:
-    static ThemeManager& instance(const std::string& appName = "");
+    static ThemeManager& instance();
+    static ThemeManager& instance(const std::string& appName);
     void setTheme(Theme theme);
     [[nodiscard]] Theme getTheme() const;
     sigc::signal<void()>& signalThemeChanged();
