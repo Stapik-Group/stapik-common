@@ -5,10 +5,27 @@
 #include <ctime>
 #include <glib.h>
 
+namespace
+{
+    void applySecurityOptions(CURL* curl)
+    {
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
+#if LIBCURL_VERSION_NUM >= 0x075500
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+#else
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
+    }
+}
+
 CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey):
     m_config(std::move(config)),
     m_slotKey(std::move(slotKey))
-{}
+{
+    if (m_config.isConfigured() && !m_config.isSecure())
+        g_warning("Cloud API URL does not use https - the API key and documents are sent unencrypted. This is not a secure connection.");
+}
 
 std::string CloudStorageClient::documentUrl() const
 {
@@ -37,8 +54,7 @@ CloudStorageClient::RawResponse CloudStorageClient::performGet() const
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIMEOUT_SECONDS);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    applySecurityOptions(curl);
 
     const auto result = curl_easy_perform(curl);
 
@@ -51,7 +67,7 @@ CloudStorageClient::RawResponse CloudStorageClient::performGet() const
     if (result != CURLE_OK)
         throw CloudStorageException(std::string("API read failed: ") + curl_easy_strerror(result));
 
-    return { httpStatus, response };
+    return { .httpStatus = httpStatus, .body = response };
 }
 
 CloudStorageClient::RawResponse CloudStorageClient::performPut(const std::string& body) const
@@ -71,6 +87,7 @@ CloudStorageClient::RawResponse CloudStorageClient::performPut(const std::string
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIMEOUT_SECONDS);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+    applySecurityOptions(curl);
 
     const auto result = curl_easy_perform(curl);
 
@@ -83,7 +100,7 @@ CloudStorageClient::RawResponse CloudStorageClient::performPut(const std::string
     if (result != CURLE_OK)
         throw CloudStorageException(std::string("API write failed: ") + curl_easy_strerror(result));
 
-    return { httpStatus, response };
+    return { .httpStatus = httpStatus, .body = response };
 }
 
 CloudDocument CloudStorageClient::parseDocumentResponse(const std::string& body)
@@ -96,7 +113,7 @@ CloudDocument CloudStorageClient::parseDocumentResponse(const std::string& body)
     if (!contentString.empty())
         content = nlohmann::json::parse(contentString);
 
-    return CloudDocument{ content, parseIso8601(updatedAtString) };
+    return CloudDocument{ .content = content, .updatedAt = parseIso8601(updatedAtString) };
 }
 
 std::optional<CloudDocument> CloudStorageClient::loadDocument() const
@@ -142,8 +159,8 @@ CloudWriteResult CloudStorageClient::saveDocument(const nlohmann::json& data, co
     try
     {
         return CloudWriteResult{
-            parseDocumentResponse(body),
-            httpStatus == 409
+            .document = parseDocumentResponse(body),
+            .conflict = httpStatus == 409
         };
     }
     catch (const nlohmann::json::exception& e)
@@ -174,8 +191,8 @@ std::chrono::system_clock::time_point CloudStorageClient::parseIso8601(const std
 
     if (str.size() > 20 && str[19] == '.')
     {
-        std::string fraction = str.substr(20, str.size() - 21); // bez końcowego 'Z'
-        fraction.resize(6, '0');                                 // dopełnij/przytnij do mikrosekund
+        std::string fraction = str.substr(20, str.size() - 21);
+        fraction.resize(6, '0');
         tp += std::chrono::microseconds(std::stoll(fraction.substr(0, 6)));
     }
 
