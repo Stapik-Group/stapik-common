@@ -22,6 +22,8 @@ find_package(CURL REQUIRED)
 
 add_library(stapikcommon STATIC
         src/stapik/app/AppContext.cpp
+        src/stapik/document/DocumentFileCore.cpp
+        src/stapik/document/SchemaMigrator.cpp
         src/stapik/locale/LocalizationEngine.cpp
         src/stapik/locale/LocaleManager.cpp
         src/stapik/cloud/CloudStorageClient.cpp
