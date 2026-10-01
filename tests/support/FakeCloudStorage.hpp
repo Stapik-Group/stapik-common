@@ -1,0 +1,58 @@
+#pragma once
+
+#include "stapik/cloud/CloudStorageException.hpp"
+#include "stapik/cloud/ICloudStorage.hpp"
+
+#include <chrono>
+#include <functional>
+#include <optional>
+#include <vector>
+
+namespace stapik::test
+{
+    class FakeCloudStorage final : public ICloudStorage
+    {
+    public:
+        using TimePoint = std::chrono::system_clock::time_point;
+
+        std::optional<CloudDocument> stored;
+        std::function<void()> beforeSave;
+
+        bool unreachable = false;
+        bool failSaves = false;
+
+        mutable int loadCalls = 0;
+        mutable int saveCalls = 0;
+        mutable std::vector<TimePoint> receivedBaselines;
+
+        TimePoint nextServerTime{};
+
+        [[nodiscard]] std::optional<CloudDocument> loadDocument() const override
+        {
+            ++loadCalls;
+            if (unreachable)
+                throw CloudStorageException("network unreachable");
+
+            return stored;
+        }
+
+        [[nodiscard]] CloudWriteResult saveDocument(const nlohmann::json& data, const TimePoint clientLastKnownUpdate) const override
+        {
+            ++saveCalls;
+            receivedBaselines.push_back(clientLastKnownUpdate);
+
+            if (unreachable || failSaves)
+                throw CloudStorageException("network unreachable");
+
+            auto& self = const_cast<FakeCloudStorage&>(*this);
+            if (self.beforeSave)
+                self.beforeSave();
+
+            if (self.stored && self.stored->updatedAt > clientLastKnownUpdate)
+                return CloudWriteResult{ .document = *self.stored, .conflict = true };
+
+            self.stored = CloudDocument{ .content = data, .updatedAt = self.nextServerTime };
+            return CloudWriteResult{ .document = *self.stored, .conflict = false };
+        }
+    };
+}
