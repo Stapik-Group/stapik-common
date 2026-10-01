@@ -15,6 +15,8 @@ add_executable(stapikcommon_tests
         cloud/CloudStorageConfigTest.cpp
         document/DocumentFileTest.cpp
         document/SchemaMigratorTest.cpp
+        locale/LanguageRegistryTest.cpp
+        locale/LocalizationEngineTest.cpp
         log/LogTest.cpp
         settings/AppSettingsTest.cpp
         settings/EnumSettingsTest.cpp

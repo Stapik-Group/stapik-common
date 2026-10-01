@@ -51,9 +51,19 @@ Locale LocaleManager::getLocale() const
     return m_engine.getLocale();
 }
 
-std::string LocaleManager::translate(const std::string &key) const
+std::string LocaleManager::translate(const std::string_view key) const
 {
     return m_engine.translate(key);
+}
+
+std::string LocaleManager::translate(const std::string_view key, const LocalizationEngine::Arguments& arguments) const
+{
+    return m_engine.translate(key, arguments);
+}
+
+const std::vector<stapik::locale::LanguageInfo>& LocaleManager::languages() const
+{
+    return m_engine.languages();
 }
 
 sigc::signal<void()>& LocaleManager::signalLocaleChanged()

@@ -3,58 +3,154 @@
 #include "stapik/log/Log.hpp"
 
 #include <nlohmann/json.hpp>
+
 #include <fstream>
-#include <glib.h>
+#include <utility>
 
-LocalizationEngine::LocalizationEngine(std::filesystem::path localesDir) : m_localesDir(std::move(localesDir))
+namespace
 {
-    loadTranslations();
+    constexpr auto FALLBACK_LANGUAGE = "en";
+
+    std::string substitute(const std::string_view text, const LocalizationEngine::Arguments& arguments)
+    {
+        if (arguments.empty())
+            return std::string(text);
+
+        std::string result;
+        result.reserve(text.size());
+
+        std::size_t position = 0;
+        while (position < text.size())
+        {
+            const auto open = text.find('{', position);
+            if (open == std::string_view::npos)
+                break;
+
+            const auto close = text.find('}', open + 1);
+            if (close == std::string_view::npos)
+                break;
+
+            result.append(text.substr(position, open - position));
+
+            const auto name = std::string(text.substr(open + 1, close - open - 1));
+            if (const auto argument = arguments.find(name); argument != arguments.end())
+                result.append(argument->second);
+            else
+                result.append(text.substr(open, close - open + 1));
+
+            position = close + 1;
+        }
+
+        result.append(text.substr(position));
+        return result;
+    }
 }
 
-void LocalizationEngine::loadTranslations()
+LocalizationEngine::LocalizationEngine(std::filesystem::path localesDir) :
+    m_registry(localesDir)
 {
-    using enum Locale;
-
-    loadLocaleFile(PL, (m_localesDir / "pl.json").string());
-    loadLocaleFile(EN, (m_localesDir / "en.json").string());
-    loadLocaleFile(DE, (m_localesDir / "de.json").string());
+    loadAll();
 }
 
-void LocalizationEngine::loadLocaleFile(const Locale locale, const std::string &filePath)
+void LocalizationEngine::addLocalesDirectory(const std::filesystem::path& localesDir)
 {
-    std::ifstream file(filePath);
-    if (!file.is_open())
+    m_registry.addDirectory(localesDir);
+    loadAll();
+}
+
+void LocalizationEngine::loadAll()
+{
+    m_translations.clear();
+
+    for (const auto& language : m_registry.languages())
+    {
+        for (const auto& file : language.files)
+            loadFile(language.code, file);
+    }
+}
+
+void LocalizationEngine::loadFile(const std::string& code, const std::filesystem::path& file)
+{
+    std::ifstream stream(file);
+    if (!stream.is_open())
+    {
+        stapik::log::warning("Cannot open translation file {}", file.string());
         return;
+    }
 
     try
     {
-        for (const auto json = nlohmann::json::parse(file); const auto &[key, value]: json.items())
-            m_translations[locale][key] = value.get<std::string>();
-    } catch (const nlohmann::json::exception &e)
+        const auto json = nlohmann::json::parse(stream);
+        if (!json.is_object())
+        {
+            stapik::log::warning("Translation file {} must contain a JSON object", file.string());
+            return;
+        }
+
+        for (const auto& [key, value] : json.items())
+        {
+            if (!value.is_string())
+            {
+                stapik::log::warning("Ignoring non-string translation '{}' in {}", key, file.string());
+                continue;
+            }
+
+            m_translations[code][key] = value.get<std::string>();
+        }
+    }
+    catch (const nlohmann::json::exception& exception)
     {
-        stapik::log::warning("Cannot parse translations for locale {} from {}: {}", toString(locale), filePath, e.what());
+        stapik::log::warning("Cannot parse translations from {}: {}", file.string(), exception.what());
     }
 }
 
 void LocalizationEngine::setLocale(const Locale locale)
 {
-    m_currentLocale = locale;
+    setLanguage(toFileString(locale));
 }
 
 Locale LocalizationEngine::getLocale() const
 {
-    return m_currentLocale;
+    return fromFileString(m_languageCode);
 }
 
-std::string LocalizationEngine::translate(const std::string &key) const
+void LocalizationEngine::setLanguage(const std::string_view code)
 {
-    const auto localeIt = m_translations.find(m_currentLocale);
-    if (localeIt == m_translations.end())
-        return key;
+    m_languageCode = std::string(code);
+}
 
-    const auto keyIt = localeIt->second.find(key);
-    if (keyIt == localeIt->second.end())
-        return key;
+const std::string& LocalizationEngine::languageCode() const
+{
+    return m_languageCode;
+}
 
-    return keyIt->second;
+const std::vector<stapik::locale::LanguageInfo>& LocalizationEngine::languages() const
+{
+    return m_registry.languages();
+}
+
+const std::string* LocalizationEngine::find(const std::string_view code, const std::string_view key) const
+{
+    const auto language = m_translations.find(code);
+    if (language == m_translations.end())
+        return nullptr;
+
+    const auto translation = language->second.find(key);
+    return translation == language->second.end() ? nullptr : &translation->second;
+}
+
+std::string LocalizationEngine::translate(const std::string_view key) const
+{
+    return translate(key, Arguments{});
+}
+
+std::string LocalizationEngine::translate(const std::string_view key, const Arguments& arguments) const
+{
+    if (const auto* text = find(m_languageCode, key))
+        return substitute(*text, arguments);
+
+    if (const auto* text = find(FALLBACK_LANGUAGE, key))
+        return substitute(*text, arguments);
+
+    return std::string(key);
 }
