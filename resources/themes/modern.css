@@ -1,0 +1,225 @@
+/* stapik-common base theme "modern". Generic controls only; applications add their own widgets on top. */
+
+/* --- Color palette --- */
+@define-color stapik_bg #f5f5f7;
+@define-color stapik_text #1c1c1e;
+@define-color stapik_text_muted #6e6e73;
+@define-color stapik_border #e2e2e5;
+@define-color stapik_accent #007aff;
+@define-color stapik_accent_hover #0069d9;
+@define-color stapik_btn_bg #ffffff;
+@define-color stapik_btn_hover #f0f0f3;
+@define-color stapik_btn_active #e4e4e8;
+@define-color stapik_btn_border #dcdce0;
+
+/* --- General rules and rounding reset --- */
+* {
+    font-family: "Inter", "SF Pro Display", "Segoe UI", "Cantarell", sans-serif;
+    font-size: 13px;
+}
+
+window,
+dialog,
+dialog .dialog-vbox { background-color: @stapik_bg; }
+
+/* --- Title bars and navigation --- */
+headerbar {
+    background-color: @stapik_bg;
+    border-bottom: 1px solid @stapik_border;
+    box-shadow: none;
+    min-height: 40px;
+    padding: 4px 8px;
+}
+
+headerbar .title,
+headerbar label {
+    color: @stapik_text;
+    font-weight: 600;
+}
+
+windowcontrols button,
+windowcontrols button:hover,
+windowcontrols button:active,
+windowcontrols button:focus {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0;
+    margin: 0;
+    border-radius: 999px;
+    border: none;
+    box-shadow: none;
+    background-color: @stapik_border;
+}
+
+windowcontrols button:hover { background-color: #d4d4d8; }
+
+windowcontrols button:active { background-color: #ccccd1; }
+
+/* --- Menus and Popovers --- */
+menubar {
+    background-color: @stapik_bg;
+    border-bottom: 1px solid @stapik_border;
+    padding: 3px 4px;
+}
+
+menubar > item {
+    padding: 4px 10px;
+    border-radius: 6px;
+    color: @stapik_text;
+    transition: background-color 120ms ease;
+}
+
+menubar > item:hover {
+    background-color: #e8e8ec;
+    color: @stapik_text;
+}
+
+popover contents {
+    background-color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    padding: 6px;
+}
+
+popover modelbutton {
+    padding: 6px 12px;
+    border-radius: 7px;
+    color: @stapik_text;
+    transition: background-color 100ms ease;
+}
+
+popover modelbutton:hover {
+    background-color: @stapik_accent;
+    color: #ffffff;
+}
+
+/* --- Buttons --- */
+button {
+    background-image: none;
+    background-color: @stapik_btn_bg;
+    border-radius: 8px;
+    border: 1px solid @stapik_btn_border;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    padding: 5px 12px;
+    color: @stapik_text;
+    transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+button:hover:not(.stapik-color-swatch) {
+    background-color: @stapik_btn_hover;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+button:active {
+    background-color: @stapik_btn_active;
+    box-shadow: none;
+}
+
+button.suggested-action {
+    background-color: @stapik_accent;
+    color: #ffffff;
+    border: none;
+    font-weight: 600;
+    padding: 8px 18px;
+}
+
+button.suggested-action:hover { background-color: @stapik_accent_hover; }
+
+button:checked:not(.stapik-color-swatch) {
+    background-color: @stapik_accent;
+    box-shadow: none;
+    color: #ffffff;
+}
+
+/* --- Entry / Combobox --- */
+entry,
+combobox button {
+    background-color: #ffffff;
+    border: 1px solid @stapik_btn_border;
+    border-radius: 8px;
+    color: @stapik_text;
+}
+
+entry {
+    padding: 6px 10px;
+    box-shadow: none;
+    transition: border-color 120ms ease;
+}
+
+entry:focus { border-color: @stapik_accent; }
+
+/* --- Color Swatches --- */
+button.stapik-color-swatch {
+    min-width: 18px;
+    min-height: 18px;
+    padding: 0;
+    margin: 0;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    background-image: none;
+    outline: none;
+}
+
+button.stapik-color-swatch:hover {
+    border-color: rgba(28, 28, 30, 0.15);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.20);
+}
+
+button.stapik-color-swatch:active {
+    border-color: rgba(28, 28, 30, 0.30);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10);
+}
+
+button.stapik-color-swatch:checked {
+    border: 2px solid @stapik_text;
+    box-shadow: 0 0 0 1px #ffffff inset, 0 1px 2px rgba(0, 0, 0, 0.20);
+}
+
+/* --- Categories colors (Badges & Swatches) --- */
+.stapik-category-red,
+.stapik-category-green,
+.stapik-category-blue,
+.stapik-category-yellow,
+.stapik-category-purple,
+.stapik-category-orange,
+.stapik-category-brown,
+.stapik-category-pink,
+.stapik-category-teal {
+    border-radius: 6px;
+    padding: 1px 6px;
+}
+
+button.stapik-color-swatch { padding: 0; }
+
+.stapik-category-default { color: @stapik_text_muted; }
+
+.stapik-category-red { background-color: #ff453a; color: #ffffff; }
+
+.stapik-category-green { background-color: #34c759; color: #ffffff; }
+
+.stapik-category-blue { background-color: @stapik_accent; color: #ffffff; }
+
+.stapik-category-yellow { background-color: #ffcc00; color: @stapik_text; }
+
+.stapik-category-purple { background-color: #af52de; color: #ffffff; }
+
+.stapik-category-orange { background-color: #ff9500; color: #ffffff; }
+
+.stapik-category-brown { background-color: #a2845e; color: #ffffff; }
+
+.stapik-category-pink { background-color: #ff2d55; color: #ffffff; }
+
+.stapik-category-teal { background-color: #30b0c7; color: #ffffff; }
+
+.stapik-category-red:hover,
+.stapik-category-green:hover,
+.stapik-category-blue:hover,
+.stapik-category-purple:hover,
+.stapik-category-orange:hover,
+.stapik-category-brown:hover,
+.stapik-category-pink:hover,
+.stapik-category-teal:hover { filter: brightness(0.92); }
+
+.stapik-color-swatch.stapik-category-default { background-color: #e8e8ec; }

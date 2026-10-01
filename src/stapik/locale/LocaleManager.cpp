@@ -23,6 +23,20 @@ namespace
 
 namespace
 {
+    LocalizationEngine createEngine()
+    {
+        const auto appLocales = AppPaths::resourcesDir() / "locales";
+        const auto commonLocales = AppPaths::commonResourcesDir() / "locales";
+
+        std::error_code errorCode;
+        if (!std::filesystem::is_directory(commonLocales, errorCode))
+            return LocalizationEngine(appLocales);
+
+        LocalizationEngine engine(commonLocales);
+        engine.addLocalesDirectory(appLocales);
+        return engine;
+    }
+
     Locale systemDefaultLocale(const LocalizationEngine& engine)
     {
         std::vector<std::string> available;
@@ -46,7 +60,7 @@ LocaleManager& LocaleManager::instance(const std::string& appName)
 }
 
 LocaleManager::LocaleManager(const std::string& appName) :
-    m_engine(AppPaths::resourcesDir() / "locales"),
+    m_engine(createEngine()),
     m_locale(localeSettingsStore(appName), "locale", systemDefaultLocale(m_engine))
 {
     m_engine.setLocale(m_locale.get());

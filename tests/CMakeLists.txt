@@ -19,6 +19,7 @@ add_executable(stapikcommon_tests
         locale/LocalizationEngineTest.cpp
         locale/SystemLanguageTest.cpp
         log/LogTest.cpp
+        resources/CommonResourcesTest.cpp
         settings/AppSettingsTest.cpp
         settings/EnumSettingsTest.cpp
         settings/ObservableSettingTest.cpp
@@ -36,6 +37,9 @@ target_link_libraries(stapikcommon_tests PRIVATE
 )
 
 target_include_directories(stapikcommon_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(stapikcommon_tests PRIVATE
+        STAPIK_COMMON_RESOURCES_DIR="${PROJECT_SOURCE_DIR}/resources"
+)
 
 target_compile_options(stapikcommon_tests PRIVATE -Wall -Wextra -Wpedantic)
 

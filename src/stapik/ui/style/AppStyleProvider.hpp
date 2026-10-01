@@ -13,6 +13,7 @@ class AppStyleProvider
 public:
     explicit AppStyleProvider(std::filesystem::path resourcesDir);
     explicit AppStyleProvider(const std::vector<std::filesystem::path>& resourcesDirs);
+    [[nodiscard]] static AppStyleProvider withCommonThemes(std::filesystem::path appResourcesDir);
     void apply(Theme theme);
     void apply(const std::string& themeId);
     [[nodiscard]] const stapik::theme::ThemeRegistry& themes() const;

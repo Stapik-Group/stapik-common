@@ -45,6 +45,16 @@ add_library(stapikcommon STATIC
         src/stapik/theme/ThemeRegistry.cpp
 )
 
+# Lets development builds find the resources in the source tree (see AppPaths::commonResourcesDir).
+target_compile_definitions(stapikcommon PRIVATE
+        STAPIK_COMMON_SOURCE_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
+)
+
+include(GNUInstallDirs)
+set(STAPIK_COMMON_RESOURCES_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/stapik-common" CACHE STRING
+        "Where the stapik-common resources (locales, themes) are installed, relative to the install prefix")
+install(DIRECTORY resources/ DESTINATION "${STAPIK_COMMON_RESOURCES_INSTALL_DIR}")
+
 target_include_directories(stapikcommon PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )

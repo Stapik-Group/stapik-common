@@ -79,3 +79,62 @@ TEST_F(AppPathsTest, EnsureUserDataDirCreatesTheDirectory)
     std::error_code errorCode;
     fs::remove_all(root, errorCode);
 }
+
+namespace
+{
+    class CommonResourcesDirTest : public testing::Test
+    {
+    protected:
+        void SetUp() override
+        {
+            auto pattern = (fs::temp_directory_path() / "stapik-common-res-XXXXXX").string();
+            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
+            m_root = pattern;
+            m_executableDir = m_root / "app" / "bin";
+            fs::create_directories(m_executableDir);
+        }
+
+        void TearDown() override
+        {
+            std::error_code errorCode;
+            fs::remove_all(m_root, errorCode);
+        }
+
+        fs::path m_root;
+        fs::path m_executableDir;
+    };
+}
+
+TEST_F(CommonResourcesDirTest, PrefersTheCopyNextToTheApplicationResources)
+{
+    fs::create_directories(m_executableDir / "resources" / "stapik-common");
+    fs::create_directories(m_root / "app" / "share" / "stapik-common");
+    fs::create_directories(m_root / "source");
+
+    EXPECT_EQ(AppPaths::resolveCommonResourcesDir(m_executableDir, m_root / "source"),
+        m_executableDir / "resources" / "stapik-common");
+}
+
+TEST_F(CommonResourcesDirTest, UsesTheInstalledShareDirectoryNext)
+{
+    fs::create_directories(m_root / "app" / "share" / "stapik-common");
+    fs::create_directories(m_root / "source");
+
+    EXPECT_EQ(AppPaths::resolveCommonResourcesDir(m_executableDir, m_root / "source"),
+        m_root / "app" / "share" / "stapik-common");
+}
+
+TEST_F(CommonResourcesDirTest, FallsBackToTheSourceTree)
+{
+    fs::create_directories(m_root / "source");
+
+    EXPECT_EQ(AppPaths::resolveCommonResourcesDir(m_executableDir, m_root / "source"), m_root / "source");
+}
+
+TEST_F(CommonResourcesDirTest, ReturnsTheFirstCandidateWhenNothingExists)
+{
+    EXPECT_EQ(AppPaths::resolveCommonResourcesDir(m_executableDir, m_root / "missing"),
+        m_executableDir / "resources" / "stapik-common");
+    EXPECT_EQ(AppPaths::resolveCommonResourcesDir(m_executableDir, {}),
+        m_executableDir / "resources" / "stapik-common");
+}

@@ -1,0 +1,56 @@
+{
+  "language.name": "Deutsch",
+
+  "menu.file": "Datei",
+  "menu.file.connect": "Mit Cloud verbinden",
+  "menu.file.sync": "Synchronisieren",
+  "menu.file.quit": "Beenden",
+  "menu.edit": "Bearbeiten",
+  "menu.edit.undo": "Rückgängig",
+  "menu.edit.redo": "Wiederholen",
+  "menu.settings": "Einstellungen",
+  "menu.settings.currency": "Währung",
+  "menu.settings.language": "Sprache",
+  "menu.settings.language.pl": "Polnisch",
+  "menu.settings.language.en": "Englisch",
+  "menu.settings.language.de": "Deutsch",
+  "menu.settings.theme": "Thema",
+  "menu.settings.theme.classic": "Klassisch",
+  "menu.settings.theme.classicPink": "Klassisch Pink",
+  "menu.settings.theme.modern": "Modern",
+
+  "theme.classic": "Klassisch",
+  "theme.classic-pink": "Klassisch Pink",
+  "theme.modern": "Modern",
+
+  "month.january": "Januar",
+  "month.february": "Februar",
+  "month.march": "März",
+  "month.april": "April",
+  "month.may": "Mai",
+  "month.june": "Juni",
+  "month.july": "Juli",
+  "month.august": "August",
+  "month.september": "September",
+  "month.october": "Oktober",
+  "month.november": "November",
+  "month.december": "Dezember",
+
+  "dialog.button.ok": "OK",
+  "dialog.button.cancel": "Abbrechen",
+  "dialog.connect.title": "Mit Cloud verbinden",
+  "dialog.connect.url.label": "API-URL",
+  "dialog.connect.key.label": "API-Schlüssel",
+  "dialog.connect.key.placeholder": "Schlüssel eingeben",
+  "dialog.connect.button.connect": "Verbinden",
+
+  "cloud.connected": "Verbunden",
+  "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
+  "cloud.failed.header": "Verbindung fehlgeschlagen",
+
+  "category.uncategorized": "Ohne Kategorie",
+
+  "currency.PLN": "Złoty",
+  "currency.EUR": "Euro",
+  "currency.USD": "US-Dollar"
+}

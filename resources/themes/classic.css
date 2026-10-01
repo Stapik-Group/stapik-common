@@ -1,0 +1,188 @@
+/* stapik-common base theme "classic". Generic controls only; applications add their own widgets on top. */
+
+/* --- Color palette --- */
+@define-color stapik_bg #c0c0c0;
+@define-color stapik_blue #000080;
+@define-color stapik_blue_light #1084d0;
+@define-color stapik_border_light #ffffff;
+@define-color stapik_border_dark #808080;
+@define-color stapik_border_black #000000;
+
+/* --- General rules and rounding reset --- */
+* {
+    font-family: "Arial", sans-serif;
+    font-size: 13px;
+}
+
+window,
+window.background,
+window > decoration,
+dialog,
+dialog > decoration,
+popover,
+popover contents {
+    border-radius: 0;
+    box-shadow: none;
+}
+
+window,
+dialog,
+dialog .dialog-vbox,
+popover contents { background-color: @stapik_bg; }
+
+/* --- Title bars and navigation --- */
+headerbar {
+    background: linear-gradient(to right, @stapik_blue, @stapik_blue_light);
+    padding: 2px 4px;
+    border-bottom: 2px solid @stapik_border_dark;
+}
+
+headerbar { min-height: 26px; }
+
+headerbar .title,
+headerbar label {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+windowcontrols button,
+windowcontrols button:hover,
+windowcontrols button:active,
+windowcontrols button:focus {
+    min-width: 20px;
+    min-height: 18px;
+    padding: 0 2px;
+    box-shadow: none;
+}
+
+/* --- Menus and Popovers --- */
+menubar {
+    background-color: @stapik_bg;
+    border-bottom: 1px solid @stapik_border_dark;
+    padding: 1px;
+}
+
+menubar > item,
+popover modelbutton {
+    padding: 2px 6px;
+    color: @stapik_border_black;
+    border-radius: 0;
+}
+
+popover modelbutton { padding: 2px 16px; }
+
+menubar > item:hover,
+popover modelbutton:hover {
+    background-color: @stapik_blue;
+    color: #ffffff;
+}
+
+popover contents {
+    border: 2px solid;
+    border-color: @stapik_border_light @stapik_border_dark @stapik_border_dark @stapik_border_light;
+    padding: 2px;
+}
+
+/* --- Buttons --- */
+button {
+    background-image: none;
+    background-color: @stapik_bg;
+    border-radius: 0;
+    border: 2px solid;
+    border-color: @stapik_border_light @stapik_border_dark @stapik_border_dark @stapik_border_light;
+    box-shadow: 1px 1px 0 @stapik_border_black;
+    padding: 2px 8px;
+    color: @stapik_border_black;
+}
+
+button:hover:not(.stapik-color-swatch) { background-color: @stapik_bg; }
+
+button:active {
+    border-color: @stapik_border_dark @stapik_border_light @stapik_border_light @stapik_border_dark;
+    box-shadow: none;
+    padding-top: 3px;
+    padding-right: 7px;
+    padding-bottom: 1px;
+    padding-left: 9px;
+}
+
+button.suggested-action {
+    background-color: @stapik_blue;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 5px 14px;
+}
+
+button.suggested-action:hover { background-color: @stapik_blue_light; }
+
+button:checked:not(.stapik-color-swatch) {
+    border-color: @stapik_border_dark @stapik_border_light @stapik_border_light @stapik_border_dark;
+    box-shadow: none;
+    background-color: @stapik_blue;
+    color: #ffffff;
+}
+
+/* --- Entry / Combobox --- */
+entry,
+combobox button {
+    background-color: #ffffff;
+    border: 2px solid;
+    border-color: @stapik_border_dark @stapik_border_light @stapik_border_light @stapik_border_dark;
+    border-radius: 0;
+    color: @stapik_border_black;
+}
+
+entry { padding: 2px 4px; }
+
+/* --- Color Swatch --- */
+button.stapik-color-swatch {
+    min-width: 16px;
+    min-height: 16px;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    border: 2px solid;
+    border-color: @stapik_border_light @stapik_border_dark @stapik_border_dark @stapik_border_light;
+    box-shadow: none;
+    background-image: none;
+    outline: none;
+}
+
+button.stapik-color-swatch:hover,
+button.stapik-color-swatch:focus { box-shadow: none; }
+
+button.stapik-color-swatch:active,
+button.stapik-color-swatch:checked { border-color: @stapik_border_dark @stapik_border_light @stapik_border_light @stapik_border_dark; }
+
+/* --- Categories colors (Badges & Swatches) --- */
+.stapik-category-red,
+.stapik-category-green,
+.stapik-category-blue,
+.stapik-category-yellow,
+.stapik-category-purple,
+.stapik-category-orange,
+.stapik-category-brown,
+.stapik-category-pink,
+.stapik-category-teal { padding: 1px 4px; }
+
+button.stapik-color-swatch { padding: 0; }
+
+.stapik-category-default { color: @stapik_border_black; padding: 0; }
+
+.stapik-category-red { background-color: #800000; color: #ffffff; }
+
+.stapik-category-green { background-color: #008000; color: #ffffff; }
+
+.stapik-category-blue { background-color: @stapik_blue; color: #ffffff; }
+
+.stapik-category-yellow { background-color: #808000; color: @stapik_border_black; }
+
+.stapik-category-purple { background-color: #800080; color: #ffffff; }
+
+.stapik-category-orange { background-color: #ff8000; color: @stapik_border_black; }
+
+.stapik-category-brown { background-color: #804000; color: #ffffff; }
+
+.stapik-category-pink { background-color: #c080a0; color: @stapik_border_black; }
+
+.stapik-category-teal { background-color: #008080; color: #ffffff; }

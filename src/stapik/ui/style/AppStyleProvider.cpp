@@ -1,6 +1,7 @@
 #include "AppStyleProvider.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/storage/AppPaths.hpp"
 
 #include <gtkmm/stylecontext.h>
 
@@ -18,6 +19,21 @@ AppStyleProvider::AppStyleProvider(const std::vector<std::filesystem::path>& res
 {
     for (const auto& resourcesDir : resourcesDirs)
         m_registry.addDirectory(resourcesDir);
+}
+
+AppStyleProvider AppStyleProvider::withCommonThemes(std::filesystem::path appResourcesDir)
+{
+    std::vector<std::filesystem::path> resourcesDirs;
+
+    const auto commonResourcesDir = AppPaths::commonResourcesDir();
+    std::error_code errorCode;
+    if (std::filesystem::is_directory(commonResourcesDir, errorCode))
+        resourcesDirs.push_back(commonResourcesDir);
+    else
+        stapik::log::debug("stapik-common resources not found at {}, using the application's themes only", commonResourcesDir.string());
+
+    resourcesDirs.push_back(std::move(appResourcesDir));
+    return AppStyleProvider(resourcesDirs);
 }
 
 void AppStyleProvider::apply(const Theme theme)
