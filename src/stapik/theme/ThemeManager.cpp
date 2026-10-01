@@ -33,18 +33,28 @@ ThemeManager& ThemeManager::instance(const std::string& appName)
 }
 
 ThemeManager::ThemeManager(const std::string& appName) :
-    m_theme(themeSettingsStore(appName), "theme", Theme::Classic)
+    m_themeId(themeSettingsStore(appName), "theme", themeToFileString(Theme::Classic))
 {}
 
 void ThemeManager::setTheme(const Theme theme)
 {
-    m_theme.set(theme);
-    m_signalThemeChanged.emit();
+    setThemeId(themeToFileString(theme));
 }
 
 Theme ThemeManager::getTheme() const
 {
-    return m_theme.get();
+    return themeFromFileString(m_themeId.get());
+}
+
+void ThemeManager::setThemeId(const std::string& themeId)
+{
+    m_themeId.set(themeId);
+    m_signalThemeChanged.emit();
+}
+
+const std::string& ThemeManager::themeId() const
+{
+    return m_themeId.get();
 }
 
 sigc::signal<void()>& ThemeManager::signalThemeChanged()

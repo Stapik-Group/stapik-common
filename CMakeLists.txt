@@ -26,6 +26,7 @@ add_library(stapikcommon STATIC
         src/stapik/document/SchemaMigrator.cpp
         src/stapik/locale/LanguageRegistry.cpp
         src/stapik/locale/LocalizationEngine.cpp
+        src/stapik/locale/SystemLanguage.cpp
         src/stapik/locale/LocaleManager.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/log/Log.cpp
@@ -41,6 +42,7 @@ add_library(stapikcommon STATIC
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp
+        src/stapik/theme/ThemeRegistry.cpp
 )
 
 target_include_directories(stapikcommon PUBLIC

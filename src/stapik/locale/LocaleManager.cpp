@@ -1,6 +1,7 @@
 #include "LocaleManager.hpp"
 
 #include "stapik/app/AppContext.hpp"
+#include "stapik/locale/SystemLanguage.hpp"
 #include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
 
@@ -20,6 +21,18 @@ namespace
     }
 }
 
+namespace
+{
+    Locale systemDefaultLocale(const LocalizationEngine& engine)
+    {
+        std::vector<std::string> available;
+        for (const auto& language : engine.languages())
+            available.push_back(language.code);
+
+        return fromFileString(stapik::locale::systemLanguageCode(available, "en"));
+    }
+}
+
 LocaleManager& LocaleManager::instance()
 {
     static LocaleManager manager(stapik::app::AppContext::instance().info().internalName);
@@ -34,7 +47,7 @@ LocaleManager& LocaleManager::instance(const std::string& appName)
 
 LocaleManager::LocaleManager(const std::string& appName) :
     m_engine(AppPaths::resourcesDir() / "locales"),
-    m_locale(localeSettingsStore(appName), "locale", Locale::EN)
+    m_locale(localeSettingsStore(appName), "locale", systemDefaultLocale(m_engine))
 {
     m_engine.setLocale(m_locale.get());
 }

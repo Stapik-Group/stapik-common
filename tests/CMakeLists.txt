@@ -17,6 +17,7 @@ add_executable(stapikcommon_tests
         document/SchemaMigratorTest.cpp
         locale/LanguageRegistryTest.cpp
         locale/LocalizationEngineTest.cpp
+        locale/SystemLanguageTest.cpp
         log/LogTest.cpp
         settings/AppSettingsTest.cpp
         settings/EnumSettingsTest.cpp
@@ -26,6 +27,7 @@ add_executable(stapikcommon_tests
         storage/AtomicFileTest.cpp
         sync/SyncCoordinatorTest.cpp
         sync/TimestampTest.cpp
+        theme/ThemeRegistryTest.cpp
 )
 
 target_link_libraries(stapikcommon_tests PRIVATE
