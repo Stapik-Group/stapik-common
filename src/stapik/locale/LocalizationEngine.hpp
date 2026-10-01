@@ -1,24 +1,36 @@
 #pragma once
 
 #include "Locale.hpp"
+#include "LanguageRegistry.hpp"
 
 #include <filesystem>
 #include <map>
 #include <string>
+#include <string_view>
+#include <vector>
 
 class LocalizationEngine
 {
 public:
+    using Arguments = std::map<std::string, std::string>;
+
     explicit LocalizationEngine(std::filesystem::path localesDir);
-
+    void addLocalesDirectory(const std::filesystem::path& localesDir);
     void setLocale(Locale locale);
+    void setLanguage(std::string_view code);
     [[nodiscard]] Locale getLocale() const;
-    [[nodiscard]] std::string translate(const std::string& key) const;
+    [[nodiscard]] const std::string& languageCode() const;
+    [[nodiscard]] const std::vector<stapik::locale::LanguageInfo>& languages() const;
+    [[nodiscard]] std::string translate(std::string_view key) const;
+    [[nodiscard]] std::string translate(std::string_view key, const Arguments& arguments) const;
 private:
-    std::filesystem::path m_localesDir;
-    Locale m_currentLocale = Locale::PL;
-    std::map<Locale, std::map<std::string, std::string>> m_translations;
+    using Translations = std::map<std::string, std::string, std::less<>>;
 
-    void loadTranslations();
-    void loadLocaleFile(Locale locale, const std::string& filePath);
+    void loadAll();
+    void loadFile(const std::string& code, const std::filesystem::path& file);
+    [[nodiscard]] const std::string* find(std::string_view code, std::string_view key) const;
+
+    stapik::locale::LanguageRegistry m_registry;
+    std::string m_languageCode = "pl";
+    std::map<std::string, Translations, std::less<>> m_translations;
 };

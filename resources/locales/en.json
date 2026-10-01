@@ -1,0 +1,56 @@
+{
+  "language.name": "English",
+
+  "menu.file": "File",
+  "menu.file.connect": "Connect to cloud",
+  "menu.file.sync": "Sync",
+  "menu.file.quit": "Exit",
+  "menu.edit": "Edit",
+  "menu.edit.undo": "Undo",
+  "menu.edit.redo": "Redo",
+  "menu.settings": "Settings",
+  "menu.settings.currency": "Currency",
+  "menu.settings.language": "Language",
+  "menu.settings.language.pl": "Polish",
+  "menu.settings.language.en": "English",
+  "menu.settings.language.de": "German",
+  "menu.settings.theme": "Theme",
+  "menu.settings.theme.classic": "Classic",
+  "menu.settings.theme.classicPink": "Classic Pink",
+  "menu.settings.theme.modern": "Modern",
+
+  "theme.classic": "Classic",
+  "theme.classic-pink": "Classic Pink",
+  "theme.modern": "Modern",
+
+  "month.january": "January",
+  "month.february": "February",
+  "month.march": "March",
+  "month.april": "April",
+  "month.may": "May",
+  "month.june": "June",
+  "month.july": "July",
+  "month.august": "August",
+  "month.september": "September",
+  "month.october": "October",
+  "month.november": "November",
+  "month.december": "December",
+
+  "dialog.button.ok": "OK",
+  "dialog.button.cancel": "Cancel",
+  "dialog.connect.title": "Connect to cloud",
+  "dialog.connect.url.label": "API URL",
+  "dialog.connect.key.label": "API key",
+  "dialog.connect.key.placeholder": "Enter key",
+  "dialog.connect.button.connect": "Connect",
+
+  "cloud.connected": "Connected",
+  "cloud.connected.secondary": "Successfully connected to the cloud.",
+  "cloud.failed.header": "Could not connect",
+
+  "category.uncategorized": "Uncategorized",
+
+  "currency.PLN": "Polish złoty",
+  "currency.EUR": "Euro",
+  "currency.USD": "United States dollar"
+}

@@ -1,0 +1,56 @@
+{
+  "language.name": "Polski",
+
+  "menu.file": "Plik",
+  "menu.file.connect": "Połącz z chmurą",
+  "menu.file.sync": "Synchronizuj",
+  "menu.file.quit": "Wyjście",
+  "menu.edit": "Edycja",
+  "menu.edit.undo": "Cofnij",
+  "menu.edit.redo": "Ponów",
+  "menu.settings": "Ustawienia",
+  "menu.settings.currency": "Waluta",
+  "menu.settings.language": "Język",
+  "menu.settings.language.pl": "Polski",
+  "menu.settings.language.en": "Angielski",
+  "menu.settings.language.de": "Niemiecki",
+  "menu.settings.theme": "Motyw",
+  "menu.settings.theme.classic": "Klasyczny",
+  "menu.settings.theme.classicPink": "Klasyczny różowy",
+  "menu.settings.theme.modern": "Nowoczesny",
+
+  "theme.classic": "Klasyczny",
+  "theme.classic-pink": "Klasyczny różowy",
+  "theme.modern": "Nowoczesny",
+
+  "month.january": "Styczeń",
+  "month.february": "Luty",
+  "month.march": "Marzec",
+  "month.april": "Kwiecień",
+  "month.may": "Maj",
+  "month.june": "Czerwiec",
+  "month.july": "Lipiec",
+  "month.august": "Sierpień",
+  "month.september": "Wrzesień",
+  "month.october": "Październik",
+  "month.november": "Listopad",
+  "month.december": "Grudzień",
+
+  "dialog.button.ok": "OK",
+  "dialog.button.cancel": "Anuluj",
+  "dialog.connect.title": "Połącz z chmurą",
+  "dialog.connect.url.label": "Adres API",
+  "dialog.connect.key.label": "Klucz API",
+  "dialog.connect.key.placeholder": "Wprowadź klucz",
+  "dialog.connect.button.connect": "Połącz",
+
+  "cloud.connected": "Połączono",
+  "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",
+  "cloud.failed.header": "Nie udało się połączyć",
+
+  "category.uncategorized": "Bez kategorii",
+
+  "currency.PLN": "Polski złoty",
+  "currency.EUR": "Euro",
+  "currency.USD": "Dolar amerykański"
+}

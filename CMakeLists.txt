@@ -24,7 +24,9 @@ add_library(stapikcommon STATIC
         src/stapik/app/AppContext.cpp
         src/stapik/document/DocumentFileCore.cpp
         src/stapik/document/SchemaMigrator.cpp
+        src/stapik/locale/LanguageRegistry.cpp
         src/stapik/locale/LocalizationEngine.cpp
+        src/stapik/locale/SystemLanguage.cpp
         src/stapik/locale/LocaleManager.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/log/Log.cpp
@@ -40,7 +42,18 @@ add_library(stapikcommon STATIC
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp
+        src/stapik/theme/ThemeRegistry.cpp
 )
+
+# Lets development builds find the resources in the source tree (see AppPaths::commonResourcesDir).
+target_compile_definitions(stapikcommon PRIVATE
+        STAPIK_COMMON_SOURCE_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
+)
+
+include(GNUInstallDirs)
+set(STAPIK_COMMON_RESOURCES_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/stapik-common" CACHE STRING
+        "Where the stapik-common resources (locales, themes) are installed, relative to the install prefix")
+install(DIRECTORY resources/ DESTINATION "${STAPIK_COMMON_RESOURCES_INSTALL_DIR}")
 
 target_include_directories(stapikcommon PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

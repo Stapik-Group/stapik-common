@@ -3,6 +3,8 @@
 #include "stapik/log/Log.hpp"
 
 #include <climits>
+#include <cstdlib>
+#include <vector>
 
 namespace
 {
@@ -25,6 +27,39 @@ std::filesystem::path AppPaths::resourcesDir()
         return siblingResources;
 
     return executableDir().parent_path() / "resources";
+}
+
+std::filesystem::path AppPaths::commonResourcesDir()
+{
+#ifdef STAPIK_COMMON_SOURCE_RESOURCES_DIR
+    const std::filesystem::path sourceTreeDir = STAPIK_COMMON_SOURCE_RESOURCES_DIR;
+#else
+    const std::filesystem::path sourceTreeDir;
+#endif
+
+    return resolveCommonResourcesDir(executableDir(), sourceTreeDir);
+}
+
+std::filesystem::path AppPaths::resolveCommonResourcesDir(
+    const std::filesystem::path& executableDir,
+    const std::filesystem::path& sourceTreeDir)
+{
+    std::vector<std::filesystem::path> candidates = {
+        executableDir / "resources" / "stapik-common",
+        executableDir.parent_path() / "share" / "stapik-common"
+    };
+
+    if (!sourceTreeDir.empty())
+        candidates.push_back(sourceTreeDir);
+
+    std::error_code errorCode;
+    for (const auto& candidate : candidates)
+    {
+        if (std::filesystem::is_directory(candidate, errorCode))
+            return candidate;
+    }
+
+    return candidates.front();
 }
 
 std::filesystem::path AppPaths::userDataDir(const std::string& appName)
