@@ -2,6 +2,7 @@
 
 #include "stapik/cloud/CloudStorageConfig.hpp"
 
+#include <gtkmm/checkbutton.h>
 #include <gtkmm/dialog.h>
 #include <gtkmm/entry.h>
 #include <gtkmm/label.h>
@@ -23,8 +24,12 @@ private:
     Gtk::Box m_contentBox;
     Gtk::Label m_apiUrlLabel;
     Gtk::Entry m_apiUrlEntry;
+    Gtk::Label m_apiUrlHintLabel;
     Gtk::Label m_apiKeyLabel;
     Gtk::Entry m_apiKeyEntry;
+    Gtk::CheckButton m_showKeyCheck;
 
     void initLayout();
+    [[nodiscard]] CloudStorageConfig currentConfig() const;
+    void updateValidation();
 };

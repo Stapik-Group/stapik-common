@@ -5,6 +5,14 @@
 #include <string>
 #include <string_view>
 
+enum class ApiUrlStatus
+{
+    Empty,
+    Invalid,
+    Insecure,
+    Secure
+};
+
 struct CloudStorageConfig
 {
     std::string apiUrl;
@@ -31,17 +39,35 @@ struct CloudStorageConfig
         return std::string(view.substr(first, last - first + 1));
     }
 
+    [[nodiscard]] ApiUrlStatus urlStatus() const
+    {
+        const auto url = normalizedApiUrl();
+        if (url.empty())
+            return ApiUrlStatus::Empty;
+
+        if (hasSchemeAndHost(url, "https://"))
+            return ApiUrlStatus::Secure;
+
+        if (hasSchemeAndHost(url, "http://"))
+            return ApiUrlStatus::Insecure;
+
+        return ApiUrlStatus::Invalid;
+    }
+
     [[nodiscard]] bool isSecure() const
     {
-        constexpr std::string_view requiredPrefix = "https://";
+        return urlStatus() == ApiUrlStatus::Secure;
+    }
 
-        const auto url = normalizedApiUrl();
-        if (url.size() <= requiredPrefix.size())
+private:
+    static bool hasSchemeAndHost(const std::string_view url, const std::string_view scheme)
+    {
+        if (url.size() <= scheme.size())
             return false;
 
         return std::ranges::equal(
-            requiredPrefix,
-            std::string_view(url).substr(0, requiredPrefix.size()),
+            scheme,
+            url.substr(0, scheme.size()),
             [](const char expected, const char actual)
             {
                 return expected == static_cast<char>(std::tolower(static_cast<unsigned char>(actual)));

@@ -43,6 +43,9 @@
   "dialog.connect.key.label": "API key",
   "dialog.connect.key.placeholder": "Enter key",
   "dialog.connect.button.connect": "Connect",
+  "dialog.connect.key.show": "Show key",
+  "dialog.connect.url.invalid": "The address must start with http:// or https://",
+  "dialog.connect.url.insecure": "Not a secure connection: the key and data are sent unencrypted.",
 
   "cloud.connected": "Connected",
   "cloud.connected.secondary": "Successfully connected to the cloud.",

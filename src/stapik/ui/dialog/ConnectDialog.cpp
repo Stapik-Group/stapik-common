@@ -22,11 +22,26 @@ void ConnectDialog::initLayout()
     m_apiKeyEntry.set_placeholder_text(loc.translate("dialog.connect.key.placeholder"));
     m_apiKeyEntry.set_visibility(false);
 
+    m_apiUrlHintLabel.set_halign(Gtk::Align::START);
+    m_apiUrlHintLabel.set_wrap(true);
+    m_apiUrlHintLabel.set_visible(false);
+
+    m_showKeyCheck.set_label(loc.translate("dialog.connect.key.show"));
+    m_showKeyCheck.signal_toggled().connect([this]
+    {
+        m_apiKeyEntry.set_visibility(m_showKeyCheck.get_active());
+    });
+
+    m_apiUrlEntry.signal_changed().connect([this] { updateValidation(); });
+    m_apiKeyEntry.signal_changed().connect([this] { updateValidation(); });
+
     m_contentBox.set_margin(CONTENT_MARGIN);
     m_contentBox.append(m_apiUrlLabel);
     m_contentBox.append(m_apiUrlEntry);
+    m_contentBox.append(m_apiUrlHintLabel);
     m_contentBox.append(m_apiKeyLabel);
     m_contentBox.append(m_apiKeyEntry);
+    m_contentBox.append(m_showKeyCheck);
 
     get_content_area()->append(m_contentBox);
 
@@ -37,17 +52,56 @@ void ConnectDialog::initLayout()
     m_apiUrlEntry.set_activates_default(true);
     m_apiKeyEntry.set_activates_default(true);
     set_default_size(DEFAULT_WIDTH, -1);
+
+    updateValidation();
+}
+
+CloudStorageConfig ConnectDialog::currentConfig() const
+{
+    CloudStorageConfig config{ .apiUrl = m_apiUrlEntry.get_text(), .apiKey = m_apiKeyEntry.get_text() };
+    config.apiUrl = config.normalizedApiUrl();
+    return config;
+}
+
+void ConnectDialog::updateValidation()
+{
+    const auto& loc = LocaleManager::instance();
+    const auto config = currentConfig();
+    const auto urlStatus = config.urlStatus();
+
+    m_apiUrlHintLabel.remove_css_class("error");
+    m_apiUrlHintLabel.remove_css_class("warning");
+
+    switch (urlStatus)
+    {
+        case ApiUrlStatus::Invalid:
+            m_apiUrlHintLabel.set_text(loc.translate("dialog.connect.url.invalid"));
+            m_apiUrlHintLabel.add_css_class("error");
+            m_apiUrlHintLabel.set_visible(true);
+            break;
+        case ApiUrlStatus::Insecure:
+            m_apiUrlHintLabel.set_text(loc.translate("dialog.connect.url.insecure"));
+            m_apiUrlHintLabel.add_css_class("warning");
+            m_apiUrlHintLabel.set_visible(true);
+            break;
+        case ApiUrlStatus::Empty:
+        case ApiUrlStatus::Secure:
+            m_apiUrlHintLabel.set_visible(false);
+            break;
+    }
+
+    const bool urlUsable = urlStatus == ApiUrlStatus::Secure || urlStatus == ApiUrlStatus::Insecure;
+    set_response_sensitive(Gtk::ResponseType::OK, urlUsable && !config.apiKey.empty());
 }
 
 std::optional<CloudStorageConfig> ConnectDialog::getResult() const
 {
-    const auto apiUrl = m_apiUrlEntry.get_text();
-    const auto apiKey = m_apiKeyEntry.get_text();
+    const auto config = currentConfig();
 
-    CloudStorageConfig config{ .apiUrl = apiUrl, .apiKey = apiKey };
-    config.apiUrl = config.normalizedApiUrl();
+    const auto urlStatus = config.urlStatus();
+    const bool urlUsable = urlStatus == ApiUrlStatus::Secure || urlStatus == ApiUrlStatus::Insecure;
 
-    if (config.apiUrl.empty() || config.apiKey.empty())
+    if (!urlUsable || config.apiKey.empty())
         return std::nullopt;
 
     return config;

@@ -43,6 +43,9 @@
   "dialog.connect.key.label": "Klucz API",
   "dialog.connect.key.placeholder": "Wprowadź klucz",
   "dialog.connect.button.connect": "Połącz",
+  "dialog.connect.key.show": "Pokaż klucz",
+  "dialog.connect.url.invalid": "Adres musi zaczynać się od http:// lub https://",
+  "dialog.connect.url.insecure": "Połączenie niezabezpieczone: klucz i dane są wysyłane bez szyfrowania.",
 
   "cloud.connected": "Połączono",
   "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",
