@@ -39,6 +39,7 @@ add_library(stapikcommon STATIC
         src/stapik/sync/SyncEnvelope.cpp
         src/stapik/ui/dialog/DialogUtils.cpp
         src/stapik/ui/dialog/AboutDialog.cpp
+        src/stapik/ui/dialog/ChoiceDialog.cpp
         src/stapik/ui/dialog/ConfirmDialog.cpp
         src/stapik/ui/dialog/ConnectDialog.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
