@@ -43,6 +43,7 @@ add_library(stapikcommon STATIC
         src/stapik/ui/dialog/ConnectDialog.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
         src/stapik/ui/dialog/TextInputDialog.cpp
+        src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp
