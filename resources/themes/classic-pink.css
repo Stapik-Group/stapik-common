@@ -189,3 +189,9 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-category-teal { background-color: #00e5ff; color: #1a1a2e; }
 
 .stapik-color-swatch.stapik-category-default { background-color: @stapik_bg; }
+
+.stapik-sync-idle { color: @stapik_text; }
+.stapik-sync-syncing { color: @stapik_accent; }
+.stapik-sync-offline { color: @stapik_border_dark; }
+.stapik-sync-conflict { color: #b5836b; }
+.stapik-sync-error { color: #a0003c; font-weight: bold; }

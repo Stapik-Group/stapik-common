@@ -9,6 +9,7 @@
 #include <gtkmm/label.h>
 #include <gtkmm/box.h>
 
+#include <functional>
 #include <optional>
 
 class ConnectDialog : public StapikDialog
@@ -29,3 +30,8 @@ private:
     [[nodiscard]] CloudStorageConfig currentConfig() const;
     void updateValidation();
 };
+
+void showConnectDialog(
+    Gtk::Window& parent,
+    const std::optional<CloudStorageConfig>& prefill,
+    std::function<void(const CloudStorageConfig&)> onConfirmed);

@@ -1,5 +1,6 @@
 #include "stapik/locale/LanguageRegistry.hpp"
 #include "stapik/locale/LocalizationEngine.hpp"
+#include "stapik/sync/SyncStatus.hpp"
 #include "stapik/theme/ThemeRegistry.hpp"
 
 #include <gtest/gtest.h>
@@ -192,4 +193,24 @@ TEST(CommonResourcesTest, ApplicationLocalesOverrideCommonOnes)
 
     std::error_code errorCode;
     fs::remove_all(appLocales, errorCode);
+}
+
+TEST(CommonResourcesTest, EverySyncStatusHasATranslationInEveryLanguage)
+{
+    for (const auto& language : LANGUAGES)
+    {
+        const auto keys = keysOf(language);
+        for (const auto status : stapik::sync::ALL_SYNC_STATUSES)
+            EXPECT_TRUE(keys.contains(stapik::sync::syncStatusKey(status))) << language << " lacks " << stapik::sync::syncStatusKey(status);
+    }
+}
+
+TEST(CommonResourcesTest, ThemesStyleEverySyncStatus)
+{
+    for (const auto& theme : THEMES)
+    {
+        const auto css = readFile(RESOURCES_DIR / "themes" / (theme + ".css"));
+        for (const auto status : stapik::sync::ALL_SYNC_STATUSES)
+            EXPECT_NE(css.find(std::string(".") + stapik::sync::syncStatusCssClass(status)), std::string::npos) << theme << " lacks " << stapik::sync::syncStatusCssClass(status);
+    }
 }

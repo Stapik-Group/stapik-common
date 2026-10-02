@@ -223,3 +223,9 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-category-teal:hover { filter: brightness(0.92); }
 
 .stapik-color-swatch.stapik-category-default { background-color: #e8e8ec; }
+
+.stapik-sync-idle { color: @stapik_text_muted; }
+.stapik-sync-syncing { color: @stapik_accent; }
+.stapik-sync-offline { color: @stapik_text_muted; }
+.stapik-sync-conflict { color: #ff9500; }
+.stapik-sync-error { color: #ff3b30; font-weight: 600; }

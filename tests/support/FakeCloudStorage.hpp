@@ -3,6 +3,7 @@
 #include "stapik/cloud/CloudStorageException.hpp"
 #include "stapik/cloud/ICloudStorage.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <optional>
@@ -18,14 +19,16 @@ namespace stapik::test
         std::optional<CloudDocument> stored;
         std::function<void()> beforeSave;
 
-        bool unreachable = false;
-        bool failSaves = false;
+        std::atomic<bool> unreachable{ false };
 
-        mutable int loadCalls = 0;
-        mutable int saveCalls = 0;
+        std::atomic<bool> failSaves{ false };
+
+        mutable std::atomic<int> loadCalls{ 0 };
+        mutable std::atomic<int> saveCalls{ 0 };
         mutable std::vector<TimePoint> receivedBaselines;
 
         TimePoint nextServerTime{};
+        std::chrono::seconds serverTimeStep{ 0 };
 
         [[nodiscard]] std::optional<CloudDocument> loadDocument() const override
         {
@@ -52,6 +55,7 @@ namespace stapik::test
                 return CloudWriteResult{ .document = *self.stored, .conflict = true };
 
             self.stored = CloudDocument{ .content = data, .updatedAt = self.nextServerTime };
+            self.nextServerTime += self.serverTimeStep;
             return CloudWriteResult{ .document = *self.stored, .conflict = false };
         }
     };

@@ -53,6 +53,11 @@
   "cloud.connected": "Connected",
   "cloud.connected.secondary": "Successfully connected to the cloud.",
   "cloud.failed.header": "Could not connect",
+  "sync.status.idle": "Up to date",
+  "sync.status.syncing": "Syncing…",
+  "sync.status.offline": "Offline",
+  "sync.status.conflict": "Conflict: server version kept",
+  "sync.status.error": "Sync error",
 
   "category.uncategorized": "Uncategorized",
 

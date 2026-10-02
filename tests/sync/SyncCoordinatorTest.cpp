@@ -1,6 +1,7 @@
 #include "stapik/sync/SyncCoordinator.hpp"
 
 #include "support/FakeCloudStorage.hpp"
+#include "support/SyncTestDocument.hpp"
 
 #include <gtest/gtest.h>
 
@@ -14,58 +15,13 @@ namespace
     using stapik::sync::SyncCoordinator;
     using stapik::sync::SyncEnvelope;
     using stapik::sync::SyncState;
+    using stapik::test::at;
+    using stapik::test::cloudContent;
+    using stapik::test::cloudDocument;
+    using stapik::test::Entry;
     using stapik::test::FakeCloudStorage;
-
-    using TimePoint = system_clock::time_point;
-
-    TimePoint at(const int seconds)
-    {
-        return sys_days{ year{ 2026 } / January / 1 } + hours{ 12 } + std::chrono::seconds{ seconds };
-    }
-
-    struct Entry
-    {
-        std::string text;
-        TimePoint updated;
-        std::optional<TimePoint> cloudBaseline;
-
-        [[nodiscard]] nlohmann::json toJson() const
-        {
-            nlohmann::json json = nlohmann::json::object();
-            json["text"] = text;
-            return json;
-        }
-
-        static Entry fromJson(const nlohmann::json& json)
-        {
-            return Entry{ json.at("text").get<std::string>(), TimePoint{}, std::nullopt };
-        }
-
-        [[nodiscard]] TimePoint lastUpdate() const { return updated; }
-        [[nodiscard]] std::optional<TimePoint> lastKnownCloudUpdate() const { return cloudBaseline; }
-
-        [[nodiscard]] Entry withLastKnownCloudUpdate(const TimePoint cloudUpdate) const
-        {
-            return Entry{ text, updated, cloudUpdate };
-        }
-    };
-
-    static_assert(stapik::sync::SyncableDocument<Entry>);
-
-    Entry local(const std::string& text, const int updatedAt, const std::optional<int> baseline = std::nullopt)
-    {
-        return Entry{ text, at(updatedAt), baseline ? std::optional<TimePoint>{ at(*baseline) } : std::nullopt };
-    }
-
-    nlohmann::json cloudContent(const std::string& text, const TimePoint contentTime)
-    {
-        return SyncEnvelope{ contentTime, Entry{ text, contentTime, std::nullopt }.toJson() }.toJson();
-    }
-
-    CloudDocument cloudDocument(const std::string& text, const int contentTime, const int serverTime)
-    {
-        return CloudDocument{ .content = cloudContent(text, at(contentTime)), .updatedAt = at(serverTime) };
-    }
+    using stapik::test::local;
+    using stapik::test::TimePoint;
 
     class SyncCoordinatorTest : public testing::Test
     {
