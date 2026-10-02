@@ -1,5 +1,6 @@
 #include "stapik/locale/LanguageRegistry.hpp"
 #include "stapik/locale/LocalizationEngine.hpp"
+#include "stapik/sync/SyncStatus.hpp"
 #include "stapik/theme/ThemeRegistry.hpp"
 
 #include <gtest/gtest.h>
@@ -192,4 +193,18 @@ TEST(CommonResourcesTest, ApplicationLocalesOverrideCommonOnes)
 
     std::error_code errorCode;
     fs::remove_all(appLocales, errorCode);
+}
+
+TEST(CommonResourcesTest, EverySyncStatusHasATranslationInEveryLanguage)
+{
+    using stapik::sync::SyncStatus;
+
+    const SyncStatus all[] = { SyncStatus::Idle, SyncStatus::Syncing, SyncStatus::Offline, SyncStatus::Conflict, SyncStatus::Error };
+
+    for (const auto& language : LANGUAGES)
+    {
+        const auto keys = keysOf(language);
+        for (const auto status : all)
+            EXPECT_TRUE(keys.contains(stapik::sync::syncStatusKey(status))) << language << " lacks " << stapik::sync::syncStatusKey(status);
+    }
 }

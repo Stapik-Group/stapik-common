@@ -27,7 +27,10 @@ add_executable(stapikcommon_tests
         storage/AppPathsTest.cpp
         storage/AtomicFileTest.cpp
         sync/SyncCoordinatorTest.cpp
+        sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
+        task/BackgroundTaskRunnerTest.cpp
+        task/DebouncedActionTest.cpp
         text/TrimTest.cpp
         theme/ThemeRegistryTest.cpp
         ui/RadioOptionsTest.cpp

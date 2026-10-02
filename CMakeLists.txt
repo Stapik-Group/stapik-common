@@ -47,6 +47,9 @@ add_library(stapikcommon STATIC
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
+        src/stapik/task/BackgroundTaskRunner.cpp
+        src/stapik/task/DebouncedAction.cpp
+        src/stapik/task/MainThread.cpp
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp
         src/stapik/theme/ThemeRegistry.cpp
