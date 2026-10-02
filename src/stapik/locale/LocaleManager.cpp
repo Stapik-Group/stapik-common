@@ -28,8 +28,7 @@ namespace
         const auto appLocales = AppPaths::resourcesDir() / "locales";
         const auto commonLocales = AppPaths::commonResourcesDir() / "locales";
 
-        std::error_code errorCode;
-        if (!std::filesystem::is_directory(commonLocales, errorCode))
+        if (std::error_code errorCode; !std::filesystem::is_directory(commonLocales, errorCode))
             return LocalizationEngine(appLocales);
 
         LocalizationEngine engine(commonLocales);
@@ -37,13 +36,13 @@ namespace
         return engine;
     }
 
-    Locale systemDefaultLocale(const LocalizationEngine& engine)
+    std::string systemDefaultLanguage(const LocalizationEngine& engine)
     {
         std::vector<std::string> available;
         for (const auto& language : engine.languages())
             available.push_back(language.code);
 
-        return fromFileString(stapik::locale::systemLanguageCode(available, "en"));
+        return stapik::locale::systemLanguageCode(available, "en");
     }
 }
 
@@ -61,21 +60,31 @@ LocaleManager& LocaleManager::instance(const std::string& appName)
 
 LocaleManager::LocaleManager(const std::string& appName) :
     m_engine(createEngine()),
-    m_locale(localeSettingsStore(appName), "locale", systemDefaultLocale(m_engine))
+    m_languageCode(localeSettingsStore(appName), "locale", systemDefaultLanguage(m_engine))
 {
-    m_engine.setLocale(m_locale.get());
+    m_engine.setLanguage(m_languageCode.get());
 }
 
 void LocaleManager::setLocale(const Locale locale)
 {
-    m_locale.set(locale);
-    m_engine.setLocale(locale);
-    m_signalLocaleChanged.emit();
+    setLanguage(toFileString(locale));
 }
 
 Locale LocaleManager::getLocale() const
 {
-    return m_engine.getLocale();
+    return fromFileString(m_engine.languageCode());
+}
+
+void LocaleManager::setLanguage(const std::string& languageCode)
+{
+    m_languageCode.set(languageCode);
+    m_engine.setLanguage(languageCode);
+    m_signalLocaleChanged.emit();
+}
+
+const std::string& LocaleManager::languageCode() const
+{
+    return m_engine.languageCode();
 }
 
 std::string LocaleManager::translate(const std::string_view key) const

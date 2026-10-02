@@ -15,6 +15,11 @@ namespace
     {
         return CloudStorageConfig{ apiUrl, "key" }.isSecure();
     }
+
+    ApiUrlStatus urlStatus(const std::string& apiUrl)
+    {
+        return CloudStorageConfig{ apiUrl, "key" }.urlStatus();
+    }
 }
 
 TEST(CloudStorageConfigTest, NormalizedApiUrlStripsTrailingSlash)
@@ -60,4 +65,29 @@ TEST(CloudStorageConfigTest, IsConfiguredRequiresUrlAndKey)
     EXPECT_TRUE(complete.isConfigured());
     EXPECT_FALSE(missingUrl.isConfigured());
     EXPECT_FALSE(missingKey.isConfigured());
+}
+
+TEST(CloudStorageConfigTest, UrlStatusClassifiesAddresses)
+{
+    EXPECT_EQ(urlStatus("https://example.com"), ApiUrlStatus::Secure);
+    EXPECT_EQ(urlStatus("HTTPS://example.com/"), ApiUrlStatus::Secure);
+    EXPECT_EQ(urlStatus("http://localhost:8080/"), ApiUrlStatus::Insecure);
+    EXPECT_EQ(urlStatus("  http://example.com  "), ApiUrlStatus::Insecure);
+}
+
+TEST(CloudStorageConfigTest, UrlStatusOfBlankInputIsEmpty)
+{
+    EXPECT_EQ(urlStatus(""), ApiUrlStatus::Empty);
+    EXPECT_EQ(urlStatus("   "), ApiUrlStatus::Empty);
+    EXPECT_EQ(urlStatus(" / "), ApiUrlStatus::Empty);
+}
+
+TEST(CloudStorageConfigTest, UrlStatusRejectsAddressesWithoutHttpScheme)
+{
+    EXPECT_EQ(urlStatus("example.com"), ApiUrlStatus::Invalid);
+    EXPECT_EQ(urlStatus("ftp://example.com"), ApiUrlStatus::Invalid);
+    EXPECT_EQ(urlStatus("localhost:8080"), ApiUrlStatus::Invalid);
+    EXPECT_EQ(urlStatus("https://"), ApiUrlStatus::Invalid);
+    EXPECT_EQ(urlStatus("http://"), ApiUrlStatus::Invalid);
+    EXPECT_EQ(urlStatus("https:/example.com"), ApiUrlStatus::Invalid);
 }

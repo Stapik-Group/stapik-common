@@ -18,6 +18,8 @@
   "menu.settings.theme.classic": "Klassisch",
   "menu.settings.theme.classicPink": "Klassisch Pink",
   "menu.settings.theme.modern": "Modern",
+  "menu.help": "Hilfe",
+  "menu.help.about": "Info",
 
   "theme.classic": "Klassisch",
   "theme.classic-pink": "Klassisch Pink",
@@ -43,6 +45,10 @@
   "dialog.connect.key.label": "API-Schlüssel",
   "dialog.connect.key.placeholder": "Schlüssel eingeben",
   "dialog.connect.button.connect": "Verbinden",
+  "dialog.connect.key.show": "Schlüssel anzeigen",
+  "dialog.connect.url.invalid": "Die Adresse muss mit http:// oder https:// beginnen",
+  "dialog.connect.url.insecure": "Unsichere Verbindung: Schlüssel und Daten werden unverschlüsselt gesendet.",
+  "dialog.about.title": "Über {name}",
 
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
