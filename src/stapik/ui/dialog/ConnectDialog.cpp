@@ -3,8 +3,7 @@
 #include "stapik/locale/LocaleManager.hpp"
 
 ConnectDialog::ConnectDialog(Window& parent) :
-    Dialog(LocaleManager::instance().translate("dialog.connect.title"), parent, true),
-    m_contentBox(Gtk::Orientation::VERTICAL, CONTENT_SPACING)
+    StapikDialog(parent, LocaleManager::instance().translate("dialog.connect.title"))
 {
     initLayout();
 }
@@ -35,23 +34,18 @@ void ConnectDialog::initLayout()
     m_apiUrlEntry.signal_changed().connect([this] { updateValidation(); });
     m_apiKeyEntry.signal_changed().connect([this] { updateValidation(); });
 
-    m_contentBox.set_margin(CONTENT_MARGIN);
-    m_contentBox.append(m_apiUrlLabel);
-    m_contentBox.append(m_apiUrlEntry);
-    m_contentBox.append(m_apiUrlHintLabel);
-    m_contentBox.append(m_apiKeyLabel);
-    m_contentBox.append(m_apiKeyEntry);
-    m_contentBox.append(m_showKeyCheck);
+    contentBox().append(m_apiUrlLabel);
+    contentBox().append(m_apiUrlEntry);
+    contentBox().append(m_apiUrlHintLabel);
+    contentBox().append(m_apiKeyLabel);
+    contentBox().append(m_apiKeyEntry);
+    contentBox().append(m_showKeyCheck);
 
-    get_content_area()->append(m_contentBox);
+    addCancelButton();
+    addOkButton(loc.translate("dialog.connect.button.connect"));
 
-    add_button(loc.translate("dialog.button.cancel"), Gtk::ResponseType::CANCEL);
-    add_button(loc.translate("dialog.connect.button.connect"), Gtk::ResponseType::OK);
-
-    set_default_response(Gtk::ResponseType::OK);
     m_apiUrlEntry.set_activates_default(true);
     m_apiKeyEntry.set_activates_default(true);
-    set_default_size(DEFAULT_WIDTH, -1);
 
     updateValidation();
 }
