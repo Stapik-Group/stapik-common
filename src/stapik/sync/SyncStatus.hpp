@@ -2,6 +2,8 @@
 
 #include "SyncOutcome.hpp"
 
+#include <array>
+
 namespace stapik::sync
 {
     enum class SyncStatus
@@ -12,6 +14,24 @@ namespace stapik::sync
         Conflict,
         Error
     };
+
+    inline constexpr std::array<SyncStatus, 5> ALL_SYNC_STATUSES = {
+        SyncStatus::Idle, SyncStatus::Syncing, SyncStatus::Offline, SyncStatus::Conflict, SyncStatus::Error
+    };
+
+    [[nodiscard]] constexpr const char* syncStatusCssClass(const SyncStatus status)
+    {
+        switch (status)
+        {
+            case SyncStatus::Idle: return "stapik-sync-idle";
+            case SyncStatus::Syncing: return "stapik-sync-syncing";
+            case SyncStatus::Offline: return "stapik-sync-offline";
+            case SyncStatus::Conflict: return "stapik-sync-conflict";
+            case SyncStatus::Error: return "stapik-sync-error";
+        }
+
+        return "stapik-sync-error";
+    }
 
     [[nodiscard]] constexpr const char* syncStatusKey(const SyncStatus status)
     {

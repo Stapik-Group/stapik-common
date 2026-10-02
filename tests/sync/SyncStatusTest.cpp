@@ -33,3 +33,18 @@ TEST(SyncStatusTest, OutcomesMapToStatuses)
     EXPECT_EQ(statusFor(SyncState::LostRaceAcceptedServer), SyncStatus::Conflict);
     EXPECT_EQ(statusFor(SyncState::RemoteUnreadable), SyncStatus::Error);
 }
+
+TEST(SyncStatusTest, EveryStatusHasADistinctCssClass)
+{
+    for (std::size_t first = 0; first < stapik::sync::ALL_SYNC_STATUSES.size(); ++first)
+    {
+        EXPECT_EQ(std::string(stapik::sync::syncStatusCssClass(stapik::sync::ALL_SYNC_STATUSES[first])).rfind("stapik-sync-", 0), 0u);
+
+        for (std::size_t second = first + 1; second < stapik::sync::ALL_SYNC_STATUSES.size(); ++second)
+        {
+            EXPECT_NE(
+                std::string(stapik::sync::syncStatusCssClass(stapik::sync::ALL_SYNC_STATUSES[first])),
+                std::string(stapik::sync::syncStatusCssClass(stapik::sync::ALL_SYNC_STATUSES[second])));
+        }
+    }
+}

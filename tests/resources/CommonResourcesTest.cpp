@@ -197,14 +197,20 @@ TEST(CommonResourcesTest, ApplicationLocalesOverrideCommonOnes)
 
 TEST(CommonResourcesTest, EverySyncStatusHasATranslationInEveryLanguage)
 {
-    using stapik::sync::SyncStatus;
-
-    const SyncStatus all[] = { SyncStatus::Idle, SyncStatus::Syncing, SyncStatus::Offline, SyncStatus::Conflict, SyncStatus::Error };
-
     for (const auto& language : LANGUAGES)
     {
         const auto keys = keysOf(language);
-        for (const auto status : all)
+        for (const auto status : stapik::sync::ALL_SYNC_STATUSES)
             EXPECT_TRUE(keys.contains(stapik::sync::syncStatusKey(status))) << language << " lacks " << stapik::sync::syncStatusKey(status);
+    }
+}
+
+TEST(CommonResourcesTest, ThemesStyleEverySyncStatus)
+{
+    for (const auto& theme : THEMES)
+    {
+        const auto css = readFile(RESOURCES_DIR / "themes" / (theme + ".css"));
+        for (const auto status : stapik::sync::ALL_SYNC_STATUSES)
+            EXPECT_NE(css.find(std::string(".") + stapik::sync::syncStatusCssClass(status)), std::string::npos) << theme << " lacks " << stapik::sync::syncStatusCssClass(status);
     }
 }

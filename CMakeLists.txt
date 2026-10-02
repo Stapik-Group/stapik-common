@@ -35,6 +35,7 @@ add_library(stapikcommon STATIC
         src/stapik/storage/AppPaths.cpp
         src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
+        src/stapik/sync/CloudSessionHooks.cpp
         src/stapik/sync/Timestamp.cpp
         src/stapik/sync/SyncEnvelope.cpp
         src/stapik/ui/dialog/DialogUtils.cpp
@@ -47,6 +48,7 @@ add_library(stapikcommon STATIC
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
+        src/stapik/ui/widget/StatusIndicator.cpp
         src/stapik/task/BackgroundTaskRunner.cpp
         src/stapik/task/DebouncedAction.cpp
         src/stapik/task/MainThread.cpp

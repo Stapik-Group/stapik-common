@@ -1,5 +1,7 @@
 #include "ConnectDialog.hpp"
 
+#include <utility>
+
 #include "stapik/locale/LocaleManager.hpp"
 
 ConnectDialog::ConnectDialog(Window& parent) :
@@ -105,4 +107,29 @@ void ConnectDialog::prefillConfig(const CloudStorageConfig& config)
 {
     m_apiUrlEntry.set_text(config.apiUrl);
     m_apiKeyEntry.set_text(config.apiKey);
+}
+
+void showConnectDialog(
+    Gtk::Window& parent,
+    const std::optional<CloudStorageConfig>& prefill,
+    std::function<void(const CloudStorageConfig&)> onConfirmed)
+{
+    auto* dialog = new ConnectDialog(parent);
+
+    if (prefill)
+        dialog->prefillConfig(*prefill);
+
+    dialog->signal_response().connect([dialog, onConfirmed = std::move(onConfirmed)](const int response)
+    {
+        if (response == static_cast<int>(Gtk::ResponseType::OK) && onConfirmed)
+        {
+            if (const auto config = dialog->getResult())
+                onConfirmed(*config);
+        }
+
+        dialog->hide();
+    });
+
+    dialog->signal_hide().connect([dialog] { delete dialog; });
+    dialog->show();
 }
