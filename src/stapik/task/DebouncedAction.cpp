@@ -14,6 +14,11 @@ namespace stapik::task
         cancel();
     }
 
+    void DebouncedAction::setDelay(const std::chrono::milliseconds delay)
+    {
+        m_delay = delay;
+    }
+
     void DebouncedAction::trigger()
     {
         cancel();

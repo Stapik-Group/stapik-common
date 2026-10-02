@@ -127,3 +127,15 @@ TEST(DebouncedActionTest, ActionMayTriggerItselfAgain)
     pumpFor(100ms);
     EXPECT_EQ(calls, 3);
 }
+
+TEST(DebouncedActionTest, NewDelayAppliesToTheNextTrigger)
+{
+    int calls = 0;
+    DebouncedAction action(2000ms, [&calls] { ++calls; });
+
+    action.setDelay(30ms);
+    action.trigger();
+
+    ASSERT_TRUE(pumpUntil([&calls] { return calls > 0; }, 500ms));
+    EXPECT_EQ(calls, 1);
+}

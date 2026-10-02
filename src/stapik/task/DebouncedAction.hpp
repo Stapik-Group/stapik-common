@@ -16,6 +16,7 @@ namespace stapik::task
         DebouncedAction(const DebouncedAction&) = delete;
         DebouncedAction& operator=(const DebouncedAction&) = delete;
 
+        void setDelay(std::chrono::milliseconds delay);
         void trigger();
         void cancel();
         void flush();

@@ -26,6 +26,7 @@ add_executable(stapikcommon_tests
         settings/SettingsStoreTest.cpp
         storage/AppPathsTest.cpp
         storage/AtomicFileTest.cpp
+        sync/AsyncSyncSchedulerTest.cpp
         sync/SyncCoordinatorTest.cpp
         sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
