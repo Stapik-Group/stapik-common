@@ -38,9 +38,11 @@ add_library(stapikcommon STATIC
         src/stapik/sync/Timestamp.cpp
         src/stapik/sync/SyncEnvelope.cpp
         src/stapik/ui/dialog/DialogUtils.cpp
+        src/stapik/ui/dialog/AboutDialog.cpp
         src/stapik/ui/dialog/ConfirmDialog.cpp
         src/stapik/ui/dialog/ConnectDialog.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
+        src/stapik/ui/dialog/TextInputDialog.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp

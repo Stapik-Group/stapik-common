@@ -28,6 +28,7 @@ add_executable(stapikcommon_tests
         storage/AtomicFileTest.cpp
         sync/SyncCoordinatorTest.cpp
         sync/TimestampTest.cpp
+        text/TrimTest.cpp
         theme/ThemeRegistryTest.cpp
 )
 

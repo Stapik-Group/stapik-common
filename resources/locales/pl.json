@@ -46,6 +46,7 @@
   "dialog.connect.key.show": "Pokaż klucz",
   "dialog.connect.url.invalid": "Adres musi zaczynać się od http:// lub https://",
   "dialog.connect.url.insecure": "Połączenie niezabezpieczone: klucz i dane są wysyłane bez szyfrowania.",
+  "dialog.about.title": "O programie {name}",
 
   "cloud.connected": "Połączono",
   "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",
