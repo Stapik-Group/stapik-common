@@ -164,7 +164,8 @@ button.stapik-color-swatch:checked { border-color: @stapik_border_dark @stapik_b
 .stapik-category-orange,
 .stapik-category-brown,
 .stapik-category-pink,
-.stapik-category-teal { padding: 1px 4px; }
+.stapik-category-teal,
+.stapik-category-gray { padding: 1px 4px; }
 
 button.stapik-color-swatch { padding: 0; }
 
@@ -187,6 +188,8 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-category-pink { background-color: #ff2fd0; color: #ffffff; }
 
 .stapik-category-teal { background-color: #00e5ff; color: #1a1a2e; }
+
+.stapik-category-gray { background-color: #b7a3b3; color: @stapik_text; }
 
 .stapik-color-swatch.stapik-category-default { background-color: @stapik_bg; }
 

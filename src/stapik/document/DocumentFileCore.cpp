@@ -19,15 +19,7 @@ namespace stapik::document
             if (!file.is_open())
                 return false;
 
-            try
-            {
-                static_cast<void>(nlohmann::json::parse(file));
-                return true;
-            }
-            catch (const nlohmann::json::exception&)
-            {
-                return false;
-            }
+            return nlohmann::json::accept(file);
         }
     }
 

@@ -1,0 +1,15 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(PkgConfig)
+pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-4.0)
+pkg_check_modules(SIGCPP REQUIRED IMPORTED_TARGET sigc++-3.0)
+find_dependency(CURL)
+find_dependency(nlohmann_json)
+
+include("${CMAKE_CURRENT_LIST_DIR}/stapikcommon-targets.cmake")
+set(STAPIK_COMMON_RESOURCES_DIR "@PACKAGE_STAPIK_COMMON_RESOURCES_INSTALL_DIR@")
+include("${CMAKE_CURRENT_LIST_DIR}/StapikApp.cmake")
+
+check_required_components(stapikcommon)

@@ -186,7 +186,8 @@ button.stapik-color-swatch:checked {
 .stapik-category-orange,
 .stapik-category-brown,
 .stapik-category-pink,
-.stapik-category-teal {
+.stapik-category-teal,
+.stapik-category-gray {
     border-radius: 6px;
     padding: 1px 6px;
 }
@@ -213,6 +214,8 @@ button.stapik-color-swatch { padding: 0; }
 
 .stapik-category-teal { background-color: #30b0c7; color: #ffffff; }
 
+.stapik-category-gray { background-color: #8e8e93; color: #ffffff; }
+
 .stapik-category-red:hover,
 .stapik-category-green:hover,
 .stapik-category-blue:hover,
@@ -220,7 +223,8 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-category-orange:hover,
 .stapik-category-brown:hover,
 .stapik-category-pink:hover,
-.stapik-category-teal:hover { filter: brightness(0.92); }
+.stapik-category-teal:hover,
+.stapik-category-gray:hover { filter: brightness(0.92); }
 
 .stapik-color-swatch.stapik-category-default { background-color: #e8e8ec; }
 

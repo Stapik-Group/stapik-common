@@ -1,3 +1,4 @@
+#include "stapik/domain/CurrencyCatalog.hpp"
 #include "stapik/locale/LanguageRegistry.hpp"
 #include "stapik/locale/LocalizationEngine.hpp"
 #include "stapik/sync/SyncStatus.hpp"
@@ -212,5 +213,20 @@ TEST(CommonResourcesTest, ThemesStyleEverySyncStatus)
         const auto css = readFile(RESOURCES_DIR / "themes" / (theme + ".css"));
         for (const auto status : stapik::sync::ALL_SYNC_STATUSES)
             EXPECT_NE(css.find(std::string(".") + stapik::sync::syncStatusCssClass(status)), std::string::npos) << theme << " lacks " << stapik::sync::syncStatusCssClass(status);
+    }
+}
+
+TEST(CommonResourcesTest, CurrencyCatalogLoadsAndEveryCurrencyHasAName)
+{
+    stapik::domain::CurrencyCatalog catalog;
+
+    ASSERT_TRUE(catalog.addFromFile(RESOURCES_DIR / "currencies.json"));
+    ASSERT_FALSE(catalog.currencies().empty());
+
+    for (const auto& language : LANGUAGES)
+    {
+        const auto keys = keysOf(language);
+        for (const auto& currency : catalog.currencies())
+            EXPECT_TRUE(keys.contains(currency.nameKey())) << language << " lacks " << currency.nameKey();
     }
 }
