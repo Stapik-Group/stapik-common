@@ -1,7 +1,9 @@
 #pragma once
 
 #include "RadioAction.hpp"
+#include "UndoActions.hpp"
 
+#include "stapik/command/UndoStack.hpp"
 #include "stapik/locale/LanguageRegistry.hpp"
 #include "stapik/theme/ThemeRegistry.hpp"
 
@@ -22,6 +24,7 @@ struct StandardMenuOptions
     bool undoRedoItems = true;
     bool aboutItem = true;
     const stapik::theme::ThemeRegistry* themes = nullptr;
+    stapik::command::UndoStack* undoStack = nullptr;
 };
 
 class StandardMenu
@@ -79,8 +82,10 @@ private:
     std::vector<ExtraMenu> m_extraMenus;
     std::unique_ptr<stapik::ui::RadioAction<std::string>> m_languageAction;
     std::unique_ptr<stapik::ui::RadioAction<std::string>> m_themeAction;
+    std::unique_ptr<UndoActions> m_undoActions;
     Glib::RefPtr<Gio::Menu> m_menuModel;
     Gtk::PopoverMenuBar m_menuBar;
     sigc::connection m_localeConnection;
     sigc::connection m_themeConnection;
+    sigc::connection m_undoConnection;
 };

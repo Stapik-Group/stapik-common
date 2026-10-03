@@ -7,6 +7,17 @@
 #include <algorithm>
 #include <utility>
 
+namespace
+{
+    std::string actionLabel(const LocaleManager& loc, const std::string& baseKey, const std::string& description)
+    {
+        if (description.empty())
+            return loc.translate(baseKey);
+
+        return loc.translate(baseKey + ".described", { { "description", description } });
+    }
+}
+
 StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, StandardMenuOptions options) :
     m_window(window),
     m_options(std::move(options)),
@@ -15,6 +26,12 @@ StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, StandardMenuOptions o
     initLanguageAction();
     initThemeAction();
     initAboutAction();
+
+    if (m_options.undoStack != nullptr)
+    {
+        m_undoActions = std::make_unique<UndoActions>(m_window, *m_options.undoStack);
+        m_undoConnection = m_options.undoStack->signalChanged().connect([this] { rebuild(); });
+    }
 
     m_localeConnection = LocaleManager::instance().signalLocaleChanged().connect([this]
     {
@@ -39,6 +56,7 @@ StandardMenu::~StandardMenu()
 {
     m_localeConnection.disconnect();
     m_themeConnection.disconnect();
+    m_undoConnection.disconnect();
 }
 
 void StandardMenu::addToMenu(const Target target, MenuBuilder builder)
@@ -127,8 +145,9 @@ Glib::RefPtr<Gio::Menu> StandardMenu::buildEditMenu() const
     if (m_options.undoRedoItems)
     {
         const auto historySection = Gio::Menu::create();
-        historySection->append(loc.translate("menu.edit.undo"), "win.undo");
-        historySection->append(loc.translate("menu.edit.redo"), "win.redo");
+        const auto* undoStack = m_options.undoStack;
+        historySection->append(actionLabel(loc, "menu.edit.undo", undoStack != nullptr ? undoStack->undoDescription() : std::string()), "win.undo");
+        historySection->append(actionLabel(loc, "menu.edit.redo", undoStack != nullptr ? undoStack->redoDescription() : std::string()), "win.redo");
         menu->append_section(historySection);
     }
 

@@ -8,6 +8,8 @@
   "menu.edit": "Bearbeiten",
   "menu.edit.undo": "Rückgängig",
   "menu.edit.redo": "Wiederholen",
+  "menu.edit.undo.described": "Rückgängig: {description}",
+  "menu.edit.redo.described": "Wiederholen: {description}",
   "menu.settings": "Einstellungen",
   "menu.settings.currency": "Währung",
   "menu.settings.language": "Sprache",
