@@ -1,0 +1,5 @@
+[
+  { "code": "PLN", "symbol": "zł", "symbolBeforeAmount": false, "decimalPlaces": 2 },
+  { "code": "EUR", "symbol": "€", "symbolBeforeAmount": false, "decimalPlaces": 2 },
+  { "code": "USD", "symbol": "$", "symbolBeforeAmount": true, "decimalPlaces": 2 }
+]

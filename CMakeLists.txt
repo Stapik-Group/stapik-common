@@ -25,6 +25,9 @@ add_library(stapikcommon STATIC
         src/stapik/command/CompositeCommand.cpp
         src/stapik/command/UndoStack.cpp
         src/stapik/document/DocumentFileCore.cpp
+        src/stapik/domain/CurrencyCatalog.cpp
+        src/stapik/domain/Money.cpp
+        src/stapik/domain/MoneyFormatter.cpp
         src/stapik/document/SchemaMigrator.cpp
         src/stapik/locale/LanguageRegistry.cpp
         src/stapik/locale/LocalizationEngine.cpp

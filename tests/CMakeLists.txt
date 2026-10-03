@@ -15,6 +15,9 @@ add_executable(stapikcommon_tests
         cloud/CloudStorageConfigTest.cpp
         command/UndoStackTest.cpp
         document/DocumentFileTest.cpp
+        domain/CurrencyCatalogTest.cpp
+        domain/MoneyFormatterTest.cpp
+        domain/MoneyTest.cpp
         document/SchemaMigratorTest.cpp
         locale/LanguageRegistryTest.cpp
         locale/LocalizationEngineTest.cpp
