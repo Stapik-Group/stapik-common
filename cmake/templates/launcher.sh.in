@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "@STAPIK_APP_INSTALL_PREFIX@/bin/@STAPIK_APP_NAME@" "$@"

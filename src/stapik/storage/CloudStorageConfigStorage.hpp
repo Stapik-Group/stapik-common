@@ -8,6 +8,6 @@
 class CloudStorageConfigStorage
 {
 public:
-    static void save(const CloudStorageConfig& config, const std::string& appName);
+    static bool save(const CloudStorageConfig& config, const std::string& appName);
     static std::optional<CloudStorageConfig> load(const std::string& appName);
 };
