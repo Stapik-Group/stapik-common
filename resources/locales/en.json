@@ -8,6 +8,8 @@
   "menu.edit": "Edit",
   "menu.edit.undo": "Undo",
   "menu.edit.redo": "Redo",
+  "menu.edit.undo.described": "Undo {description}",
+  "menu.edit.redo.described": "Redo {description}",
   "menu.settings": "Settings",
   "menu.settings.currency": "Currency",
   "menu.settings.language": "Language",

@@ -22,6 +22,8 @@ find_package(CURL REQUIRED)
 
 add_library(stapikcommon STATIC
         src/stapik/app/AppContext.cpp
+        src/stapik/command/CompositeCommand.cpp
+        src/stapik/command/UndoStack.cpp
         src/stapik/document/DocumentFileCore.cpp
         src/stapik/document/SchemaMigrator.cpp
         src/stapik/locale/LanguageRegistry.cpp
@@ -47,6 +49,7 @@ add_library(stapikcommon STATIC
         src/stapik/ui/dialog/TextInputDialog.cpp
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
+        src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
         src/stapik/task/BackgroundTaskRunner.cpp

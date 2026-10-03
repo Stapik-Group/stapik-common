@@ -8,6 +8,8 @@
   "menu.edit": "Edycja",
   "menu.edit.undo": "Cofnij",
   "menu.edit.redo": "Ponów",
+  "menu.edit.undo.described": "Cofnij: {description}",
+  "menu.edit.redo.described": "Ponów: {description}",
   "menu.settings": "Ustawienia",
   "menu.settings.currency": "Waluta",
   "menu.settings.language": "Język",
