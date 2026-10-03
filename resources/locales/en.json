@@ -62,6 +62,16 @@
   "sync.status.error": "Sync error",
 
   "category.uncategorized": "Uncategorized",
+  "category.color.red": "Red",
+  "category.color.orange": "Orange",
+  "category.color.yellow": "Yellow",
+  "category.color.green": "Green",
+  "category.color.teal": "Teal",
+  "category.color.blue": "Blue",
+  "category.color.purple": "Purple",
+  "category.color.pink": "Pink",
+  "category.color.brown": "Brown",
+  "category.color.gray": "Gray",
 
   "currency.PLN": "Polish złoty",
   "currency.EUR": "Euro",

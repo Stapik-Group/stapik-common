@@ -62,6 +62,16 @@
   "sync.status.error": "Błąd synchronizacji",
 
   "category.uncategorized": "Bez kategorii",
+  "category.color.red": "Czerwony",
+  "category.color.orange": "Pomarańczowy",
+  "category.color.yellow": "Żółty",
+  "category.color.green": "Zielony",
+  "category.color.teal": "Morski",
+  "category.color.blue": "Niebieski",
+  "category.color.purple": "Fioletowy",
+  "category.color.pink": "Różowy",
+  "category.color.brown": "Brązowy",
+  "category.color.gray": "Szary",
 
   "currency.PLN": "Polski złoty",
   "currency.EUR": "Euro",
