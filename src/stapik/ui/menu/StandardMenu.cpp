@@ -18,9 +18,9 @@ namespace
     }
 }
 
-StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, StandardMenuOptions options) :
+StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOptions &options) :
     m_window(window),
-    m_options(std::move(options)),
+    m_options(options),
     m_languages(LocaleManager::instance().languages())
 {
     initLanguageAction();
@@ -61,17 +61,17 @@ StandardMenu::~StandardMenu()
 
 void StandardMenu::addToMenu(const Target target, MenuBuilder builder)
 {
-    m_targetBuilders.push_back({ target, std::move(builder) });
+    m_targetBuilders.push_back({ .target = target, .builder = std::move(builder) });
     rebuild();
 }
 
 void StandardMenu::addMenu(std::string titleKey, MenuBuilder builder)
 {
-    m_extraMenus.push_back({ std::move(titleKey), std::move(builder) });
+    m_extraMenus.push_back({ .titleKey = std::move(titleKey), .builder = std::move(builder) });
     rebuild();
 }
 
-void StandardMenu::installShortcuts(Gtk::Application& application) const
+void StandardMenu::installShortcuts(Gtk::Application& application)
 {
     application.set_accels_for_action("win.undo", { "<Primary>z" });
     application.set_accels_for_action("win.redo", { "<Primary><Shift>z" });
@@ -89,27 +89,23 @@ void StandardMenu::rebuild()
 
     m_menuModel = Gio::Menu::create();
 
-    const auto fileMenu = buildFileMenu();
-    if (fileMenu->get_n_items() > 0)
+    if (const auto fileMenu = buildFileMenu(); fileMenu->get_n_items() > 0)
         m_menuModel->append_submenu(loc.translate("menu.file"), fileMenu);
 
-    const auto editMenu = buildEditMenu();
-    if (editMenu->get_n_items() > 0)
+    if (const auto editMenu = buildEditMenu(); editMenu->get_n_items() > 0)
         m_menuModel->append_submenu(loc.translate("menu.edit"), editMenu);
 
-    for (const auto& extra : m_extraMenus)
+    for (const auto&[titleKey, builder] : m_extraMenus)
     {
         const auto menu = Gio::Menu::create();
-        extra.builder(*menu);
-        m_menuModel->append_submenu(loc.translate(extra.titleKey), menu);
+        builder(*menu);
+        m_menuModel->append_submenu(loc.translate(titleKey), menu);
     }
 
-    const auto settingsMenu = buildSettingsMenu();
-    if (settingsMenu->get_n_items() > 0)
+    if (const auto settingsMenu = buildSettingsMenu(); settingsMenu->get_n_items() > 0)
         m_menuModel->append_submenu(loc.translate("menu.settings"), settingsMenu);
 
-    const auto helpMenu = buildHelpMenu();
-    if (helpMenu->get_n_items() > 0)
+    if (const auto helpMenu = buildHelpMenu(); helpMenu->get_n_items() > 0)
         m_menuModel->append_submenu(loc.translate("menu.help"), helpMenu);
 
     m_menuBar.set_menu_model(m_menuModel);
@@ -206,10 +202,10 @@ Glib::RefPtr<Gio::Menu> StandardMenu::buildHelpMenu() const
 
 void StandardMenu::applyBuilders(const Target target, Gio::Menu& menu) const
 {
-    for (const auto& entry : m_targetBuilders)
+    for (const auto&[targetBuilder, builder] : m_targetBuilders)
     {
-        if (entry.target == target)
-            entry.builder(menu);
+        if (targetBuilder == target)
+            builder(menu);
     }
 }
 
@@ -237,7 +233,7 @@ void StandardMenu::initThemeAction()
 
     std::vector<stapik::ui::RadioOption<std::string>> options;
     for (const auto& theme : m_options.themes->themes())
-        options.push_back({ theme.id, theme.id });
+        options.emplace_back(theme.id, theme.id);
 
     m_themeAction = std::make_unique<stapik::ui::RadioAction<std::string>>(
         m_window,
@@ -247,7 +243,7 @@ void StandardMenu::initThemeAction()
         [](const std::string& id) { ThemeManager::instance().setThemeId(id); });
 }
 
-void StandardMenu::initAboutAction()
+void StandardMenu::initAboutAction() const
 {
     if (!m_options.aboutItem)
         return;

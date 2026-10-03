@@ -16,8 +16,7 @@ namespace
                 return false;
         }
 
-        const auto [end, errorCode] = std::from_chars(text.data(), text.data() + digits, value);
-        if (errorCode != std::errc{} || end != text.data() + digits)
+        if (const auto [end, errorCode] = std::from_chars(text.data(), text.data() + digits, value); errorCode != std::errc{} || end != text.data() + digits)
             return false;
 
         text.remove_prefix(digits);

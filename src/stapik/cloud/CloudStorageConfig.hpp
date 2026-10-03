@@ -41,17 +41,18 @@ struct CloudStorageConfig
 
     [[nodiscard]] ApiUrlStatus urlStatus() const
     {
+        using enum ApiUrlStatus;
         const auto url = normalizedApiUrl();
         if (url.empty())
-            return ApiUrlStatus::Empty;
+            return Empty;
 
         if (hasSchemeAndHost(url, "https://"))
-            return ApiUrlStatus::Secure;
+            return Secure;
 
         if (hasSchemeAndHost(url, "http://"))
-            return ApiUrlStatus::Insecure;
+            return Insecure;
 
-        return ApiUrlStatus::Invalid;
+        return Invalid;
     }
 
     [[nodiscard]] bool isSecure() const

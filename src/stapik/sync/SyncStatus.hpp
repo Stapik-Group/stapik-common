@@ -23,11 +23,12 @@ namespace stapik::sync
     {
         switch (status)
         {
-            case SyncStatus::Idle: return "stapik-sync-idle";
-            case SyncStatus::Syncing: return "stapik-sync-syncing";
-            case SyncStatus::Offline: return "stapik-sync-offline";
-            case SyncStatus::Conflict: return "stapik-sync-conflict";
-            case SyncStatus::Error: return "stapik-sync-error";
+            using enum SyncStatus;
+            case Idle: return "stapik-sync-idle";
+            case Syncing: return "stapik-sync-syncing";
+            case Offline: return "stapik-sync-offline";
+            case Conflict: return "stapik-sync-conflict";
+            case Error: return "stapik-sync-error";
         }
 
         return "stapik-sync-error";

@@ -39,13 +39,15 @@ namespace stapik::domain
         std::string formatMagnitude(
             const std::uint64_t magnitude,
             const int decimalPlaces,
-            const NumberFormat& format,
+            const NumberFormat &format,
             const bool groupThousands)
         {
             const auto factor = powerOfTen(decimalPlaces);
-            const auto digits = std::to_string(magnitude / factor);
+            const auto digits = std::format("{}", magnitude / factor);
 
             std::string integerPart;
+            integerPart.reserve(digits.size() + digits.size() / 3);
+
             for (std::size_t index = 0; index < digits.size(); ++index)
             {
                 if (groupThousands && index > 0 && (digits.size() - index) % 3 == 0)
@@ -57,10 +59,15 @@ namespace stapik::domain
             if (decimalPlaces == 0)
                 return integerPart;
 
-            return integerPart + format.decimalSeparator + std::format("{:0{}}", magnitude % factor, decimalPlaces);
+            return std::format(
+                "{}{}{:0{}}",
+                integerPart,
+                format.decimalSeparator,
+                magnitude % factor,
+                decimalPlaces);
         }
 
-        bool consumeSpace(const std::string_view text, std::size_t& position)
+        bool consumeSpace(const std::string_view text, std::size_t &position)
         {
             if (text[position] == ' ' || text[position] == '\t')
             {
@@ -68,7 +75,7 @@ namespace stapik::domain
                 return true;
             }
 
-            for (const auto space : { NO_BREAK_SPACE, NARROW_NO_BREAK_SPACE })
+            for (const auto space: {NO_BREAK_SPACE, NARROW_NO_BREAK_SPACE})
             {
                 if (text.substr(position, space.size()) == space)
                 {
@@ -109,9 +116,13 @@ namespace stapik::domain
             std::string digits;
             for (std::size_t index = 0; index < parts.size(); ++index)
             {
-                const bool validSize = index == 0 ? (parts[index].size() >= 1 && parts[index].size() <= 3) : parts[index].size() == 3;
-                if (!validSize)
+                if (const bool validSize = index == 0
+                                               ? !parts[index].empty() && parts[index].size() <= 3
+                                               : parts[index].size() == 3;
+                    !validSize)
+                {
                     return std::nullopt;
+                }
 
                 digits += parts[index];
             }
@@ -123,7 +134,7 @@ namespace stapik::domain
         {
             std::uint64_t value = 0;
 
-            for (const char character : digits)
+            for (const char character: digits)
             {
                 const auto digit = static_cast<std::uint64_t>(character - '0');
                 if (value > (std::numeric_limits<std::uint64_t>::max() - digit) / 10)
@@ -134,6 +145,57 @@ namespace stapik::domain
 
             return value;
         }
+
+        std::optional<std::pair<char, char> > detectSeparators(
+            const std::string_view body,
+            const int decimalPlaces)
+        {
+            const auto dots = static_cast<std::size_t>(std::ranges::count(body, '.'));
+            const auto commas = static_cast<std::size_t>(std::ranges::count(body, ','));
+
+            if (dots > 0 && commas > 0)
+            {
+                const char decimalSeparator =
+                        body.rfind('.') > body.rfind(',') ? '.' : ',';
+                const char groupSeparator =
+                        decimalSeparator == '.' ? ',' : '.';
+
+                if (const auto decimalPosition = body.rfind(decimalSeparator);
+                    std::ranges::count(body, decimalSeparator) != 1 || body.rfind(groupSeparator) > decimalPosition)
+                    return std::nullopt;
+
+                return std::pair{decimalSeparator, groupSeparator};
+            }
+
+            if (dots + commas == 1 && decimalPlaces > 0)
+                return std::pair{dots == 1 ? '.' : ',', '\0'};
+
+            if (dots + commas >= 1)
+                return std::pair{'\0', dots > 0 ? '.' : ','};
+
+            return std::pair{'\0', '\0'};
+        }
+
+        bool validAmountCharacters(const std::string_view text)
+        {
+            return std::ranges::all_of(text, [](const char character)
+            {
+                return (character >= '0' && character <= '9') ||
+                       character == '.' || character == ',';
+            });
+        }
+
+        std::string removeSpaces(const std::string_view text)
+        {
+            std::string result;
+            for (std::size_t position = 0; position < text.size();)
+            {
+                if (!consumeSpace(text, position))
+                    result += text[position++];
+            }
+
+            return result;
+        }
     }
 
     NumberFormat numberFormatFor(const std::string_view languageCode)
@@ -141,12 +203,12 @@ namespace stapik::domain
         const auto language = languageOf(languageCode);
 
         if (language == "pl")
-            return { ",", std::string(NO_BREAK_SPACE) };
+            return {.decimalSeparator = ",", .groupSeparator = std::string(NO_BREAK_SPACE)};
 
         if (language == "de")
-            return { ",", "." };
+            return {.decimalSeparator = ",", .groupSeparator = "."};
 
-        return { ".", "," };
+        return {.decimalSeparator = ".", .groupSeparator = ","};
     }
 
     std::string formatAmount(
@@ -156,12 +218,13 @@ namespace stapik::domain
         const bool groupThousands)
     {
         const auto sign = minorUnits < 0 ? std::string("-") : std::string();
-        return sign + formatMagnitude(magnitudeOf(minorUnits), decimalPlaces, numberFormatFor(languageCode), groupThousands);
+        return sign + formatMagnitude(magnitudeOf(minorUnits), decimalPlaces, numberFormatFor(languageCode),
+                                      groupThousands);
     }
 
-    std::string formatMoney(const Money& money, const std::string_view languageCode, const MoneyFormatOptions options)
+    std::string formatMoney(const Money &money, const std::string_view languageCode, const MoneyFormatOptions options)
     {
-        const auto& currency = money.currency();
+        const auto &currency = money.currency();
         const auto sign = money.isNegative() ? std::string("-") : std::string();
         const auto number = formatMagnitude(
             magnitudeOf(money.minorUnits()),
@@ -183,12 +246,7 @@ namespace stapik::domain
         if (decimalPlaces < 0 || decimalPlaces > MAX_DECIMAL_PLACES)
             return std::nullopt;
 
-        std::string cleaned;
-        for (std::size_t position = 0; position < text.size();)
-        {
-            if (!consumeSpace(text, position))
-                cleaned += text[position++];
-        }
+        const auto cleaned = removeSpaces(text);
 
         bool negative = false;
         std::string_view body = cleaned;
@@ -198,37 +256,14 @@ namespace stapik::domain
             body.remove_prefix(1);
         }
 
-        if (body.empty() || !std::ranges::all_of(body, [](const char character)
-        {
-            return (character >= '0' && character <= '9') || character == '.' || character == ',';
-        }))
-        {
+        if (body.empty() || !validAmountCharacters(body))
             return std::nullopt;
-        }
 
-        const auto dots = static_cast<std::size_t>(std::ranges::count(body, '.'));
-        const auto commas = static_cast<std::size_t>(std::ranges::count(body, ','));
+        const auto separators = detectSeparators(body, decimalPlaces);
+        if (!separators)
+            return std::nullopt;
 
-        char decimalSeparator = '\0';
-        char groupSeparator = '\0';
-
-        if (dots > 0 && commas > 0)
-        {
-            decimalSeparator = body.rfind('.') > body.rfind(',') ? '.' : ',';
-            groupSeparator = decimalSeparator == '.' ? ',' : '.';
-
-            const auto decimalPosition = body.rfind(decimalSeparator);
-            if (std::ranges::count(body, decimalSeparator) != 1 || body.rfind(groupSeparator) > decimalPosition)
-                return std::nullopt;
-        }
-        else if (dots + commas == 1 && decimalPlaces > 0)
-        {
-            decimalSeparator = dots == 1 ? '.' : ',';
-        }
-        else if (dots + commas >= 1)
-        {
-            groupSeparator = dots > 0 ? '.' : ',';
-        }
+        const auto [decimalSeparator, groupSeparator] = *separators;
 
         std::string_view integerRaw = body;
         std::string_view fraction;
@@ -240,14 +275,13 @@ namespace stapik::domain
         }
 
         const auto integer = integerDigits(integerRaw, groupSeparator);
-        if (!integer || (integer->empty() && fraction.empty()))
-            return std::nullopt;
-
-        if (fraction.size() > static_cast<std::size_t>(decimalPlaces))
+        if (!integer || (integer->empty() && fraction.empty()) ||
+            fraction.size() > static_cast<std::size_t>(decimalPlaces))
             return std::nullopt;
 
         std::string fractionDigits(fraction);
-        fractionDigits.append(static_cast<std::size_t>(decimalPlaces) - fraction.size(), '0');
+        fractionDigits.append(
+            static_cast<std::size_t>(decimalPlaces) - fraction.size(), '0');
 
         const auto integerValue = parseDigits(*integer);
         const auto fractionValue = parseDigits(fractionDigits);
@@ -255,10 +289,13 @@ namespace stapik::domain
             return std::nullopt;
 
         const auto factor = powerOfTen(decimalPlaces);
-        if (*integerValue > (static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()) - *fractionValue) / factor)
+        if (*integerValue >
+            (static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()) - *fractionValue) / factor)
             return std::nullopt;
 
-        const auto magnitude = static_cast<std::int64_t>(*integerValue * factor + *fractionValue);
+        const auto magnitude =
+                static_cast<std::int64_t>(*integerValue * factor + *fractionValue);
+
         return negative ? -magnitude : magnitude;
     }
 }

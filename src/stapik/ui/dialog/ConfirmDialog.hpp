@@ -18,7 +18,7 @@ struct ConfirmDialogOptions
 class ConfirmDialog : public StapikDialog
 {
 public:
-    ConfirmDialog(Gtk::Window& parent, const ConfirmDialogOptions& options, std::function<void()> onConfirm);
+    ConfirmDialog(Window& parent, const ConfirmDialogOptions& options, std::function<void()> onConfirm);
 
 private:
     Gtk::Label m_messageLabel;

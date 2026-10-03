@@ -10,7 +10,7 @@ namespace stapik::task
 {
     BackgroundTaskRunner::BackgroundTaskRunner() :
         m_alive(std::make_shared<std::atomic<bool>>(true)),
-        m_worker([this](std::stop_token stopToken) { workerLoop(stopToken); })
+        m_worker([this](const std::stop_token &stopToken) { workerLoop(stopToken); })
     {}
 
     BackgroundTaskRunner::~BackgroundTaskRunner()
@@ -23,13 +23,13 @@ namespace stapik::task
     {
         {
             const std::lock_guard lock(m_mutex);
-            m_tasks.push_back({ std::move(work), std::move(onFinished) });
+            m_tasks.emplace_back(std::move(work), std::move(onFinished));
         }
 
         m_wake.notify_one();
     }
 
-    void BackgroundTaskRunner::workerLoop(std::stop_token stopToken)
+    void BackgroundTaskRunner::workerLoop(const std::stop_token& stopToken)
     {
         while (true)
         {
@@ -52,11 +52,11 @@ namespace stapik::task
             }
             catch (const std::exception& exception)
             {
-                stapik::log::warning("Background task failed: {}", exception.what());
+                log::warning("Background task failed: {}", exception.what());
             }
             catch (...)
             {
-                stapik::log::warning("Background task failed with an unknown exception");
+                log::warning("Background task failed with an unknown exception");
             }
 
             if (task.onFinished)

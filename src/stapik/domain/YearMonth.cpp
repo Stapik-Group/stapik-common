@@ -75,15 +75,19 @@ namespace stapik::domain
 
     YearMonth YearMonth::fromDate(const std::chrono::year_month_day& date)
     {
-        return YearMonth(static_cast<int>(date.year()), static_cast<int>(static_cast<unsigned>(date.month())));
+        return {static_cast<int>(date.year()), static_cast<int>(static_cast<unsigned>(date.month()))};
     }
 
     YearMonth YearMonth::current()
     {
-        const std::time_t now = std::time(nullptr);
-        std::tm localTime{};
-        localtime_r(&now, &localTime);
-        return YearMonth(localTime.tm_year + 1900, localTime.tm_mon + 1);
+        const auto now = std::chrono::system_clock::now();
+        const auto today = std::chrono::floor<std::chrono::days>(now);
+        const std::chrono::year_month_day localDate{today};
+
+        return {
+            static_cast<int>(localDate.year()),
+            static_cast<int>(static_cast<unsigned>(localDate.month()))
+        };
     }
 
     int YearMonth::year() const
@@ -130,7 +134,7 @@ namespace stapik::domain
         if (target < 0 || !isValid(static_cast<int>(targetYear), static_cast<int>(targetMonth)))
             throw std::out_of_range("YearMonth arithmetic leaves the supported range");
 
-        return YearMonth(static_cast<int>(targetYear), static_cast<int>(targetMonth));
+        return {static_cast<int>(targetYear), static_cast<int>(targetMonth)};
     }
 
     YearMonth YearMonth::next() const

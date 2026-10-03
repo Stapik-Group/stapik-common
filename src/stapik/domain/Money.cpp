@@ -13,13 +13,13 @@ namespace stapik::domain
 
     Money Money::zero(Currency currency)
     {
-        return Money(0, std::move(currency));
+        return {0, std::move(currency)};
     }
 
     Money Money::fromMajor(const double amount, Currency currency)
     {
         const auto scaled = std::llround(amount * static_cast<double>(currency.minorUnitsPerMajor()));
-        return Money(static_cast<std::int64_t>(scaled), std::move(currency));
+        return {scaled, std::move(currency)};
     }
 
     std::int64_t Money::minorUnits() const
@@ -57,12 +57,12 @@ namespace stapik::domain
             throw std::overflow_error("Money addition overflows");
         }
 
-        return Money(m_minorUnits + other.m_minorUnits, m_currency);
+        return {m_minorUnits + other.m_minorUnits, m_currency};
     }
 
     Money Money::operator-(const Money& other) const
     {
-        return *this + (-other);
+        return *this + -other;
     }
 
     Money Money::operator-() const
@@ -70,7 +70,7 @@ namespace stapik::domain
         if (m_minorUnits == std::numeric_limits<std::int64_t>::min())
             throw std::overflow_error("Money negation overflows");
 
-        return Money(-m_minorUnits, m_currency);
+        return {-m_minorUnits, m_currency};
     }
 
     Money& Money::operator+=(const Money& other)

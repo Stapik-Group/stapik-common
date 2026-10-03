@@ -2,8 +2,8 @@
 
 #include "stapik/locale/LocaleManager.hpp"
 
-StapikDialog::StapikDialog(Gtk::Window& parent, const Glib::ustring& title) :
-    Gtk::Dialog(title, parent, true),
+StapikDialog::StapikDialog(Window& parent, const Glib::ustring& title) :
+    Dialog(title, parent, true),
     m_contentBox(Gtk::Orientation::VERTICAL, CONTENT_SPACING)
 {
     add_css_class("stapik-dialog");

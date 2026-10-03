@@ -69,7 +69,7 @@ namespace stapik::domain
         std::ifstream stream(file);
         if (!stream.is_open())
         {
-            stapik::log::debug("Currency file not found: {}", file.string());
+            log::debug("Currency file not found: {}", file.string());
             return false;
         }
 
@@ -80,13 +80,13 @@ namespace stapik::domain
         }
         catch (const nlohmann::json::exception& exception)
         {
-            stapik::log::warning("Cannot parse currencies from {}: {}", file.string(), exception.what());
+            log::warning("Cannot parse currencies from {}: {}", file.string(), exception.what());
             return false;
         }
 
         if (!json.is_array())
         {
-            stapik::log::warning("Currency file {} must contain a JSON array", file.string());
+            log::warning("Currency file {} must contain a JSON array", file.string());
             return false;
         }
 
@@ -105,7 +105,7 @@ namespace stapik::domain
             if (currency)
                 add(std::move(*currency));
             else
-                stapik::log::warning("Ignoring invalid currency entry {} in {}", index, file.string());
+                log::warning("Ignoring invalid currency entry {} in {}", index, file.string());
         }
 
         return true;
@@ -113,8 +113,7 @@ namespace stapik::domain
 
     void CurrencyCatalog::add(Currency currency)
     {
-        const auto existing = std::ranges::find(m_currencies, currency.code, &Currency::code);
-        if (existing != m_currencies.end())
+        if (const auto existing = std::ranges::find(m_currencies, currency.code, &Currency::code); existing != m_currencies.end())
             *existing = std::move(currency);
         else
             m_currencies.push_back(std::move(currency));
@@ -132,6 +131,6 @@ namespace stapik::domain
             return candidate.code == code;
         });
 
-        return currency == m_currencies.end() ? nullptr : &*currency;
+        return currency == m_currencies.end() ? nullptr : std::to_address(currency);
     }
 }

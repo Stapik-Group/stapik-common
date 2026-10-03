@@ -22,7 +22,7 @@ struct TextInputDialogOptions
 class TextInputDialog : public StapikDialog
 {
 public:
-    TextInputDialog(Gtk::Window& parent, const TextInputDialogOptions& options, std::function<void(const std::string&)> onAccept);
+    TextInputDialog(Window& parent, const TextInputDialogOptions& options, std::function<void(const std::string&)> onAccept);
 
 private:
     Gtk::Label m_label;

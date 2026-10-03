@@ -39,7 +39,7 @@ namespace stapik::ui
 
             if (initialId == nullptr && !m_state->options.empty())
             {
-                stapik::log::warning("Initial value of radio action '{}' is not among its options, using the first one", m_name);
+                log::warning("Initial value of radio action '{}' is not among its options, using the first one", m_name);
                 m_state->current = m_state->options.all().front().value;
                 initialId = m_state->options.idOf(m_state->current);
             }

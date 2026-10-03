@@ -12,9 +12,10 @@
 class LocalizationEngine
 {
 public:
-    using Arguments = std::map<std::string, std::string>;
+    using Arguments = std::map<std::string, std::string, std::less<>>;
 
-    explicit LocalizationEngine(std::filesystem::path localesDir);
+    explicit LocalizationEngine(const std::filesystem::path& localesDir);
+
     void addLocalesDirectory(const std::filesystem::path& localesDir);
     void setLocale(Locale locale);
     void setLanguage(std::string_view code);

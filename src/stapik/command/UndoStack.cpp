@@ -15,8 +15,7 @@ namespace stapik::command
 
         m_redoCommands.clear();
 
-        const bool merged = m_canMerge && !m_undoCommands.empty() && m_undoCommands.back()->mergeWith(*command);
-        if (!merged)
+        if (const bool merged = m_canMerge && !m_undoCommands.empty() && m_undoCommands.back()->mergeWith(*command); !merged)
             m_undoCommands.push_back(std::move(command));
 
         m_canMerge = true;

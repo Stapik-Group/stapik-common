@@ -4,7 +4,7 @@
 
 #include <utility>
 
-ConfirmDialog::ConfirmDialog(Gtk::Window& parent, const ConfirmDialogOptions& options, std::function<void()> onConfirm) :
+ConfirmDialog::ConfirmDialog(Window& parent, const ConfirmDialogOptions& options, std::function<void()> onConfirm) :
     StapikDialog(parent, options.title)
 {
     signal_response().connect([onConfirm = std::move(onConfirm)](const int response)

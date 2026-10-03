@@ -23,7 +23,7 @@ struct ChoiceDialogOptions
 class ChoiceDialog : public StapikDialog
 {
 public:
-    ChoiceDialog(Gtk::Window &parent, const ChoiceDialogOptions &options, std::function<void(std::size_t)> onChosen);
+    ChoiceDialog(Window &parent, const ChoiceDialogOptions &options, std::function<void(std::size_t)> onChosen);
 
 private:
     Gtk::Label m_messageLabel;

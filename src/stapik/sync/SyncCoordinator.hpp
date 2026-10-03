@@ -12,7 +12,6 @@
 #include <concepts>
 #include <exception>
 #include <optional>
-#include <utility>
 
 namespace stapik::sync
 {

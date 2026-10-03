@@ -24,7 +24,7 @@ UndoActions::~UndoActions()
     m_changeConnection.disconnect();
 }
 
-void UndoActions::updateEnabledState()
+void UndoActions::updateEnabledState() const
 {
     m_undoAction->set_enabled(m_undoStack.canUndo());
     m_redoAction->set_enabled(m_undoStack.canRedo());

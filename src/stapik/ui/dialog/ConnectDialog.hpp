@@ -7,7 +7,6 @@
 #include <gtkmm/checkbutton.h>
 #include <gtkmm/entry.h>
 #include <gtkmm/label.h>
-#include <gtkmm/box.h>
 
 #include <functional>
 #include <optional>

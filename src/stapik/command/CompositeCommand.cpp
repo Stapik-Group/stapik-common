@@ -20,7 +20,7 @@ namespace stapik::command
 
         try
         {
-            for (auto& command : m_commands)
+            for (auto const& command : m_commands)
             {
                 command->execute();
                 ++m_executed;

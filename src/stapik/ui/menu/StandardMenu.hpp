@@ -40,7 +40,7 @@ public:
 
     using MenuBuilder = std::function<void(Gio::Menu& menu)>;
 
-    explicit StandardMenu(Gtk::ApplicationWindow& window, StandardMenuOptions options = {});
+    explicit StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOptions &options = {});
     ~StandardMenu();
 
     StandardMenu(const StandardMenu&) = delete;
@@ -48,7 +48,7 @@ public:
 
     void addToMenu(Target target, MenuBuilder builder);
     void addMenu(std::string titleKey, MenuBuilder builder);
-    void installShortcuts(Gtk::Application& application) const;
+    static void installShortcuts(Gtk::Application& application);
     void rebuild();
 
     [[nodiscard]] Gtk::PopoverMenuBar& menuBar();
@@ -73,7 +73,7 @@ private:
     void applyBuilders(Target target, Gio::Menu& menu) const;
     void initLanguageAction();
     void initThemeAction();
-    void initAboutAction();
+    void initAboutAction() const;
 
     Gtk::ApplicationWindow& m_window;
     StandardMenuOptions m_options;

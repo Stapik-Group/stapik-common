@@ -10,7 +10,7 @@ namespace
     constexpr auto FALLBACK_THEME_ID = "classic";
 }
 
-AppStyleProvider::AppStyleProvider(std::filesystem::path resourcesDir)
+AppStyleProvider::AppStyleProvider(const std::filesystem::path& resourcesDir)
 {
     m_registry.addDirectory(resourcesDir);
 }
@@ -26,8 +26,7 @@ AppStyleProvider AppStyleProvider::withCommonThemes(std::filesystem::path appRes
     std::vector<std::filesystem::path> resourcesDirs;
 
     const auto commonResourcesDir = AppPaths::commonResourcesDir();
-    std::error_code errorCode;
-    if (std::filesystem::is_directory(commonResourcesDir, errorCode))
+    if (std::error_code errorCode; std::filesystem::is_directory(commonResourcesDir, errorCode))
         resourcesDirs.push_back(commonResourcesDir);
     else
         stapik::log::debug("stapik-common resources not found at {}, using the application's themes only", commonResourcesDir.string());

@@ -6,7 +6,7 @@
 
 #include <utility>
 
-TextInputDialog::TextInputDialog(Gtk::Window& parent, const TextInputDialogOptions& options, std::function<void(const std::string&)> onAccept) :
+TextInputDialog::TextInputDialog(Window& parent, const TextInputDialogOptions& options, std::function<void(const std::string&)> onAccept) :
     StapikDialog(parent, options.title),
     m_allowEmpty(options.allowEmpty)
 {

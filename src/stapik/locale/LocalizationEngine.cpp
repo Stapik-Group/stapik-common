@@ -11,7 +11,7 @@ namespace
 {
     constexpr auto FALLBACK_LANGUAGE = "en";
 
-    std::string substitute(const std::string_view text, const LocalizationEngine::Arguments& arguments)
+    std::string substitute(const std::string_view text, const LocalizationEngine::Arguments &arguments)
     {
         if (arguments.empty())
             return std::string(text);
@@ -24,7 +24,10 @@ namespace
         {
             const auto open = text.find('{', position);
             if (open == std::string_view::npos)
-                break;
+            {
+                result.append(text.substr(position));
+                return result;
+            }
 
             const auto close = text.find('}', open + 1);
             if (close == std::string_view::npos)
@@ -46,13 +49,12 @@ namespace
     }
 }
 
-LocalizationEngine::LocalizationEngine(std::filesystem::path localesDir) :
-    m_registry(localesDir)
+LocalizationEngine::LocalizationEngine(const std::filesystem::path &localesDir) : m_registry(localesDir)
 {
     loadAll();
 }
 
-void LocalizationEngine::addLocalesDirectory(const std::filesystem::path& localesDir)
+void LocalizationEngine::addLocalesDirectory(const std::filesystem::path &localesDir)
 {
     m_registry.addDirectory(localesDir);
     loadAll();
@@ -62,14 +64,14 @@ void LocalizationEngine::loadAll()
 {
     m_translations.clear();
 
-    for (const auto& language : m_registry.languages())
+    for (const auto &language: m_registry.languages())
     {
-        for (const auto& file : language.files)
+        for (const auto &file: language.files)
             loadFile(language.code, file);
     }
 }
 
-void LocalizationEngine::loadFile(const std::string& code, const std::filesystem::path& file)
+void LocalizationEngine::loadFile(const std::string &code, const std::filesystem::path &file)
 {
     std::ifstream stream(file);
     if (!stream.is_open())
@@ -87,7 +89,7 @@ void LocalizationEngine::loadFile(const std::string& code, const std::filesystem
             return;
         }
 
-        for (const auto& [key, value] : json.items())
+        for (const auto &[key, value]: json.items())
         {
             if (!value.is_string())
             {
@@ -97,8 +99,7 @@ void LocalizationEngine::loadFile(const std::string& code, const std::filesystem
 
             m_translations[code][key] = value.get<std::string>();
         }
-    }
-    catch (const nlohmann::json::exception& exception)
+    } catch (const nlohmann::json::exception &exception)
     {
         stapik::log::warning("Cannot parse translations from {}: {}", file.string(), exception.what());
     }
@@ -119,17 +120,17 @@ void LocalizationEngine::setLanguage(const std::string_view code)
     m_languageCode = std::string(code);
 }
 
-const std::string& LocalizationEngine::languageCode() const
+const std::string &LocalizationEngine::languageCode() const
 {
     return m_languageCode;
 }
 
-const std::vector<stapik::locale::LanguageInfo>& LocalizationEngine::languages() const
+const std::vector<stapik::locale::LanguageInfo> &LocalizationEngine::languages() const
 {
     return m_registry.languages();
 }
 
-const std::string* LocalizationEngine::find(const std::string_view code, const std::string_view key) const
+const std::string *LocalizationEngine::find(const std::string_view code, const std::string_view key) const
 {
     const auto language = m_translations.find(code);
     if (language == m_translations.end())
@@ -144,12 +145,12 @@ std::string LocalizationEngine::translate(const std::string_view key) const
     return translate(key, Arguments{});
 }
 
-std::string LocalizationEngine::translate(const std::string_view key, const Arguments& arguments) const
+std::string LocalizationEngine::translate(const std::string_view key, const Arguments &arguments) const
 {
-    if (const auto* text = find(m_languageCode, key))
+    if (const auto *text = find(m_languageCode, key))
         return substitute(*text, arguments);
 
-    if (const auto* text = find(FALLBACK_LANGUAGE, key))
+    if (const auto *text = find(FALLBACK_LANGUAGE, key))
         return substitute(*text, arguments);
 
     return std::string(key);

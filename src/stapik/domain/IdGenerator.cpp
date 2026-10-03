@@ -34,7 +34,7 @@ namespace stapik::domain
         {
             for (int digitIndex = digitCount - 1; digitIndex >= 0; --digitIndex)
             {
-                const auto nibble = static_cast<std::size_t>((value >> (digitIndex * 4)) & 0xF);
+                const auto nibble = (value >> digitIndex * 4) & 0xF;
                 target.push_back(HEX_DIGITS[nibble]);
             }
         }
@@ -57,7 +57,7 @@ namespace stapik::domain
     {
         std::string result;
         result.reserve(GENERATED_ID_LENGTH);
-        appendHex(result, value, static_cast<int>(GENERATED_ID_LENGTH));
+        appendHex(result, value, GENERATED_ID_LENGTH);
         return result;
     }
 

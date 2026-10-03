@@ -3,8 +3,6 @@
 #include "Currency.hpp"
 
 #include <compare>
-#include <cstdint>
-#include <utility>
 
 namespace stapik::domain
 {

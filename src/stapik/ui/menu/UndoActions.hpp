@@ -16,7 +16,7 @@ public:
     UndoActions& operator=(const UndoActions&) = delete;
 
 private:
-    void updateEnabledState();
+    void updateEnabledState() const;
 
     stapik::command::UndoStack& m_undoStack;
     Glib::RefPtr<Gio::SimpleAction> m_undoAction;

@@ -49,7 +49,7 @@ namespace stapik::task
             std::function<void()> onFinished;
         };
 
-        void workerLoop(std::stop_token stopToken);
+        void workerLoop(const std::stop_token& stopToken);
 
         std::shared_ptr<std::atomic<bool>> m_alive;
         std::mutex m_mutex;

@@ -14,16 +14,16 @@ namespace stapik::domain
         };
 
         constexpr std::array COLOR_ENTRIES{
-            ColorEntry{CategoryColor::Red, "red"},
-            ColorEntry{CategoryColor::Orange, "orange"},
-            ColorEntry{CategoryColor::Yellow, "yellow"},
-            ColorEntry{CategoryColor::Green, "green"},
-            ColorEntry{CategoryColor::Teal, "teal"},
-            ColorEntry{CategoryColor::Blue, "blue"},
-            ColorEntry{CategoryColor::Purple, "purple"},
-            ColorEntry{CategoryColor::Pink, "pink"},
-            ColorEntry{CategoryColor::Brown, "brown"},
-            ColorEntry{CategoryColor::Gray, "gray"}};
+            ColorEntry{.color = CategoryColor::Red, .id = "red"},
+            ColorEntry{.color = CategoryColor::Orange, .id = "orange"},
+            ColorEntry{.color = CategoryColor::Yellow, .id = "yellow"},
+            ColorEntry{.color = CategoryColor::Green, .id = "green"},
+            ColorEntry{.color = CategoryColor::Teal, .id = "teal"},
+            ColorEntry{.color = CategoryColor::Blue, .id = "blue"},
+            ColorEntry{.color = CategoryColor::Purple, .id = "purple"},
+            ColorEntry{.color = CategoryColor::Pink, .id = "pink"},
+            ColorEntry{.color = CategoryColor::Brown, .id = "brown"},
+            ColorEntry{.color = CategoryColor::Gray, .id = "gray"}};
 
         constexpr std::array ALL_COLORS = []
         {

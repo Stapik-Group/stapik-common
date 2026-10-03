@@ -50,7 +50,7 @@ namespace stapik::task
         return m_sourceId != 0;
     }
 
-    gboolean DebouncedAction::onTimeout(gpointer data)
+    gboolean DebouncedAction::onTimeout(const gpointer data)
     {
         auto* self = static_cast<DebouncedAction*>(data);
         self->m_sourceId = 0;

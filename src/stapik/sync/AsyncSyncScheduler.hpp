@@ -41,7 +41,7 @@ namespace stapik::sync
             if (m_job)
                 m_job->document = document;
             else
-                m_job = Job{ JobKind::Push, document };
+                m_job = Job{ .kind = JobKind::Push, .document = document };
 
             m_retry.cancel();
             m_debounce.trigger();
@@ -49,7 +49,7 @@ namespace stapik::sync
 
         void syncNow(const DocumentType& document)
         {
-            m_job = Job{ JobKind::Resolve, document };
+            m_job = Job{ .kind = JobKind::Resolve, .document = document };
             m_debounce.cancel();
             m_retry.cancel();
             startJob();
@@ -137,20 +137,22 @@ namespace stapik::sync
 
             switch (outcome.state)
             {
-                case SyncState::Synchronized:
+                using enum SyncState;
+                case Synchronized:
                     m_consecutiveFailures = 0;
                     rebaseQueuedJob(outcome.document);
                     break;
-                case SyncState::ServerWon:
-                case SyncState::LostRaceAcceptedServer:
+                case ServerWon:
+                case LostRaceAcceptedServer:
                     m_consecutiveFailures = 0;
                     m_job.reset();
                     m_debounce.cancel();
                     break;
-                case SyncState::OfflineKeptLocal:
+                case OfflineKeptLocal:
                     requeueForRetry(outcome.document);
                     break;
-                case SyncState::RemoteUnreadable:
+                case RemoteUnreadable:
+                default:
                     break;
             }
 
@@ -171,7 +173,7 @@ namespace stapik::sync
         void requeueForRetry(const DocumentType& keptLocal)
         {
             if (!m_job)
-                m_job = Job{ m_runningKind, keptLocal };
+                m_job = Job{ .kind = m_runningKind, .document = keptLocal };
             else if (m_runningKind == JobKind::Resolve)
                 m_job->kind = JobKind::Resolve;
 

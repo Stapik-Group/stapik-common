@@ -7,7 +7,6 @@
 #include <stdexcept>
 #include <string>
 
-// Format: { "id": "...", "name": "...", "color": "red" }. An unknown color id is a format error.
 template<>
 struct nlohmann::adl_serializer<stapik::domain::Category>
 {

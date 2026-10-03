@@ -83,7 +83,7 @@ namespace stapik::theme
             return info.id == id;
         });
 
-        return theme == m_themes.end() ? nullptr : &*theme;
+        return theme == m_themes.end() ? nullptr : std::to_address(theme);
     }
 
     bool ThemeRegistry::contains(const std::string_view id) const

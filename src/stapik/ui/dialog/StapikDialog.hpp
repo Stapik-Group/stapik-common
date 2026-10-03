@@ -8,12 +8,12 @@
 class StapikDialog : public Gtk::Dialog
 {
 public:
-    StapikDialog(Gtk::Window& parent, const Glib::ustring& title);
+    StapikDialog(Window& parent, const Glib::ustring& title);
 
 protected:
     [[nodiscard]] Gtk::Box& contentBox();
-    Gtk::Widget* addCancelButton();
-    Gtk::Widget* addOkButton(const Glib::ustring& label = {});
+    Widget* addCancelButton();
+    Widget* addOkButton(const Glib::ustring& label = {});
 
 private:
     static constexpr int CONTENT_SPACING = 8;

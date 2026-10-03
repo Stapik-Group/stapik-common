@@ -61,6 +61,7 @@ CloudStorageConfig ConnectDialog::currentConfig() const
 
 void ConnectDialog::updateValidation()
 {
+    using enum ApiUrlStatus;
     const auto& loc = LocaleManager::instance();
     const auto config = currentConfig();
     const auto urlStatus = config.urlStatus();
@@ -70,23 +71,23 @@ void ConnectDialog::updateValidation()
 
     switch (urlStatus)
     {
-        case ApiUrlStatus::Invalid:
+        case Invalid:
             m_apiUrlHintLabel.set_text(loc.translate("dialog.connect.url.invalid"));
             m_apiUrlHintLabel.add_css_class("error");
             m_apiUrlHintLabel.set_visible(true);
             break;
-        case ApiUrlStatus::Insecure:
+        case Insecure:
             m_apiUrlHintLabel.set_text(loc.translate("dialog.connect.url.insecure"));
             m_apiUrlHintLabel.add_css_class("warning");
             m_apiUrlHintLabel.set_visible(true);
             break;
-        case ApiUrlStatus::Empty:
-        case ApiUrlStatus::Secure:
+        case Empty:
+        case Secure:
             m_apiUrlHintLabel.set_visible(false);
             break;
     }
 
-    const bool urlUsable = urlStatus == ApiUrlStatus::Secure || urlStatus == ApiUrlStatus::Insecure;
+    const bool urlUsable = urlStatus == Secure || urlStatus == Insecure;
     set_response_sensitive(Gtk::ResponseType::OK, urlUsable && !config.apiKey.empty());
 }
 
@@ -95,9 +96,8 @@ std::optional<CloudStorageConfig> ConnectDialog::getResult() const
     const auto config = currentConfig();
 
     const auto urlStatus = config.urlStatus();
-    const bool urlUsable = urlStatus == ApiUrlStatus::Secure || urlStatus == ApiUrlStatus::Insecure;
 
-    if (!urlUsable || config.apiKey.empty())
+    if (const bool urlUsable = urlStatus == ApiUrlStatus::Secure || urlStatus == ApiUrlStatus::Insecure; !urlUsable || config.apiKey.empty())
         return std::nullopt;
 
     return config;

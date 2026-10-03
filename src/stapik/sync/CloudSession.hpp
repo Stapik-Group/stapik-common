@@ -20,15 +20,14 @@ namespace stapik::sync
     public:
         using TimePoint = std::chrono::system_clock::time_point;
 
-        explicit CloudSession(CloudSessionHooks hooks, AsyncSyncOptions options = {}) :
+        explicit CloudSession(CloudSessionHooks hooks, const AsyncSyncOptions &options = {}) :
             m_hooks(std::move(hooks)),
             m_options(options)
         {
             if (!m_hooks.loadConfig)
                 return;
 
-            const auto config = m_hooks.loadConfig();
-            if (config && config->isConfigured())
+            if (const auto config = m_hooks.loadConfig(); config && config->isConfigured())
                 activate(*config);
         }
 
@@ -41,7 +40,7 @@ namespace stapik::sync
                 return false;
 
             if (m_hooks.saveConfig && !m_hooks.saveConfig(config))
-                stapik::log::warning("Cannot save the cloud configuration; it will be lost after restart");
+                log::warning("Cannot save the cloud configuration; it will be lost after restart");
 
             if (!activate(config))
                 return false;

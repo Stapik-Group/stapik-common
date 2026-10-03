@@ -10,7 +10,7 @@ namespace stapik::sync
 {
     CloudSessionHooks defaultCloudSessionHooks(std::string slotKey)
     {
-        const auto appName = stapik::app::AppContext::instance().info().internalName;
+        const auto appName = app::AppContext::instance().info().internalName;
 
         CloudSessionHooks hooks;
 

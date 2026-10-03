@@ -52,8 +52,7 @@ std::size_t ChoiceDialog::selectedIndex() const
     return 0;
 }
 
-void showChoiceDialog(Gtk::Window &parent, const ChoiceDialogOptions &options,
-                      std::function<void(std::size_t)> onChosen)
+void showChoiceDialog(Gtk::Window &parent, const ChoiceDialogOptions &options, std::function<void(std::size_t)> onChosen)
 {
     showAutoDeletingDialog<ChoiceDialog>(parent, options, std::move(onChosen));
 }

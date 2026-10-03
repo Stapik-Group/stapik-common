@@ -3,7 +3,6 @@
 #include "stapik/log/Log.hpp"
 
 #include <climits>
-#include <cstdlib>
 #include <vector>
 
 namespace
@@ -44,7 +43,7 @@ std::filesystem::path AppPaths::resolveCommonResourcesDir(
     const std::filesystem::path& executableDir,
     const std::filesystem::path& sourceTreeDir)
 {
-    std::vector<std::filesystem::path> candidates = {
+    std::vector candidates = {
         executableDir / "resources" / "stapik-common",
         executableDir.parent_path() / "share" / "stapik-common"
     };
