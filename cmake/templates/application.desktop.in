@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=@STAPIK_APP_DISPLAY_NAME@
+Comment=@STAPIK_APP_DESCRIPTION@
+Exec=@STAPIK_APP_NAME@
+Icon=@STAPIK_APP_ICON_NAME@
+Terminal=false
+Categories=@STAPIK_APP_CATEGORIES@
