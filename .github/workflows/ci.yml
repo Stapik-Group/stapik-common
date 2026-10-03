@@ -1,8 +1,8 @@
 name: CI
 
 # Feature branches are tested on every push. develop is skipped on purpose: everything on it
-# was already tested on its feature branch, and the develop -> main pull request is tested
-# below before anything reaches main. A v* tag (created on main) also builds a release package.
+# was already tested on its feature branch, and the develop -> master pull request is tested
+# below before anything reaches master. A v* tag (created on master) also builds a release package.
 on:
   push:
     branches-ignore:
@@ -11,7 +11,7 @@ on:
       - 'v*'
   pull_request:
     branches:
-      - main
+      - master
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -60,7 +60,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify tag matches project version and main
+      - name: Verify tag matches project version and master
         run: |
           tag_version="${GITHUB_REF_NAME#v}"
           project_version=$(sed -nE 's/^project\(stapikcommon VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)
@@ -70,8 +70,8 @@ jobs:
             exit 1
           fi
 
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "Tag $GITHUB_REF_NAME is not on main"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "Tag $GITHUB_REF_NAME is not on master"
             exit 1
           fi
 
