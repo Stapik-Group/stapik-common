@@ -20,12 +20,14 @@
   "menu.settings.theme.classic": "Classic",
   "menu.settings.theme.classicPink": "Classic Pink",
   "menu.settings.theme.modern": "Modern",
+  "menu.settings.theme.dark": "Dark",
   "menu.help": "Help",
   "menu.help.about": "About",
 
   "theme.classic": "Classic",
   "theme.classic-pink": "Classic Pink",
   "theme.modern": "Modern",
+  "theme.dark": "Dark",
 
   "month.january": "January",
   "month.february": "February",
