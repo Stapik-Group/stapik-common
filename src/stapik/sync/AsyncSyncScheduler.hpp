@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <optional>
+#include <string>
 #include <utility>
 
 namespace stapik::sync
@@ -26,15 +27,20 @@ namespace stapik::sync
     class AsyncSyncScheduler
     {
     public:
-        explicit AsyncSyncScheduler(ICloudStorage& cloudStorage, AsyncSyncOptions options = {}) :
+        explicit AsyncSyncScheduler(ICloudStorage& cloudStorage, AsyncSyncOptions options = {}, std::optional<std::string> partition = std::nullopt) :
             m_options(options),
-            m_coordinator(cloudStorage),
+            m_coordinator(cloudStorage, std::move(partition)),
             m_debounce(options.debounceDelay, [this] { startJob(); }),
             m_retry(options.initialRetryDelay, [this] { startJob(); })
         {}
 
         AsyncSyncScheduler(const AsyncSyncScheduler&) = delete;
         AsyncSyncScheduler& operator=(const AsyncSyncScheduler&) = delete;
+
+        [[nodiscard]] const std::optional<std::string>& partition() const
+        {
+            return m_coordinator.partition();
+        }
 
         void documentChanged(const DocumentType& document)
         {

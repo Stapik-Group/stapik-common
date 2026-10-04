@@ -12,6 +12,8 @@ include(GoogleTest)
 
 add_executable(stapikcommon_tests
         app/AppContextTest.cpp
+        cloud/CloudPartitionProtocolTest.cpp
+        cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
         command/UndoStackTest.cpp
         document/DocumentFileTest.cpp
@@ -30,8 +32,13 @@ add_executable(stapikcommon_tests
         settings/SettingsStoreTest.cpp
         storage/AppPathsTest.cpp
         storage/AtomicFileTest.cpp
+        sync/AsyncSyncSchedulerPartitionTest.cpp
         sync/AsyncSyncSchedulerTest.cpp
+        sync/CloudSessionPartitionTest.cpp
         sync/CloudSessionTest.cpp
+        sync/PartitionKeyTest.cpp
+        sync/PartitionedSyncServiceTest.cpp
+        sync/SyncCoordinatorPartitionTest.cpp
         sync/SyncCoordinatorTest.cpp
         sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
