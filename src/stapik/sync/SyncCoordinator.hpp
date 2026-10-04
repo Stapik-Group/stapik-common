@@ -12,6 +12,8 @@
 #include <concepts>
 #include <exception>
 #include <optional>
+#include <string>
+#include <utility>
 
 namespace stapik::sync
 {
@@ -27,15 +29,21 @@ namespace stapik::sync
     class SyncCoordinator
     {
     public:
-        explicit SyncCoordinator(ICloudStorage& cloudStorage) :
-            m_cloudStorage(cloudStorage)
+        explicit SyncCoordinator(ICloudStorage& cloudStorage, std::optional<std::string> partition = std::nullopt) :
+            m_cloudStorage(cloudStorage),
+            m_partition(std::move(partition))
         {}
+
+        [[nodiscard]] const std::optional<std::string>& partition() const
+        {
+            return m_partition;
+        }
 
         [[nodiscard]] SyncOutcome<DocumentType> resolveOnConnect(const DocumentType& localDocument) const
         {
             try
             {
-                const auto cloudDocument = m_cloudStorage.loadDocument();
+                const auto cloudDocument = loadRemote();
 
                 if (!cloudDocument || isEmptyContent(cloudDocument->content))
                     return upload(localDocument, cloudDocument ? cloudDocument->updatedAt : TimePoint{});
@@ -81,6 +89,16 @@ namespace stapik::sync
             TimePoint contentTime;
             TimePoint cloudUpdatedAt;
         };
+
+        [[nodiscard]] std::optional<CloudDocument> loadRemote() const
+        {
+            return m_partition ? m_cloudStorage.loadPartition(*m_partition) : m_cloudStorage.loadDocument();
+        }
+
+        [[nodiscard]] CloudWriteResult saveRemote(const nlohmann::json& content, const TimePoint baseline) const
+        {
+            return m_partition ? m_cloudStorage.savePartition(*m_partition, content, baseline) : m_cloudStorage.saveDocument(content, baseline);
+        }
 
         static TimePoint floorToSeconds(const TimePoint timePoint)
         {
@@ -129,7 +147,7 @@ namespace stapik::sync
             for (int attempt = 1;; ++attempt)
             {
                 constexpr int MAX_ATTEMPTS = 2;
-                const auto [document, conflict] = m_cloudStorage.saveDocument(content, baseline);
+                const auto [document, conflict] = saveRemote(content, baseline);
 
                 if (!conflict)
                     return { SyncState::Synchronized, localDocument.withLastKnownCloudUpdate(document.updatedAt) };
@@ -159,5 +177,6 @@ namespace stapik::sync
         }
 
         ICloudStorage& m_cloudStorage;
+        std::optional<std::string> m_partition;
     };
 }
