@@ -39,6 +39,7 @@ add_executable(stapikcommon_tests
         task/DebouncedActionTest.cpp
         text/TrimTest.cpp
         theme/ThemeRegistryTest.cpp
+        theme/ThemeTest.cpp
         ui/RadioOptionsTest.cpp
 )
 

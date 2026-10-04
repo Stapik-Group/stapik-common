@@ -1,0 +1,222 @@
+@define-color stapik_bg #ece9d8;
+@define-color stapik_bg_light #fbfaf4;
+@define-color stapik_text #000000;
+@define-color stapik_text_muted #5a5a52;
+@define-color stapik_border #7f9db9;
+@define-color stapik_border_dark #003c74;
+@define-color stapik_title_start #0a5fe0;
+@define-color stapik_title_end #3d95ff;
+@define-color stapik_accent #316ac5;
+@define-color stapik_accent_light #4f8de0;
+@define-color stapik_action #3c9b3c;
+@define-color stapik_action_light #54b854;
+@define-color stapik_btn_top #ffffff;
+@define-color stapik_btn_bottom #ddd9c8;
+@define-color stapik_btn_hover_bottom #f3f0e2;
+@define-color stapik_btn_active #cfcbb8;
+
+* {
+    font-family: "Tahoma", "Segoe UI", "DejaVu Sans", sans-serif;
+    font-size: 13px;
+}
+
+window,
+dialog,
+dialog .dialog-vbox,
+popover contents { background-color: @stapik_bg; }
+
+headerbar {
+    background-image: linear-gradient(to bottom, @stapik_title_end, @stapik_title_start);
+    border-bottom: 1px solid @stapik_border_dark;
+    border-radius: 6px 6px 0 0;
+    box-shadow: none;
+    min-height: 30px;
+    padding: 2px 6px;
+}
+
+headerbar .title,
+headerbar label {
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+windowcontrols button,
+windowcontrols button:hover,
+windowcontrols button:active,
+windowcontrols button:focus {
+    min-width: 21px;
+    min-height: 21px;
+    padding: 0;
+    margin: 0 1px;
+    border-radius: 3px;
+    border: 1px solid #ffffff;
+    box-shadow: none;
+    background-image: linear-gradient(to bottom, @stapik_title_end, @stapik_accent);
+    color: #ffffff;
+}
+
+windowcontrols button:hover { background-image: linear-gradient(to bottom, @stapik_accent_light, @stapik_title_end); }
+
+windowcontrols button:active { background-image: linear-gradient(to bottom, @stapik_accent, @stapik_title_start); }
+
+menubar {
+    background-color: @stapik_bg;
+    border-bottom: 1px solid @stapik_border;
+    padding: 1px 2px;
+}
+
+menubar > item {
+    padding: 3px 8px;
+    border-radius: 2px;
+    color: @stapik_text;
+}
+
+menubar > item:hover {
+    background-color: @stapik_accent;
+    color: #ffffff;
+}
+
+popover contents {
+    background-color: @stapik_bg_light;
+    border: 1px solid @stapik_border_dark;
+    border-radius: 3px;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.35);
+    padding: 2px;
+}
+
+popover modelbutton {
+    padding: 3px 18px;
+    border-radius: 2px;
+    color: @stapik_text;
+}
+
+popover modelbutton:hover {
+    background-color: @stapik_accent;
+    color: #ffffff;
+}
+
+button {
+    background-image: linear-gradient(to bottom, @stapik_btn_top, @stapik_btn_bottom);
+    background-color: @stapik_btn_bottom;
+    border-radius: 3px;
+    border: 1px solid @stapik_border_dark;
+    box-shadow: none;
+    padding: 3px 12px;
+    color: @stapik_text;
+}
+
+button:hover:not(.stapik-color-swatch) {
+    background-image: linear-gradient(to bottom, @stapik_btn_top, @stapik_btn_hover_bottom);
+    border-color: #e5a02a;
+    box-shadow: inset 0 0 0 1px #fdd37a;
+}
+
+button:active {
+    background-image: linear-gradient(to bottom, @stapik_btn_active, @stapik_btn_bottom);
+    box-shadow: none;
+}
+
+button.suggested-action {
+    background-image: linear-gradient(to bottom, @stapik_action_light, @stapik_action);
+    background-color: @stapik_action;
+    border-color: #1f5d1f;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 5px 16px;
+}
+
+button.suggested-action:hover {
+    background-image: linear-gradient(to bottom, #6acb6a, @stapik_action_light);
+    border-color: #e5a02a;
+}
+
+button:checked:not(.stapik-color-swatch) {
+    background-image: linear-gradient(to bottom, @stapik_btn_active, @stapik_btn_bottom);
+    border-color: @stapik_border_dark;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.25);
+    color: @stapik_text;
+}
+
+entry,
+combobox button {
+    background-image: none;
+    background-color: #ffffff;
+    border: 1px solid @stapik_border;
+    border-radius: 2px;
+    color: @stapik_text;
+}
+
+entry {
+    padding: 3px 5px;
+    box-shadow: none;
+}
+
+entry:focus { border-color: @stapik_accent; }
+
+button.stapik-color-swatch {
+    min-width: 16px;
+    min-height: 16px;
+    padding: 0;
+    margin: 0;
+    border-radius: 2px;
+    border: 1px solid @stapik_border_dark;
+    box-shadow: none;
+    background-image: none;
+    outline: none;
+}
+
+button.stapik-color-swatch:hover,
+button.stapik-color-swatch:focus { border-color: #e5a02a; }
+
+button.stapik-color-swatch:active,
+button.stapik-color-swatch:checked {
+    border: 2px solid @stapik_text;
+    box-shadow: none;
+}
+
+.stapik-category-red,
+.stapik-category-green,
+.stapik-category-blue,
+.stapik-category-yellow,
+.stapik-category-purple,
+.stapik-category-orange,
+.stapik-category-brown,
+.stapik-category-pink,
+.stapik-category-teal,
+.stapik-category-gray {
+    border-radius: 3px;
+    padding: 1px 5px;
+}
+
+button.stapik-color-swatch { padding: 0; }
+
+.stapik-category-default { color: @stapik_text_muted; }
+
+.stapik-category-red { background-color: #c8321e; color: #ffffff; }
+
+.stapik-category-green { background-color: #3c9b3c; color: #ffffff; }
+
+.stapik-category-blue { background-color: @stapik_accent; color: #ffffff; }
+
+.stapik-category-yellow { background-color: #f2c200; color: @stapik_text; }
+
+.stapik-category-purple { background-color: #7a3fa8; color: #ffffff; }
+
+.stapik-category-orange { background-color: #e8860c; color: #ffffff; }
+
+.stapik-category-brown { background-color: #8a5a2b; color: #ffffff; }
+
+.stapik-category-pink { background-color: #d9619a; color: #ffffff; }
+
+.stapik-category-teal { background-color: #1f9a9a; color: #ffffff; }
+
+.stapik-category-gray { background-color: #808078; color: #ffffff; }
+
+.stapik-color-swatch.stapik-category-default { background-color: @stapik_btn_bottom; }
+
+.stapik-sync-idle { color: @stapik_text_muted; }
+.stapik-sync-syncing { color: @stapik_accent; }
+.stapik-sync-offline { color: @stapik_text_muted; }
+.stapik-sync-conflict { color: #b86e00; }
+.stapik-sync-error { color: #c8321e; font-weight: bold; }
