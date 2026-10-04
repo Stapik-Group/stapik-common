@@ -34,6 +34,8 @@ add_executable(stapikcommon_tests
         storage/AtomicFileTest.cpp
         sync/AsyncSyncSchedulerTest.cpp
         sync/CloudSessionTest.cpp
+        sync/PartitionKeyTest.cpp
+        sync/PartitionedSyncServiceTest.cpp
         sync/SyncCoordinatorPartitionTest.cpp
         sync/SyncCoordinatorTest.cpp
         sync/SyncStatusTest.cpp
