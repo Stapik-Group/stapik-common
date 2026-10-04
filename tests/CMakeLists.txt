@@ -12,6 +12,7 @@ include(GoogleTest)
 
 add_executable(stapikcommon_tests
         app/AppContextTest.cpp
+        cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
         command/UndoStackTest.cpp

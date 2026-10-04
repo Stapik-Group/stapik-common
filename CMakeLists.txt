@@ -41,6 +41,7 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
 )
 
