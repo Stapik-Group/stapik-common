@@ -162,6 +162,7 @@ TEST_F(CloudSessionPartitionTest, OfflineLoadIsRetriedAndNotMarkedLoadedUntilItS
 TEST_F(CloudSessionPartitionTest, PushPartitionChangeUploadsOnlyThatPartitionAndReportsTheBaseline)
 {
     m_fake.partitions["2026"] = cloudDocument("v0", 10, 1000);
+    m_fake.nextServerTime = at(1001);
     CloudSession<Entry> session(m_hooks, m_options);
     watch(session);
 
