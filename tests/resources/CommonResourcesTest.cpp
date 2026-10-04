@@ -25,7 +25,7 @@ namespace
     const fs::path RESOURCES_DIR = STAPIK_COMMON_RESOURCES_DIR;
 
     const std::vector<std::string> LANGUAGES = { "de", "en", "pl" };
-    const std::vector<std::string> THEMES = { "classic", "classic-pink", "dark", "modern" };
+    const std::vector<std::string> THEMES = { "classic", "classic-pink", "dark", "modern", "neoclassic" };
     const std::vector<std::string> CATEGORY_COLORS = {
         "default", "red", "green", "blue", "yellow", "purple", "orange", "brown", "pink", "teal"
     };

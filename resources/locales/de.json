@@ -21,6 +21,7 @@
   "menu.settings.theme.classicPink": "Klassisch Pink",
   "menu.settings.theme.modern": "Modern",
   "menu.settings.theme.dark": "Dunkel",
+  "menu.settings.theme.neoclassic": "Neoklassisch",
   "menu.help": "Hilfe",
   "menu.help.about": "Info",
 
@@ -28,6 +29,7 @@
   "theme.classic-pink": "Klassisch Pink",
   "theme.modern": "Modern",
   "theme.dark": "Dunkel",
+  "theme.neoclassic": "Neoklassisch",
 
   "month.january": "Januar",
   "month.february": "Februar",
