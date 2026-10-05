@@ -2,14 +2,104 @@
 
 #include <cerrno>
 #include <cstring>
-#include <dirent.h>
-#include <fcntl.h>
 #include <string>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "stapik/log/Log.hpp"
+#include "stapik/storage/PathText.hpp"
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+#include <algorithm>
+#include <atomic>
+#include <format>
+#include <system_error>
+#else
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
+#ifdef _WIN32
+namespace
+{
+    constexpr int MAX_TEMPORARY_NAME_ATTEMPTS = 100;
+    constexpr int MAX_REPLACE_ATTEMPTS = 5;
+    constexpr DWORD REPLACE_RETRY_DELAY_MILLISECONDS = 50;
+    constexpr std::size_t MAX_WRITE_CHUNK = std::size_t{ 1 } << 30;
+
+    void logFailure(const std::filesystem::path& path, const char* step, const DWORD errorCode)
+    {
+        stapik::log::warning("Atomic write of {} failed at {}: {}",
+            stapik::storage::pathText(path), step, std::system_category().message(static_cast<int>(errorCode)));
+    }
+
+    // CREATE_NEW makes the creation exclusive, so a name that is already taken is simply skipped.
+    HANDLE createTemporaryFile(const std::filesystem::path& directory, const std::filesystem::path& targetName, std::filesystem::path& temporaryPath, DWORD& errorCode)
+    {
+        static std::atomic<unsigned> counter{ 0 };
+
+        for (int attempt = 0; attempt < MAX_TEMPORARY_NAME_ATTEMPTS; ++attempt)
+        {
+            temporaryPath = directory / (targetName.wstring() + std::format(L".tmp.{:x}.{:x}.{:x}", GetCurrentProcessId(), GetTickCount64(), counter.fetch_add(1)));
+
+            const HANDLE handle = CreateFileW(temporaryPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (handle != INVALID_HANDLE_VALUE)
+                return handle;
+
+            errorCode = GetLastError();
+            if (errorCode != ERROR_FILE_EXISTS && errorCode != ERROR_ALREADY_EXISTS)
+                return INVALID_HANDLE_VALUE;
+        }
+
+        return INVALID_HANDLE_VALUE;
+    }
+
+    bool writeAll(const HANDLE handle, std::string_view content, DWORD& errorCode)
+    {
+        while (!content.empty())
+        {
+            const auto chunk = static_cast<DWORD>(std::min(content.size(), MAX_WRITE_CHUNK));
+            DWORD written = 0;
+            if (!WriteFile(handle, content.data(), chunk, &written, nullptr))
+            {
+                errorCode = GetLastError();
+                return false;
+            }
+
+            content.remove_prefix(written);
+        }
+
+        return true;
+    }
+
+    // Antivirus scanners and backup tools briefly lock files they have just seen, which makes the replace fail
+    // with "access denied" or "sharing violation" although nothing is wrong.
+    bool replaceFile(const std::filesystem::path& temporaryPath, const std::filesystem::path& path, DWORD& errorCode)
+    {
+        for (int attempt = 0; attempt < MAX_REPLACE_ATTEMPTS; ++attempt)
+        {
+            if (MoveFileExW(temporaryPath.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+                return true;
+
+            errorCode = GetLastError();
+            if (errorCode != ERROR_ACCESS_DENIED && errorCode != ERROR_SHARING_VIOLATION && errorCode != ERROR_LOCK_VIOLATION)
+                return false;
+
+            Sleep(REPLACE_RETRY_DELAY_MILLISECONDS);
+        }
+
+        return false;
+    }
+}
+#else
 namespace
 {
     bool writeAll(const int fileDescriptor, std::string_view content)
@@ -40,9 +130,10 @@ namespace
 
     void logFailure(const std::filesystem::path& path, const char* step, const int errorNumber)
     {
-        stapik::log::warning("Atomic write of {} failed at {}: {}", path.string(), step, std::strerror(errorNumber));
+        stapik::log::warning("Atomic write of {} failed at {}: {}", stapik::storage::pathText(path), step, std::strerror(errorNumber));
     }
 }
+#endif
 
 namespace stapik::storage
 {
@@ -54,10 +145,48 @@ namespace stapik::storage
         std::filesystem::create_directories(directory, errorCode);
         if (errorCode)
         {
-            log::warning("Cannot create directory {}: {}", directory.string(), errorCode.message());
+            log::warning("Cannot create directory {}: {}", pathText(directory), errorCode.message());
             return false;
         }
 
+#ifdef _WIN32
+        // Windows has no POSIX permission bits: the file inherits the access rules of the user's profile folder,
+        // so `permissions` is accepted for compatibility and ignored.
+        static_cast<void>(permissions);
+
+        std::filesystem::path temporaryPath;
+        DWORD windowsError = 0;
+        const HANDLE handle = createTemporaryFile(directory, path.filename(), temporaryPath, windowsError);
+        if (handle == INVALID_HANDLE_VALUE)
+        {
+            logFailure(path, "create temporary file", windowsError);
+            return false;
+        }
+
+        const auto failAndCleanUp = [&](const char* step, const DWORD failure, const bool handleStillOpen)
+        {
+            if (handleStillOpen)
+                CloseHandle(handle);
+
+            DeleteFileW(temporaryPath.c_str());
+            logFailure(path, step, failure);
+            return false;
+        };
+
+        if (!writeAll(handle, content, windowsError))
+            return failAndCleanUp("write", windowsError, true);
+
+        if (!FlushFileBuffers(handle))
+            return failAndCleanUp("flush", GetLastError(), true);
+
+        if (!CloseHandle(handle))
+            return failAndCleanUp("close", GetLastError(), false);
+
+        if (!replaceFile(temporaryPath, path, windowsError))
+            return failAndCleanUp("replace", windowsError, false);
+
+        return true;
+#else
         auto temporaryPath = (directory / (path.filename().string() + ".tmp.XXXXXX")).string();
 
         const int fileDescriptor = mkstemp(temporaryPath.data());
@@ -103,5 +232,6 @@ namespace stapik::storage
 
         syncDirectory(directory);
         return true;
+#endif
     }
 }

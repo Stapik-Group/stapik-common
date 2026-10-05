@@ -2,6 +2,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -24,7 +25,7 @@ namespace stapik::settings
         std::ifstream file(m_filePath);
         if (!file.is_open())
         {
-            log::warning("Cannot open settings file {}", m_filePath.string());
+            log::warning("Cannot open settings file {}", storage::pathText(m_filePath));
             return LoadStatus::Missing;
         }
 
@@ -47,7 +48,7 @@ namespace stapik::settings
         {
             if (const auto fileVersion = root.at("version").get<int>(); fileVersion > m_schemaVersion)
             {
-                log::warning("Settings file {} has newer schema version {} (supported: {})", m_filePath.string(), fileVersion, m_schemaVersion);
+                log::warning("Settings file {} has newer schema version {} (supported: {})", storage::pathText(m_filePath), fileVersion, m_schemaVersion);
                 m_schemaVersion = fileVersion;
             }
         }
@@ -101,12 +102,12 @@ namespace stapik::settings
         if (errorCode)
         {
             log::warning("Settings file {} is corrupted ({}) and could not be moved aside: {}",
-                m_filePath.string(), reason, errorCode.message());
+                storage::pathText(m_filePath), reason, errorCode.message());
         }
         else
         {
             log::warning("Settings file {} is corrupted ({}); moved to {}",
-                m_filePath.string(), reason, quarantinePath.string());
+                storage::pathText(m_filePath), reason, storage::pathText(quarantinePath));
         }
 
         return LoadStatus::Corrupted;

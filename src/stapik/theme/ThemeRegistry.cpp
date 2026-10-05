@@ -1,6 +1,7 @@
 #include "ThemeRegistry.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -43,7 +44,7 @@ namespace stapik::theme
     {
         if (std::error_code errorCode; !std::filesystem::is_directory(resourcesDir, errorCode))
         {
-            log::warning("Resources directory not found: {}", resourcesDir.string());
+            log::warning("Resources directory not found: {}", storage::pathText(resourcesDir));
             return;
         }
 

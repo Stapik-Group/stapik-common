@@ -2,6 +2,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <fstream>
 #include <map>
@@ -47,9 +48,9 @@ namespace stapik::settings
         store.set<std::string>(key, normalize ? normalize(content) : content);
 
         if (store.save())
-            log::info("Imported legacy setting '{}' from {}", key, legacyFile.string());
+            log::info("Imported legacy setting '{}' from {}", key, storage::pathText(legacyFile));
         else
-            log::warning("Cannot persist setting '{}' imported from {}", key, legacyFile.string());
+            log::warning("Cannot persist setting '{}' imported from {}", key, storage::pathText(legacyFile));
 
         return true;
     }

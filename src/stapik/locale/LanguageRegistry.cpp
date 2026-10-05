@@ -1,6 +1,7 @@
 #include "LanguageRegistry.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -63,7 +64,7 @@ namespace stapik::locale
         std::error_code errorCode;
         if (!std::filesystem::is_directory(directory, errorCode))
         {
-            log::warning("Locales directory not found: {}", directory.string());
+            log::warning("Locales directory not found: {}", storage::pathText(directory));
             return;
         }
 

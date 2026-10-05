@@ -2,6 +2,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -69,7 +70,7 @@ namespace stapik::domain
         std::ifstream stream(file);
         if (!stream.is_open())
         {
-            log::debug("Currency file not found: {}", file.string());
+            log::debug("Currency file not found: {}", storage::pathText(file));
             return false;
         }
 
@@ -80,13 +81,13 @@ namespace stapik::domain
         }
         catch (const nlohmann::json::exception& exception)
         {
-            log::warning("Cannot parse currencies from {}: {}", file.string(), exception.what());
+            log::warning("Cannot parse currencies from {}: {}", storage::pathText(file), exception.what());
             return false;
         }
 
         if (!json.is_array())
         {
-            log::warning("Currency file {} must contain a JSON array", file.string());
+            log::warning("Currency file {} must contain a JSON array", storage::pathText(file));
             return false;
         }
 
@@ -105,7 +106,7 @@ namespace stapik::domain
             if (currency)
                 add(std::move(*currency));
             else
-                log::warning("Ignoring invalid currency entry {} in {}", index, file.string());
+                log::warning("Ignoring invalid currency entry {} in {}", index, storage::pathText(file));
         }
 
         return true;

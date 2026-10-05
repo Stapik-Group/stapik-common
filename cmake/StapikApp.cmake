@@ -4,31 +4,12 @@ include("${CMAKE_CURRENT_LIST_DIR}/StapikWarnings.cmake")
 
 set(STAPIK_COMMON_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "Directory with the stapik-common CMake modules")
 set(STAPIK_APP_SYSTEM_PREFIX "/usr" CACHE PATH "Where launcher, .desktop file and icon are installed (outside the application prefix)")
+option(STAPIK_WINDOWS_CONSOLE "Windows: build applications with a console window (for debugging) instead of as GUI programs" OFF)
 
-# stapik_add_application(
-#         NAME <package and executable name, lowercase>
-#         SOURCES <files...>
-#         [DISPLAY_NAME <name>]               default: NAME
-#         [DESCRIPTION <one line>]            default: DISPLAY_NAME
-#         [VERSION <x.y.z>]                   default: PROJECT_VERSION
-#         [APPLICATION_ID <reverse.dns.id>]   default: NAME; names the .desktop file, must match Gtk::Application
-#         [RESOURCES_DIRECTORY <dir>]         copied next to the executable and installed to <prefix>/resources
-#         [PACKAGING_DIRECTORY <dir>]         optional <NAME>.svg or <NAME>.png (256x256) icon,
-#                                             launcher.sh.in and application.desktop.in overriding the defaults
-#         [MAINTAINER <Name <mail>>]          default: Stapik Group
-#         [HOMEPAGE <url>]
-#         [SECTION <deb section>]             default: utils
-#         [DESKTOP_CATEGORIES <categories...>] default: Utility
-#         [DEPENDS <deb packages...>]         extra Depends, on top of the detected shared libraries
-#         [LINK_LIBRARIES <targets...>])
-#
-# The build tree gets <exe dir>/resources (application resources) and <exe dir>/resources/stapik-common.
-#
-# Layout (self-contained, matches AppPaths):
-#         <prefix>/bin/<NAME>, <prefix>/resources, <prefix>/share/stapik-common
-#         <system prefix>/bin/<NAME> (launcher), .../share/applications, .../share/icons/hicolor
-# The prefix defaults to /opt/<NAME> and is baked into the launcher, so a different prefix has to be
-# given at configure time (-DCMAKE_INSTALL_PREFIX), not only to `cmake --install`.
+if(WIN32)
+    enable_language(RC)
+endif()
+
 function(stapik_add_application)
     cmake_parse_arguments(PARSE_ARGV 0 STAPIK_APP ""
             "NAME;DISPLAY_NAME;DESCRIPTION;VERSION;APPLICATION_ID;RESOURCES_DIRECTORY;PACKAGING_DIRECTORY;MAINTAINER;HOMEPAGE;SECTION"
@@ -118,6 +99,51 @@ function(stapik_add_application)
             VERBATIM)
     add_dependencies(${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
 
+    set(generatedDirectory "${CMAKE_CURRENT_BINARY_DIR}/stapik-packaging/${STAPIK_APP_NAME}")
+
+    # --- Windows: GUI executable, version resource, self-contained bundle ---
+    if(WIN32)
+        if(NOT STAPIK_WINDOWS_CONSOLE)
+            set_target_properties(${STAPIK_APP_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+        endif()
+
+        string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" versionMatch "${STAPIK_APP_VERSION}")
+        if(versionMatch)
+            set(STAPIK_APP_RC_VERSION "${CMAKE_MATCH_1},${CMAKE_MATCH_2},${CMAKE_MATCH_3},0")
+        else()
+            set(STAPIK_APP_RC_VERSION "0,0,0,0")
+        endif()
+
+        set(STAPIK_APP_RC_ICON "")
+        if(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.ico")
+            set(STAPIK_APP_RC_ICON "1 ICON \"${packagingDirectory}/${STAPIK_APP_NAME}.ico\"")
+        endif()
+
+        # Quotes are doubled inside resource strings.
+        foreach(field MAINTAINER DESCRIPTION DISPLAY_NAME)
+            string(REPLACE "\"" "\"\"" STAPIK_APP_RC_${field} "${STAPIK_APP_${field}}")
+        endforeach()
+
+        configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/windows/application.rc.in" "${generatedDirectory}/${STAPIK_APP_NAME}.rc" @ONLY)
+        target_sources(${STAPIK_APP_NAME} PRIVATE "${generatedDirectory}/${STAPIK_APP_NAME}.rc")
+
+        find_program(STAPIK_BASH bash)
+        if(STAPIK_BASH)
+            add_custom_target(${STAPIK_APP_NAME}_windows_bundle
+                    COMMAND "${STAPIK_BASH}" "${STAPIK_COMMON_CMAKE_DIR}/templates/windows/bundle.sh"
+                            --exe "$<TARGET_FILE:${STAPIK_APP_NAME}>"
+                            --resources "${resourcesBuildDirectory}"
+                            --output "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-windows"
+                    COMMENT "Assembling the self-contained Windows folder of ${STAPIK_APP_NAME}"
+                    VERBATIM)
+            add_dependencies(${STAPIK_APP_NAME}_windows_bundle ${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
+        else()
+            message(STATUS "stapik_add_application: bash not found, target ${STAPIK_APP_NAME}_windows_bundle is not available")
+        endif()
+
+        return()
+    endif()
+
     # --- Install prefix ---
     if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
         set(CMAKE_INSTALL_PREFIX "/opt/${STAPIK_APP_NAME}" CACHE PATH "Install prefix" FORCE)
@@ -137,8 +163,6 @@ function(stapik_add_application)
     endif()
 
     # --- Launcher, .desktop file, icon ---
-    set(generatedDirectory "${CMAKE_CURRENT_BINARY_DIR}/stapik-packaging/${STAPIK_APP_NAME}")
-
     set(launcherTemplate "${STAPIK_COMMON_CMAKE_DIR}/templates/launcher.sh.in")
     set(desktopTemplate "${STAPIK_COMMON_CMAKE_DIR}/templates/application.desktop.in")
     if(packagingDirectory)

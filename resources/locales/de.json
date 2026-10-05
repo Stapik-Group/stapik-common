@@ -1,5 +1,6 @@
 {
   "language.name": "Deutsch",
+  "app.alreadyRunning": "{name} läuft bereits.",
 
   "menu.file": "Datei",
   "menu.file.connect": "Mit Cloud verbinden",

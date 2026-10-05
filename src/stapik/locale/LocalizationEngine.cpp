@@ -1,6 +1,7 @@
 #include "LocalizationEngine.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -76,7 +77,7 @@ void LocalizationEngine::loadFile(const std::string &code, const std::filesystem
     std::ifstream stream(file);
     if (!stream.is_open())
     {
-        stapik::log::warning("Cannot open translation file {}", file.string());
+        stapik::log::warning("Cannot open translation file {}", stapik::storage::pathText(file));
         return;
     }
 
@@ -85,7 +86,7 @@ void LocalizationEngine::loadFile(const std::string &code, const std::filesystem
         const auto json = nlohmann::json::parse(stream);
         if (!json.is_object())
         {
-            stapik::log::warning("Translation file {} must contain a JSON object", file.string());
+            stapik::log::warning("Translation file {} must contain a JSON object", stapik::storage::pathText(file));
             return;
         }
 
@@ -93,7 +94,7 @@ void LocalizationEngine::loadFile(const std::string &code, const std::filesystem
         {
             if (!value.is_string())
             {
-                stapik::log::warning("Ignoring non-string translation '{}' in {}", key, file.string());
+                stapik::log::warning("Ignoring non-string translation '{}' in {}", key, stapik::storage::pathText(file));
                 continue;
             }
 
@@ -101,7 +102,7 @@ void LocalizationEngine::loadFile(const std::string &code, const std::filesystem
         }
     } catch (const nlohmann::json::exception &exception)
     {
-        stapik::log::warning("Cannot parse translations from {}: {}", file.string(), exception.what());
+        stapik::log::warning("Cannot parse translations from {}: {}", stapik::storage::pathText(file), exception.what());
     }
 }
 

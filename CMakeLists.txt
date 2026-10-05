@@ -38,6 +38,8 @@ set_target_properties(stapikcommon PROPERTIES EXPORT_NAME common)
 
 target_sources(stapikcommon PRIVATE
         src/stapik/app/AppContext.cpp
+        src/stapik/app/BundledRuntime.cpp
+        src/stapik/app/SingleInstanceGuard.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -140,6 +142,11 @@ target_link_libraries(stapikcommon PUBLIC
         nlohmann_json::nlohmann_json
         CURL::libcurl
 )
+
+if(WIN32)
+    # MessageBoxW of SingleInstanceGuard
+    target_link_libraries(stapikcommon PUBLIC user32)
+endif()
 
 set(STAPIK_COMMON_RESOURCES_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/stapik-common" CACHE STRING
         "Where the stapik-common resources (locales, themes) are installed, relative to the install prefix")

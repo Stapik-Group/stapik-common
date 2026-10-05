@@ -1,5 +1,6 @@
 {
   "language.name": "English",
+  "app.alreadyRunning": "{name} is already running.",
 
   "menu.file": "File",
   "menu.file.connect": "Connect to cloud",

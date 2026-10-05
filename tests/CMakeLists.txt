@@ -12,6 +12,8 @@ include(GoogleTest)
 
 add_executable(stapikcommon_tests
         app/AppContextTest.cpp
+        app/BundledRuntimeTest.cpp
+        app/SingleInstanceGuardTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
@@ -32,6 +34,7 @@ add_executable(stapikcommon_tests
         settings/SettingsStoreTest.cpp
         storage/AppPathsTest.cpp
         storage/AtomicFileTest.cpp
+        storage/PathTextTest.cpp
         sync/AsyncSyncSchedulerPartitionTest.cpp
         sync/AsyncSyncSchedulerTest.cpp
         sync/CloudSessionPartitionTest.cpp

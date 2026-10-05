@@ -2,6 +2,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <gtkmm/stylecontext.h>
 
@@ -29,7 +30,7 @@ AppStyleProvider AppStyleProvider::withCommonThemes(std::filesystem::path appRes
     if (std::error_code errorCode; std::filesystem::is_directory(commonResourcesDir, errorCode))
         resourcesDirs.push_back(commonResourcesDir);
     else
-        stapik::log::debug("stapik-common resources not found at {}, using the application's themes only", commonResourcesDir.string());
+        stapik::log::debug("stapik-common resources not found at {}, using the application's themes only", stapik::storage::pathText(commonResourcesDir));
 
     resourcesDirs.push_back(std::move(appResourcesDir));
     return AppStyleProvider(resourcesDirs);
@@ -64,16 +65,16 @@ void AppStyleProvider::apply(const std::string& themeId)
         provider->signal_parsing_error().connect(
             [file](const Glib::RefPtr<const Gtk::CssSection>&, const Glib::Error& error)
             {
-                stapik::log::warning("CSS parsing error in {}: {}", file.string(), error.what());
+                stapik::log::warning("CSS parsing error in {}: {}", stapik::storage::pathText(file), error.what());
             });
 
         try
         {
-            provider->load_from_path(file.string());
+            provider->load_from_path(stapik::storage::pathText(file));
         }
         catch (const Glib::Error& error)
         {
-            stapik::log::warning("Cannot load CSS file {}: {}", file.string(), error.what());
+            stapik::log::warning("Cannot load CSS file {}: {}", stapik::storage::pathText(file), error.what());
             continue;
         }
 
