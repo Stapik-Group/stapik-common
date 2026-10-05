@@ -3,6 +3,7 @@
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/log/Log.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -21,7 +22,7 @@ namespace
             errorCode);
 
         if (errorCode)
-            stapik::log::warning("Cannot restrict permissions of {}: {}", path.string(), errorCode.message());
+            stapik::log::warning("Cannot restrict permissions of {}: {}", stapik::storage::pathText(path), errorCode.message());
     }
 }
 

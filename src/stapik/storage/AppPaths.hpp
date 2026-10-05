@@ -16,6 +16,5 @@ public:
     [[nodiscard]] static std::filesystem::path userDataDir(const std::string& appName);
     [[nodiscard]] static std::filesystem::path userConfigDir(const std::string& appName);
     [[nodiscard]] static std::filesystem::path userCacheDir(const std::string& appName);
-private:
-    static std::filesystem::path executableDir();
+    [[nodiscard]] static std::filesystem::path executableDir();
 };

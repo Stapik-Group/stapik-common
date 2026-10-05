@@ -2,6 +2,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
+#include "stapik/storage/PathText.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -53,7 +54,7 @@ namespace stapik::document
         std::ifstream file(source);
         if (!file.is_open())
         {
-            log::warning("Cannot open document file {}", source.string());
+            log::warning("Cannot open document file {}", storage::pathText(source));
             return result;
         }
 
@@ -64,7 +65,7 @@ namespace stapik::document
         }
         catch (const nlohmann::json::exception& exception)
         {
-            log::warning("Document file {} is not valid JSON: {}", source.string(), exception.what());
+            log::warning("Document file {} is not valid JSON: {}", storage::pathText(source), exception.what());
             result.status = LoadStatus::Corrupted;
             return result;
         }
@@ -100,7 +101,7 @@ namespace stapik::document
                 result.migrated = true;
                 break;
             case FromNewerVersion:
-                log::warning("Document file {} has schema version {}, newer than supported {}", source.string(), fileVersion, m_migrator.currentVersion());
+                log::warning("Document file {} has schema version {}, newer than supported {}", storage::pathText(source), fileVersion, m_migrator.currentVersion());
                 result.status = NewerVersion;
                 break;
             case MissingStep:
@@ -135,31 +136,29 @@ namespace stapik::document
             std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
 
         std::error_code errorCode;
-        auto target = std::filesystem::path{
-            std::format("{}.corrupt-{}", m_filePath.string(), stamp)
-        };
+        auto target = m_filePath;
+        target += std::format(".corrupt-{}", stamp);
 
         int suffix = 2;
         while (std::filesystem::exists(target, errorCode))
         {
-            target = std::filesystem::path{
-                std::format("{}.corrupt-{}-{}", m_filePath.string(), stamp, suffix++)
-            };
+            target = m_filePath;
+            target += std::format(".corrupt-{}-{}", stamp, suffix++);
         }
 
         std::filesystem::rename(m_filePath, target, errorCode);
 
         if (errorCode)
-            log::warning("Cannot move corrupted document {} aside: {}", m_filePath.string(), errorCode.message());
+            log::warning("Cannot move corrupted document {} aside: {}", storage::pathText(m_filePath), errorCode.message());
         else
-            log::warning("Corrupted document moved to {}", target.string());
+            log::warning("Corrupted document moved to {}", storage::pathText(target));
     }
 
     std::filesystem::path DocumentFileCore::backupPath(const int index) const
     {
-        return index == 1
-            ? std::format("{}.bak", m_filePath.string())
-            : std::format("{}.bak.{}", m_filePath.string(), index);
+        auto backup = m_filePath;
+        backup += index == 1 ? std::string(".bak") : std::format(".bak.{}", index);
+        return backup;
     }
 
     void DocumentFileCore::rotateBackups() const
@@ -183,6 +182,6 @@ namespace stapik::document
         std::filesystem::copy_file(m_filePath, backupPath(1), std::filesystem::copy_options::overwrite_existing, errorCode);
 
         if (errorCode)
-            log::warning("Cannot back up {}: {}", m_filePath.string(), errorCode.message());
+            log::warning("Cannot back up {}: {}", storage::pathText(m_filePath), errorCode.message());
     }
 }

@@ -1,5 +1,7 @@
 #include "AppContext.hpp"
 
+#include "BundledRuntime.hpp"
+
 #include "stapik/log/Log.hpp"
 #include "stapik/settings/AppSettings.hpp"
 
@@ -46,6 +48,8 @@ namespace stapik::app
                 return false;
             }
         }
+
+        prepareWindowsRuntime(appInfo.internalName);
 
         slot.reset(new AppContext(std::move(appInfo), false));
         return true;

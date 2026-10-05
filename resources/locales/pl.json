@@ -1,5 +1,6 @@
 {
   "language.name": "Polski",
+  "app.alreadyRunning": "{name} jest już uruchomiony.",
 
   "menu.file": "Plik",
   "menu.file.connect": "Połącz z chmurą",
