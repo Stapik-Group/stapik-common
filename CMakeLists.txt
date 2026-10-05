@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.2)
-project(stapikcommon VERSION 1.2.1 LANGUAGES CXX)
+project(stapikcommon VERSION 1.3.0 LANGUAGES CXX)
 
 set(stapikcommon_VERSION_SUFFIX "")
 set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}_${stapikcommon_VERSION_SUFFIX}")
