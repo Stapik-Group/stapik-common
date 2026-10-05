@@ -92,7 +92,7 @@ namespace stapik::test
                 throw CloudStorageException("network unreachable");
 
             const auto found = partitions.find(partition);
-            return found == partitions.end() ? std::nullopt : std::optional<CloudDocument>{ found->second };
+            return found == partitions.end() ? std::nullopt : std::optional{ found->second };
         }
 
         [[nodiscard]] CloudWriteResult savePartition(const std::string& partition, const nlohmann::json& data, const TimePoint clientLastKnownUpdate) const override

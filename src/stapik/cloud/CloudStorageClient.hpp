@@ -22,7 +22,7 @@ public:
     [[nodiscard]] std::vector<CloudPartitionInfo> listPartitions() const override;
     [[nodiscard]] std::optional<CloudDocument> loadPartition(const std::string& partition) const override;
     [[nodiscard]] CloudWriteResult savePartition(const std::string& partition, const nlohmann::json& data, std::chrono::system_clock::time_point clientLastKnownUpdate) const override;
-    bool deletePartition(const std::string& partition) const override;
+    [[nodiscard]] bool deletePartition(const std::string& partition) const override;
 
 private:
     static constexpr long TIMEOUT_SECONDS = 8L;

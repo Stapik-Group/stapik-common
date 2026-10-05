@@ -5,7 +5,6 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -74,7 +73,7 @@ public:
         throw CloudStorageException(PARTITIONS_UNSUPPORTED);
     }
 
-    virtual bool deletePartition(const std::string&) const
+    [[nodiscard]] virtual bool deletePartition(const std::string&) const
     {
         throw CloudStorageException(PARTITIONS_UNSUPPORTED);
     }

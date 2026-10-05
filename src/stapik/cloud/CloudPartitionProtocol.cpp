@@ -1,12 +1,9 @@
 #include "CloudPartitionProtocol.hpp"
-
 #include "CloudStorageException.hpp"
 
 #include "stapik/sync/Timestamp.hpp"
 
 #include <nlohmann/json.hpp>
-
-#include <cstdint>
 
 namespace stapik::cloud
 {
@@ -21,22 +18,23 @@ namespace stapik::cloud
 
     std::string encodePathSegment(const std::string& segment)
     {
-        constexpr char hex[] = "0123456789ABCDEF";
-
         std::string encoded;
+
         for (const char c : segment)
         {
+            constexpr char hex[] = "0123456789ABCDEF";
             if (isUnreserved(c))
             {
                 encoded += c;
                 continue;
             }
 
-            const auto byte = static_cast<unsigned char>(c);
+            const auto byte = static_cast<std::byte>(static_cast<unsigned char>(c));
             encoded += '%';
-            encoded += hex[byte >> 4];
-            encoded += hex[byte & 0x0F];
+            encoded += hex[std::to_integer<unsigned int>(byte >> 4)];
+            encoded += hex[std::to_integer<unsigned int>(byte & std::byte{0x0F})];
         }
+
         return encoded;
     }
 

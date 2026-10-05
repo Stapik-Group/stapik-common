@@ -40,7 +40,7 @@ namespace stapik::test
             return m_target.savePartition(partition, data, baseline);
         }
 
-        bool deletePartition(const std::string& partition) const override
+        [[nodiscard]] bool deletePartition(const std::string& partition) const override
         {
             return m_target.deletePartition(partition);
         }
