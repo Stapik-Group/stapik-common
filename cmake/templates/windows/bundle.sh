@@ -10,7 +10,7 @@
 #
 #   <app>.exe, *.dll
 #   resources/                              application resources and resources/stapik-common
-#   lib/gdk-pixbuf-2.0/<ver>/loaders/       image loaders (SVG icons need one) and loaders.cache
+#   lib/gdk-pixbuf-2.0/<ver>/loaders/       image loaders (those that are installed) and loaders.cache
 #   share/glib-2.0/schemas/                 compiled GSettings schemas
 #   share/icons/{Adwaita,hicolor}/          icon themes
 #   etc/ssl/certs/ca-bundle.crt             CA certificates (fallback for the TLS of the cloud sync)
@@ -115,7 +115,10 @@ for loader in "${PIXBUF_LOADERS[@]}"; do
         echo "   note: image loader '$loader' is not installed, skipped"
     fi
 done
-[[ -f "$loaders_output/libpixbufloader-svg.dll" ]] || fail "the SVG image loader (librsvg) is missing; the symbolic icons of GTK would not show"
+# Newer librsvg no longer ships the gdk-pixbuf loader, and GTK 4 draws its own symbolic icons itself, so the SVG
+# loader is only worth a note. The PNG loader is the one that has to be there.
+[[ -f "$loaders_output/libpixbufloader-svg.dll" ]] || echo "   note: no SVG loader for gdk-pixbuf in this MSYS2 (librsvg dropped it); GTK 4 does not need it"
+[[ -n "$bundled_loader_files" ]] || echo "   note: no image loader at all was bundled"
 
 # loaders.cache lists the loaders; keep only the bundled ones. The paths in it are rewritten at run time by
 # BundledRuntime, so they do not need to be right here.
