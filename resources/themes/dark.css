@@ -233,3 +233,36 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-sync-offline { color: @stapik_text_muted; }
 .stapik-sync-conflict { color: #ff9f0a; }
 .stapik-sync-error { color: #ff453a; font-weight: 600; }
+
+.stapik-about-banner { padding: 24px 16px 8px 16px; }
+
+.stapik-about-name {
+    color: @stapik_text;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.stapik-about-version { color: @stapik_text_muted; }
+
+.stapik-about-card {
+    background-color: @stapik_surface;
+    border: 1px solid @stapik_border;
+    border-radius: 10px;
+    padding: 12px 16px;
+}
+
+.stapik-about-card label { color: @stapik_text; }
+
+button.stapik-about-link {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+button.stapik-about-link,
+button.stapik-about-link label {
+    color: @stapik_accent;
+    text-decoration: underline;
+}

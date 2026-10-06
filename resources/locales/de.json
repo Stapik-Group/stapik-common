@@ -56,6 +56,9 @@
   "dialog.connect.url.invalid": "Die Adresse muss mit http:// oder https:// beginnen",
   "dialog.connect.url.insecure": "Unsichere Verbindung: Schlüssel und Daten werden unverschlüsselt gesendet.",
   "dialog.about.title": "Über {name}",
+  "dialog.about.version": "Version {version}",
+  "dialog.about.author": "Autor: {author}",
+  "dialog.about.website": "Webseite",
 
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
