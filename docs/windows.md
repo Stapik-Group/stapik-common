@@ -48,5 +48,5 @@ In an MSYS2 shell:
 creates `build/<name>-windows/`, which runs on a PC without MSYS2. The script is `cmake/templates/windows/bundle.sh`;
 it fails when a DLL would be resolved from outside the folder.
 
-Required MSYS2 packages: `gcc cmake ninja pkgconf gtkmm-4.0 curl adwaita-icon-theme librsvg` (prefixed
-`mingw-w64-ucrt-x86_64-`).
+Required MSYS2 packages: `gcc cmake ninja pkgconf gtkmm-4.0 curl adwaita-icon-theme hicolor-icon-theme` (prefixed
+`mingw-w64-ucrt-x86_64-`). The gdk-pixbuf image loaders that are installed are bundled; an SVG loader is not required.
