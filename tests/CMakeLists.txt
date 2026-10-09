@@ -14,6 +14,7 @@ add_executable(stapikcommon_tests
         app/AppContextTest.cpp
         app/BundledRuntimeTest.cpp
         app/SingleInstanceGuardTest.cpp
+        cloud/CloudAssetProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
