@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.2)
-project(stapikcommon VERSION 1.3.2 LANGUAGES CXX)
+project(stapikcommon VERSION 1.4.0 LANGUAGES CXX)
 
 set(stapikcommon_VERSION_SUFFIX "")
 set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}_${stapikcommon_VERSION_SUFFIX}")
@@ -43,6 +43,9 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/cloud/CloudAssetClient.cpp
+        src/stapik/cloud/CloudAssetProtocol.cpp
+        src/stapik/cloud/CloudCurl.cpp
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
 )
