@@ -50,6 +50,7 @@ namespace stapik::app
         }
 
         prepareWindowsRuntime(appInfo.internalName);
+        preferStableRenderer();
 
         slot.reset(new AppContext(std::move(appInfo), false));
         return true;
