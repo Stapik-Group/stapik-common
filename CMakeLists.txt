@@ -40,6 +40,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/app/AppContext.cpp
         src/stapik/app/BundledRuntime.cpp
         src/stapik/app/SingleInstanceGuard.cpp
+        src/stapik/app/StapikApplication.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -122,6 +123,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
+        src/stapik/ui/window/WindowState.cpp
 )
 
 stapik_enable_warnings(stapikcommon)

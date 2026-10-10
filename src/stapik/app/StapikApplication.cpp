@@ -1,0 +1,192 @@
+#include "StapikApplication.hpp"
+
+#include "AppContext.hpp"
+
+#include "stapik/locale/LocaleManager.hpp"
+#include "stapik/log/Log.hpp"
+#include "stapik/storage/AppPaths.hpp"
+#include "stapik/theme/ThemeManager.hpp"
+#include "stapik/ui/menu/StandardMenu.hpp"
+#include "stapik/ui/window/WindowState.hpp"
+
+#include <giomm/actionmap.h>
+#include <glibmm/miscutils.h>
+#include <glibmm/ustring.h>
+
+#include <cstdlib>
+#include <utility>
+
+namespace
+{
+    constexpr auto MAIN_WINDOW_STATE_KEY = "window";
+    constexpr auto QUIT_ACTION = "quit";
+
+    std::filesystem::path resolveResourcesDir(const std::filesystem::path& configured)
+    {
+        return configured.empty() ? AppPaths::resourcesDir() : configured;
+    }
+}
+
+namespace stapik::app
+{
+    Glib::RefPtr<StapikApplication> StapikApplication::create(const AppInfo& appInfo, StapikApplicationOptions options)
+    {
+        return Glib::make_refptr_for_instance(new StapikApplication(appInfo, std::move(options)));
+    }
+
+    const std::string& StapikApplication::initializeContext(const AppInfo& appInfo)
+    {
+        AppContext::initialize(appInfo);
+        return AppContext::instance().info().applicationId;
+    }
+
+    StapikApplication::StapikApplication(const AppInfo& appInfo, StapikApplicationOptions options) :
+        Application(initializeContext(appInfo)),
+        m_info(AppContext::instance().info()),
+        m_options(std::move(options)),
+        m_styleProvider(AppStyleProvider::withCommonThemes(resolveResourcesDir(m_options.resourcesDir)))
+    {
+        LocaleManager::instance();
+
+        m_windowAddedConnection = signal_window_added().connect([this](Gtk::Window* window)
+        {
+            if (window != nullptr)
+                onWindowAdded(*window);
+        });
+    }
+
+    StapikApplication::~StapikApplication()
+    {
+        m_windowAddedConnection.disconnect();
+        m_themeConnection.disconnect();
+    }
+
+    const AppInfo& StapikApplication::appInfo() const
+    {
+        return m_info;
+    }
+
+    AppStyleProvider& StapikApplication::styleProvider()
+    {
+        return m_styleProvider;
+    }
+
+    const theme::ThemeRegistry& StapikApplication::themes() const
+    {
+        return m_styleProvider.themes();
+    }
+
+    int StapikApplication::on_handle_local_options(const Glib::RefPtr<Glib::VariantDict>& options)
+    {
+        if (const int status = Application::on_handle_local_options(options); status >= 0)
+            return status;
+
+        if (m_options.singleInstance && !m_instanceGuard)
+        {
+            const auto& displayName = m_info.displayName.empty() ? m_info.internalName : m_info.displayName;
+            m_instanceGuard = SingleInstanceGuard::acquire(m_info.applicationId, displayName);
+
+            if (!m_instanceGuard)
+                return EXIT_SUCCESS;
+        }
+
+        return -1;
+    }
+
+    void StapikApplication::on_startup()
+    {
+        Application::on_startup();
+
+        const auto& displayName = m_info.displayName.empty() ? m_info.internalName : m_info.displayName;
+        Glib::set_application_name(Glib::ustring(displayName));
+
+        applyTheme();
+        m_themeConnection = ThemeManager::instance().signalThemeChanged().connect([this] { applyTheme(); });
+
+        StandardMenu::installShortcuts(*this);
+        add_action(QUIT_ACTION, [this] { requestQuit(); });
+    }
+
+    void StapikApplication::requestQuit()
+    {
+        const auto windows = get_windows();
+        if (windows.empty())
+        {
+            quit();
+            return;
+        }
+
+        for (auto* window : windows)
+            window->close();
+    }
+
+    std::string StapikApplication::windowStateKey(const Gtk::Window&)
+    {
+        // The window is already on the list when window_added is emitted, so the first one is alone there.
+        return get_windows().size() == 1 ? MAIN_WINDOW_STATE_KEY : std::string();
+    }
+
+    void StapikApplication::applyTheme()
+    {
+        m_styleProvider.apply(ThemeManager::instance().themeId());
+    }
+
+    void StapikApplication::onWindowAdded(Gtk::Window& window)
+    {
+        installQuitAction(window);
+
+        if (!m_options.rememberWindowState)
+            return;
+
+        const auto key = windowStateKey(window);
+        if (key.empty())
+            return;
+
+        restoreWindowState(window, key);
+
+        window.signal_close_request().connect([&window, key]
+        {
+            saveWindowState(window, key);
+            return false;
+        }, false);
+    }
+
+    void StapikApplication::installQuitAction(Gtk::Window& window)
+    {
+        auto* actionMap = dynamic_cast<ActionMap*>(&window);
+        if (actionMap == nullptr || actionMap->lookup_action(QUIT_ACTION))
+            return;
+
+        actionMap->add_action(QUIT_ACTION, [this] { requestQuit(); });
+    }
+
+    void StapikApplication::restoreWindowState(Gtk::Window& window, const std::string& key)
+    {
+        const auto state = ui::WindowState::load(AppContext::instance().settings(), key);
+        if (!state)
+            return;
+
+        if (state->hasSize())
+            window.set_default_size(state->width, state->height);
+
+        if (state->maximized)
+            window.maximize();
+    }
+
+    void StapikApplication::saveWindowState(const Gtk::Window& window, const std::string& key)
+    {
+        auto& store = AppContext::instance().settings();
+
+        ui::WindowState state = ui::WindowState::load(store, key).value_or(ui::WindowState{});
+        state.maximized = window.is_maximized();
+
+        if (!state.maximized && !window.is_fullscreen())
+        {
+            state.width = window.get_width();
+            state.height = window.get_height();
+        }
+
+        if (!state.save(store, key))
+            log::warning("Cannot persist the state of window '{}'", key);
+    }
+}
