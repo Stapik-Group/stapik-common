@@ -1,14 +1,13 @@
 name: CI
 
 on:
-  push:
-    branches-ignore:
-      - develop
-    tags:
-      - 'v*'
   pull_request:
     branches:
       - master
+      - main
+  push:
+    tags:
+      - 'v*'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -22,6 +21,7 @@ env:
 
 jobs:
   test:
+    if: github.event_name != 'pull_request' || github.head_ref == 'develop'
     runs-on: ubuntu-24.04
 
     steps:
@@ -49,6 +49,7 @@ jobs:
   # still use POSIX calls (setenv, mkdtemp). The Windows specific code is exercised by the CI of the applications,
   # which run the packaged program.
   windows-build:
+    if: github.event_name != 'pull_request' || github.head_ref == 'develop'
     runs-on: windows-latest
     defaults:
       run:
@@ -95,7 +96,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify tag matches project version and master
+      - name: Verify tag matches project version and master/main
         run: |
           tag_version="${GITHUB_REF_NAME#v}"
           project_version=$(sed -nE 's/^project\(stapikcommon VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)
@@ -105,8 +106,16 @@ jobs:
             exit 1
           fi
 
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
-            echo "Tag $GITHUB_REF_NAME is not on master"
+          on_default_branch=false
+          for branch in master main; do
+            if git rev-parse --verify --quiet "origin/$branch" > /dev/null &&
+               git merge-base --is-ancestor "$GITHUB_SHA" "origin/$branch"; then
+              on_default_branch=true
+            fi
+          done
+
+          if [ "$on_default_branch" != "true" ]; then
+            echo "Tag $GITHUB_REF_NAME is not on master or main"
             exit 1
           fi
 
