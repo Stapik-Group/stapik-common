@@ -250,4 +250,12 @@ namespace stapik::app
         static_cast<void>(appName);
 #endif
     }
+
+    void preferStableRenderer()
+    {
+#ifdef __linux__
+        if (g_getenv("GSK_RENDERER") == nullptr)
+            g_setenv("GSK_RENDERER", "cairo", FALSE);
+#endif
+    }
 }

@@ -30,8 +30,8 @@ headerbar {
     border-bottom: 1px solid @stapik_border_dark;
     border-radius: 6px 6px 0 0;
     box-shadow: none;
-    min-height: 30px;
-    padding: 2px 6px;
+    min-height: 40px;
+    padding: 4px 8px;
 }
 
 headerbar .title,
@@ -45,10 +45,10 @@ windowcontrols button,
 windowcontrols button:hover,
 windowcontrols button:active,
 windowcontrols button:focus {
-    min-width: 21px;
-    min-height: 21px;
+    min-width: 22px;
+    min-height: 22px;
     padding: 0;
-    margin: 0 1px;
+    margin: 0;
     border-radius: 3px;
     border: 1px solid #ffffff;
     box-shadow: none;
@@ -63,11 +63,11 @@ windowcontrols button:active { background-image: linear-gradient(to bottom, @sta
 menubar {
     background-color: @stapik_bg;
     border-bottom: 1px solid @stapik_border;
-    padding: 1px 2px;
+    padding: 3px 4px;
 }
 
 menubar > item {
-    padding: 3px 8px;
+    padding: 4px 10px;
     border-radius: 2px;
     color: @stapik_text;
 }
@@ -82,11 +82,11 @@ popover contents {
     border: 1px solid @stapik_border_dark;
     border-radius: 3px;
     box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.35);
-    padding: 2px;
+    padding: 5px;
 }
 
 popover modelbutton {
-    padding: 3px 18px;
+    padding: 6px 12px;
     border-radius: 2px;
     color: @stapik_text;
 }
@@ -102,7 +102,7 @@ button {
     border-radius: 3px;
     border: 1px solid @stapik_border_dark;
     box-shadow: none;
-    padding: 3px 12px;
+    padding: 5px 12px;
     color: @stapik_text;
 }
 
@@ -123,7 +123,7 @@ button.suggested-action {
     border-color: #1f5d1f;
     color: #ffffff;
     font-weight: bold;
-    padding: 5px 16px;
+    padding: 7px 17px;
 }
 
 button.suggested-action:hover {
@@ -148,15 +148,15 @@ combobox button {
 }
 
 entry {
-    padding: 3px 5px;
+    padding: 6px 10px;
     box-shadow: none;
 }
 
 entry:focus { border-color: @stapik_accent; }
 
 button.stapik-color-swatch {
-    min-width: 16px;
-    min-height: 16px;
+    min-width: 20px;
+    min-height: 20px;
     padding: 0;
     margin: 0;
     border-radius: 2px;
@@ -186,7 +186,7 @@ button.stapik-color-swatch:checked {
 .stapik-category-teal,
 .stapik-category-gray {
     border-radius: 3px;
-    padding: 1px 5px;
+    padding: 1px 6px;
 }
 
 button.stapik-color-swatch { padding: 0; }
