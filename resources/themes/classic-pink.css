@@ -12,7 +12,7 @@
 /* --- General rules and rounding reset --- */
 * {
     font-family: "Arial", sans-serif;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 window,
@@ -34,11 +34,11 @@ popover contents { background-color: @stapik_bg; }
 /* --- Title bars and navigation --- */
 headerbar {
     background: linear-gradient(to right, @stapik_accent_light, @stapik_accent);
-    padding: 2px 4px;
+    padding: 4px 8px;
     border-bottom: 2px solid @stapik_border_dark;
 }
 
-headerbar { min-height: 26px; }
+headerbar { min-height: 39px; }
 
 headerbar .title,
 headerbar label {
@@ -51,8 +51,8 @@ windowcontrols button:hover,
 windowcontrols button:active,
 windowcontrols button:focus {
     min-width: 20px;
-    min-height: 18px;
-    padding: 0 2px;
+    min-height: 20px;
+    padding: 0;
     box-shadow: none;
 }
 
@@ -60,17 +60,17 @@ windowcontrols button:focus {
 menubar {
     background-color: @stapik_bg;
     border-bottom: 1px solid @stapik_border_dark;
-    padding: 1px;
+    padding: 3px 4px;
 }
 
 menubar > item,
 popover modelbutton {
-    padding: 2px 6px;
+    padding: 4px 10px;
     color: @stapik_text;
     border-radius: 0;
 }
 
-popover modelbutton { padding: 2px 16px; }
+popover modelbutton { padding: 6px 12px; }
 
 menubar > item:hover,
 popover modelbutton:hover {
@@ -81,7 +81,7 @@ popover modelbutton:hover {
 popover contents {
     border: 2px solid;
     border-color: @stapik_border_light @stapik_border_dark @stapik_border_dark @stapik_border_light;
-    padding: 2px;
+    padding: 4px;
 }
 
 /* --- Buttons --- */
@@ -92,7 +92,7 @@ button {
     border: 2px solid;
     border-color: @stapik_border_light @stapik_border_dark @stapik_border_dark @stapik_border_light;
     box-shadow: 1px 1px 0 @stapik_text;
-    padding: 2px 8px;
+    padding: 4px 11px;
     color: @stapik_text;
 }
 
@@ -101,17 +101,17 @@ button:hover:not(.stapik-color-swatch) { background-color: @stapik_bg_hover; }
 button:active {
     border-color: @stapik_border_dark @stapik_border_light @stapik_border_light @stapik_border_dark;
     box-shadow: none;
-    padding-top: 3px;
-    padding-right: 7px;
-    padding-bottom: 1px;
-    padding-left: 9px;
+    padding-top: 5px;
+    padding-right: 10px;
+    padding-bottom: 3px;
+    padding-left: 12px;
 }
 
 button.suggested-action {
     background-color: @stapik_accent;
     color: #ffffff;
     font-weight: bold;
-    padding: 5px 14px;
+    padding: 6px 16px;
 }
 
 button.suggested-action:hover { background-color: @stapik_accent_light; }
@@ -133,12 +133,12 @@ combobox button {
     color: @stapik_text;
 }
 
-entry { padding: 2px 4px; }
+entry { padding: 5px 9px; }
 
 /* --- Color Swatch --- */
 button.stapik-color-swatch {
-    min-width: 16px;
-    min-height: 16px;
+    min-width: 18px;
+    min-height: 18px;
     padding: 0;
     margin: 0;
     border-radius: 0;
@@ -165,7 +165,7 @@ button.stapik-color-swatch:checked { border-color: @stapik_border_dark @stapik_b
 .stapik-category-brown,
 .stapik-category-pink,
 .stapik-category-teal,
-.stapik-category-gray { padding: 1px 4px; }
+.stapik-category-gray { padding: 1px 6px; }
 
 button.stapik-color-swatch { padding: 0; }
 
