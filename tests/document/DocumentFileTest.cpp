@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -334,6 +335,130 @@ TEST_F(DocumentFileTest, BrokenFileDoesNotOverwriteGoodBackup)
     ASSERT_TRUE(file.save(Note{ "fresh", 1 }));
 
     EXPECT_EQ(readText(backup(".bak")), "good backup");
+}
+
+TEST_F(DocumentFileTest, ListBackupsIsEmptyWhenNothingWasBackedUp)
+{
+    DocumentFile<Note> file(m_path, 1);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+
+    EXPECT_TRUE(file.listBackups().empty());
+}
+
+TEST_F(DocumentFileTest, ListBackupsIsEmptyWhenBackupsAreDisabled)
+{
+    writeText(backup(".bak"), "left from an earlier run");
+    DocumentFile<Note> file(m_path, 1);
+    file.setBackupCount(0);
+
+    EXPECT_TRUE(file.listBackups().empty());
+}
+
+TEST_F(DocumentFileTest, ListBackupsReturnsNewestFirst)
+{
+    DocumentFile<Note> file(m_path, 1);
+    file.setBackupCount(2);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+    ASSERT_TRUE(file.save(Note{ "second", 2 }));
+    ASSERT_TRUE(file.save(Note{ "third", 3 }));
+
+    const auto backups = file.listBackups();
+
+    ASSERT_EQ(backups.size(), 2u);
+    EXPECT_EQ(backups[0].index, 1);
+    EXPECT_EQ(backups[0].path, backup(".bak"));
+    EXPECT_EQ(backups[1].index, 2);
+    EXPECT_EQ(backups[1].path, backup(".bak.2"));
+}
+
+TEST_F(DocumentFileTest, ListBackupsSkipsMissingBackups)
+{
+    DocumentFile<Note> file(m_path, 1);
+    file.setBackupCount(3);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+    ASSERT_TRUE(file.save(Note{ "second", 2 }));
+
+    const auto backups = file.listBackups();
+
+    ASSERT_EQ(backups.size(), 1u);
+    EXPECT_EQ(backups.front().index, 1);
+}
+
+TEST_F(DocumentFileTest, ListBackupsIgnoresCopiesBeyondTheBackupCount)
+{
+    writeText(backup(".bak.2"), "left from a higher backup count");
+    DocumentFile<Note> file(m_path, 1);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+    ASSERT_TRUE(file.save(Note{ "second", 2 }));
+
+    const auto backups = file.listBackups();
+
+    ASSERT_EQ(backups.size(), 1u);
+    EXPECT_EQ(backups.front().index, 1);
+}
+
+TEST_F(DocumentFileTest, BackupIsDatedByWhenItsContentWasSaved)
+{
+    using namespace std::chrono_literals;
+
+    DocumentFile<Note> file(m_path, 1);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+    const auto savedThreeDaysAgo = std::chrono::floor<std::chrono::seconds>(fs::file_time_type::clock::now()) - 72h;
+    fs::last_write_time(m_path, savedThreeDaysAgo);
+
+    ASSERT_TRUE(file.save(Note{ "second", 2 }));
+
+    const auto backups = file.listBackups();
+    ASSERT_EQ(backups.size(), 1u);
+    const auto age = std::chrono::system_clock::now() - backups.front().savedAt;
+    EXPECT_GT(age, 71h);
+    EXPECT_LT(age, 73h);
+}
+
+TEST_F(DocumentFileTest, LoadBackupReadsTheChosenCopy)
+{
+    DocumentFile<Note> file(m_path, 1);
+    file.setBackupCount(2);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+    ASSERT_TRUE(file.save(Note{ "second", 2 }));
+    ASSERT_TRUE(file.save(Note{ "third", 3 }));
+    const auto backups = file.listBackups();
+    ASSERT_EQ(backups.size(), 2u);
+
+    const auto newest = file.loadBackup(backups[0]);
+    const auto oldest = file.loadBackup(backups[1]);
+
+    ASSERT_EQ(newest.status, LoadStatus::Loaded);
+    EXPECT_EQ(newest.document->title, "second");
+    ASSERT_EQ(oldest.status, LoadStatus::Loaded);
+    EXPECT_EQ(oldest.document->title, "first");
+}
+
+TEST_F(DocumentFileTest, LoadBackupDoesNotTouchTheManagedFile)
+{
+    DocumentFile<Note> file(m_path, 1);
+    ASSERT_TRUE(file.save(Note{ "first", 1 }));
+    ASSERT_TRUE(file.save(Note{ "second", 2 }));
+    const auto before = readText(m_path);
+
+    ASSERT_EQ(file.loadBackup(file.listBackups().front()).status, LoadStatus::Loaded);
+
+    EXPECT_EQ(readText(m_path), before);
+}
+
+TEST_F(DocumentFileTest, CorruptedBackupIsReportedAndLeftInPlace)
+{
+    writeText(backup(".bak"), "broken");
+    DocumentFile<Note> file(m_path, 1);
+    const auto backups = file.listBackups();
+    ASSERT_EQ(backups.size(), 1u);
+
+    const auto result = file.loadBackup(backups.front());
+
+    EXPECT_EQ(result.status, LoadStatus::Corrupted);
+    EXPECT_FALSE(result.document.has_value());
+    EXPECT_EQ(readText(backup(".bak")), "broken");
+    EXPECT_TRUE(quarantinedFiles().empty());
 }
 
 TEST_F(DocumentFileTest, ExportWritesAFileThatCanBeImported)

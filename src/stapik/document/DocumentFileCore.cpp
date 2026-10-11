@@ -8,6 +8,7 @@
 #include <chrono>
 #include <format>
 #include <fstream>
+#include <system_error>
 #include <utility>
 
 namespace stapik::document
@@ -21,6 +22,12 @@ namespace stapik::document
                 return false;
 
             return nlohmann::json::accept(file);
+        }
+
+        std::chrono::system_clock::time_point toSystemTime(const std::filesystem::file_time_type fileTime)
+        {
+            return std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                std::chrono::clock_cast<std::chrono::system_clock>(fileTime));
         }
     }
 
@@ -42,6 +49,28 @@ namespace stapik::document
     const SchemaMigrator& DocumentFileCore::migrator() const
     {
         return m_migrator;
+    }
+
+    std::vector<BackupInfo> DocumentFileCore::listBackups() const
+    {
+        std::vector<BackupInfo> backups;
+
+        for (int index = 1; index <= m_backupCount; ++index)
+        {
+            const auto path = backupPath(index);
+
+            std::error_code errorCode;
+            if (!std::filesystem::is_regular_file(path, errorCode))
+                continue;
+
+            const auto savedAt = std::filesystem::last_write_time(path, errorCode);
+            if (errorCode)
+                continue;
+
+            backups.push_back({ .path = path, .index = index, .savedAt = toSystemTime(savedAt) });
+        }
+
+        return backups;
     }
 
     RawLoad DocumentFileCore::readRaw(const std::filesystem::path& source) const
@@ -182,6 +211,17 @@ namespace stapik::document
         std::filesystem::copy_file(m_filePath, backupPath(1), std::filesystem::copy_options::overwrite_existing, errorCode);
 
         if (errorCode)
+        {
             log::warning("Cannot back up {}: {}", storage::pathText(m_filePath), errorCode.message());
+            return;
+        }
+
+        // Copying sets the date on Linux but keeps it on Windows; the backups are listed by the date of their contents.
+        const auto savedAt = std::filesystem::last_write_time(m_filePath, errorCode);
+        if (!errorCode)
+            std::filesystem::last_write_time(backupPath(1), savedAt, errorCode);
+
+        if (errorCode)
+            log::warning("Cannot set the date of the backup of {}: {}", storage::pathText(m_filePath), errorCode.message());
     }
 }

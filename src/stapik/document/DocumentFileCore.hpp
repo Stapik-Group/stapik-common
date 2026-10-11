@@ -1,10 +1,12 @@
 #pragma once
 
+#include "BackupInfo.hpp"
 #include "SchemaMigrator.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <vector>
 
 namespace stapik::document
 {
@@ -32,6 +34,7 @@ namespace stapik::document
         void setBackupCount(int backupCount);
         [[nodiscard]] const std::filesystem::path& filePath() const;
         [[nodiscard]] const SchemaMigrator& migrator() const;
+        [[nodiscard]] std::vector<BackupInfo> listBackups() const;
 
     protected:
         void quarantineFile() const;
