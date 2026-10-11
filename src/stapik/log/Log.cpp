@@ -30,6 +30,13 @@ namespace
         return list;
     }
 
+    // Guarded by sinksMutex().
+    std::shared_ptr<const stapik::time::IClock>& clockOverride()
+    {
+        static std::shared_ptr<const stapik::time::IClock> clock;
+        return clock;
+    }
+
     std::atomic<stapik::log::Level>& currentLevel()
     {
         static std::atomic level {levelFromEnvironment()};
@@ -83,6 +90,12 @@ namespace stapik::log
         sinkList() = std::move(newSinks);
     }
 
+    void setClock(std::shared_ptr<const time::IClock> clock)
+    {
+        const std::lock_guard lock(sinksMutex());
+        clockOverride() = std::move(clock);
+    }
+
     std::string redact(const std::string_view secret)
     {
         constexpr std::size_t VISIBLE_CHARACTERS = 4;
@@ -99,9 +112,11 @@ namespace stapik::log
             if (messageLevel < level())
                 return;
 
-            const LogRecord record {messageLevel, message, std::chrono::system_clock::now()};
-
             const std::lock_guard lock(sinksMutex());
+
+            const auto& clock = clockOverride() ? *clockOverride() : time::systemClock();
+            const LogRecord record {messageLevel, message, clock.now()};
+
             for (const auto& sink : sinkList())
                 sink->write(record);
         }

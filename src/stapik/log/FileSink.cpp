@@ -8,13 +8,13 @@
 
 namespace stapik::log
 {
-    FileSink::FileSink(std::filesystem::path file, const FileRotation rotation) :
+    FileSink::FileSink(std::filesystem::path file, const FileRotation rotation, const time::IClock& clock) :
         m_file(std::move(file)),
         m_rotation(rotation)
     {
         open();
 
-        const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
+        const auto now = std::chrono::floor<std::chrono::seconds>(clock.now());
         writeLine(std::format("---- started {:%F %T} UTC ----", now));
     }
 
