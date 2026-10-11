@@ -84,6 +84,7 @@ target_sources(stapikcommon PRIVATE
 
 target_sources(stapikcommon PRIVATE
         src/stapik/log/Log.cpp
+        src/stapik/log/LogFile.cpp
 )
 
 target_sources(stapikcommon PRIVATE

@@ -18,5 +18,5 @@ The flags are applied in `on_handle_local_options`, before settings are loaded. 
 settings, `AppPaths` or `LocaleManager` before `run()`, otherwise `--data-dir`, `--portable` and
 `--reset-settings` do not take effect.
 
-On Windows the stderr log and the pixbuf loaders cache are set up earlier, in `AppContext::initialize()`, and still
-go to `%LOCALAPPDATA%` in portable mode.
+On Windows the pixbuf loaders cache is set up earlier, in `AppContext::initialize()`, and still goes to
+`%LOCALAPPDATA%` in portable mode. The log file is opened there too, see [logging](logging.md).

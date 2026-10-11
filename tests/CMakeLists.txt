@@ -29,6 +29,7 @@ add_executable(stapikcommon_tests
         locale/LanguageRegistryTest.cpp
         locale/LocalizationEngineTest.cpp
         locale/SystemLanguageTest.cpp
+        log/LogFileTest.cpp
         log/LogTest.cpp
         resources/CommonResourcesTest.cpp
         settings/AppSettingsTest.cpp
