@@ -1,14 +1,14 @@
 #include "Log.hpp"
 
-#include <glib.h>
+#include "ConsoleSink.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <mutex>
 
 namespace
 {
-    constexpr auto LOG_DOMAIN = "stapik";
-
     stapik::log::Level levelFromEnvironment()
     {
         const auto* value = std::getenv("STAPIK_LOG_LEVEL");
@@ -18,26 +18,22 @@ namespace
         return stapik::log::parseLevel(value).value_or(stapik::log::Level::Info);
     }
 
+    std::mutex& sinksMutex()
+    {
+        static std::mutex mutex;
+        return mutex;
+    }
+
+    std::vector<std::shared_ptr<stapik::log::ILogSink>>& sinkList()
+    {
+        static std::vector<std::shared_ptr<stapik::log::ILogSink>> list {std::make_shared<stapik::log::ConsoleSink>()};
+        return list;
+    }
+
     std::atomic<stapik::log::Level>& currentLevel()
     {
         static std::atomic level {levelFromEnvironment()};
         return level;
-    }
-
-    GLogLevelFlags toGLibLevel(const stapik::log::Level level)
-    {
-        using stapik::log::Level;
-
-        switch (level)
-        {
-            using enum Level;
-            case Debug: return G_LOG_LEVEL_DEBUG;
-            case Info: return G_LOG_LEVEL_INFO;
-            case Warning: return G_LOG_LEVEL_WARNING;
-            case Error: return G_LOG_LEVEL_CRITICAL;
-        }
-
-        return G_LOG_LEVEL_MESSAGE;
     }
 }
 
@@ -69,6 +65,24 @@ namespace stapik::log
         currentLevel().store(newLevel);
     }
 
+    void addSink(std::shared_ptr<ILogSink> sink)
+    {
+        const std::lock_guard lock(sinksMutex());
+        sinkList().push_back(std::move(sink));
+    }
+
+    std::vector<std::shared_ptr<ILogSink>> sinks()
+    {
+        const std::lock_guard lock(sinksMutex());
+        return sinkList();
+    }
+
+    void setSinks(std::vector<std::shared_ptr<ILogSink>> newSinks)
+    {
+        const std::lock_guard lock(sinksMutex());
+        sinkList() = std::move(newSinks);
+    }
+
     std::string redact(const std::string_view secret)
     {
         constexpr std::size_t VISIBLE_CHARACTERS = 4;
@@ -85,7 +99,11 @@ namespace stapik::log
             if (messageLevel < level())
                 return;
 
-            g_log(LOG_DOMAIN, toGLibLevel(messageLevel), "%s", message.c_str());
+            const LogRecord record {messageLevel, message, std::chrono::system_clock::now()};
+
+            const std::lock_guard lock(sinksMutex());
+            for (const auto& sink : sinkList())
+                sink->write(record);
         }
     }
 }

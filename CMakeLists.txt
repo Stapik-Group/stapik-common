@@ -83,8 +83,11 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/log/ConsoleSink.cpp
         src/stapik/log/Log.cpp
         src/stapik/log/LogFile.cpp
+        src/stapik/log/LogRecord.cpp
+        src/stapik/log/RingBufferSink.cpp
 )
 
 target_sources(stapikcommon PRIVATE

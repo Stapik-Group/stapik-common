@@ -1,24 +1,25 @@
 #pragma once
 
+#include "ILogSink.hpp"
+#include "LogLevel.hpp"
+
 #include <format>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace stapik::log
 {
-    enum class Level
-    {
-        Debug,
-        Info,
-        Warning,
-        Error
-    };
-
     [[nodiscard]] std::optional<Level> parseLevel(std::string_view name);
     [[nodiscard]] Level level();
     void setLevel(Level newLevel);
+
+    void addSink(std::shared_ptr<ILogSink> sink);
+    [[nodiscard]] std::vector<std::shared_ptr<ILogSink>> sinks();
+    void setSinks(std::vector<std::shared_ptr<ILogSink>> newSinks);
 
     [[nodiscard]] std::string redact(std::string_view secret);
 
