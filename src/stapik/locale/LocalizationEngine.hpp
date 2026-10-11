@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Locale.hpp"
 #include "LanguageRegistry.hpp"
 
 #include <filesystem>
@@ -17,9 +16,7 @@ public:
     explicit LocalizationEngine(const std::filesystem::path& localesDir);
 
     void addLocalesDirectory(const std::filesystem::path& localesDir);
-    void setLocale(Locale locale);
     void setLanguage(std::string_view code);
-    [[nodiscard]] Locale getLocale() const;
     [[nodiscard]] const std::string& languageCode() const;
     [[nodiscard]] const std::vector<stapik::locale::LanguageInfo>& languages() const;
     [[nodiscard]] std::string translate(std::string_view key) const;

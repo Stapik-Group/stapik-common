@@ -127,24 +127,13 @@ TEST_F(LocalizationEngineTest, PlaceholdersAreAlsoReplacedInTheEnglishFallback)
     EXPECT_EQ(engine.translate("greeting", { { "name", "Ola" } }), "Hello, Ola!");
 }
 
-TEST_F(LocalizationEngineTest, SetLocaleSelectsTheMatchingLanguage)
-{
-    LocalizationEngine engine(m_directory);
-
-    engine.setLocale(Locale::PL);
-
-    EXPECT_EQ(engine.languageCode(), "pl");
-    EXPECT_EQ(engine.getLocale(), Locale::PL);
-    EXPECT_EQ(engine.translate("dialog.cancel"), "Anuluj");
-}
-
-TEST_F(LocalizationEngineTest, GetLocaleOfLanguageOutsideTheEnumIsEnglish)
+TEST_F(LocalizationEngineTest, LanguageCodeReflectsTheSelection)
 {
     LocalizationEngine engine(m_directory);
 
     engine.setLanguage("fr");
 
-    EXPECT_EQ(engine.getLocale(), Locale::EN);
+    EXPECT_EQ(engine.languageCode(), "fr");
 }
 
 TEST_F(LocalizationEngineTest, NonStringEntriesAreIgnoredAndTheRestIsLoaded)
@@ -171,7 +160,7 @@ TEST_F(LocalizationEngineTest, BrokenFileDoesNotAffectOtherLanguages)
 
 TEST_F(LocalizationEngineTest, MissingDirectoryTranslatesToKeys)
 {
-    LocalizationEngine engine(m_directory / "nope");
+    const LocalizationEngine engine(m_directory / "nope");
 
     EXPECT_EQ(engine.translate("dialog.ok"), "dialog.ok");
     EXPECT_TRUE(engine.languages().empty());
@@ -258,7 +247,7 @@ TEST_F(LocalizationEngineTest, PluralCountCanBeOverriddenAndCombinedWithOtherArg
 
 TEST_F(LocalizationEngineTest, UnknownPluralKeyReturnsTheKey)
 {
-    LocalizationEngine engine(m_directory);
+    const LocalizationEngine engine(m_directory);
 
     EXPECT_EQ(engine.translatePlural("no.such.key", 2), "no.such.key");
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "stapik/locale/Locale.hpp"
 #include "stapik/locale/LocalizationEngine.hpp"
 #include "stapik/settings/ObservableSetting.hpp"
 
@@ -14,8 +13,6 @@ class LocaleManager
 public:
     static LocaleManager& instance();
     static LocaleManager& instance(const std::string& appName);
-    void setLocale(Locale locale);
-    [[nodiscard]] Locale getLocale() const;
     void setLanguage(const std::string& languageCode);
     [[nodiscard]] const std::string& languageCode() const;
     [[nodiscard]] std::string translate(std::string_view key) const;

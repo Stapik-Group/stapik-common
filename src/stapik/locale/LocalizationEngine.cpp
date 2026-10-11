@@ -108,16 +108,6 @@ void LocalizationEngine::loadFile(const std::string &code, const std::filesystem
     }
 }
 
-void LocalizationEngine::setLocale(const Locale locale)
-{
-    setLanguage(toFileString(locale));
-}
-
-Locale LocalizationEngine::getLocale() const
-{
-    return fromFileString(m_languageCode);
-}
-
 void LocalizationEngine::setLanguage(const std::string_view code)
 {
     m_languageCode = std::string(code);
@@ -145,9 +135,7 @@ const std::string *LocalizationEngine::find(const std::string_view code, const s
 
 const std::string *LocalizationEngine::findPlural(const std::string_view code, const std::string_view key, const long long count) const
 {
-    const auto category = stapik::locale::pluralCategory(code, count);
-
-    for (const auto candidate: {category, stapik::locale::PluralCategory::Other})
+    for (const auto category = stapik::locale::pluralCategory(code, count); const auto candidate: {category, stapik::locale::PluralCategory::Other})
     {
         const auto formKey = std::string(key) + '.' + std::string(stapik::locale::pluralCategoryName(candidate));
         if (const auto *text = find(code, formKey))

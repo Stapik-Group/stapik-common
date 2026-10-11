@@ -5,8 +5,20 @@
 #include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 namespace
 {
+    std::string lowercase(std::string text)
+    {
+        std::ranges::transform(text, text.begin(), [](const unsigned char character)
+        {
+            return static_cast<char>(std::tolower(character));
+        });
+        return text;
+    }
+
     stapik::settings::SettingsStore& localeSettingsStore(const std::string& appName)
     {
         auto& store = stapik::settings::appSettingsStore(appName);
@@ -15,7 +27,7 @@ namespace
             store,
             "locale",
             AppPaths::userDataDir(appName) / "locale.txt",
-            [](const std::string& value) { return std::string(toFileString(fromFileString(value))); });
+            lowercase);
 
         return store;
     }
@@ -63,16 +75,6 @@ LocaleManager::LocaleManager(const std::string& appName) :
     m_languageCode(localeSettingsStore(appName), "locale", systemDefaultLanguage(m_engine))
 {
     m_engine.setLanguage(m_languageCode.get());
-}
-
-void LocaleManager::setLocale(const Locale locale)
-{
-    setLanguage(toFileString(locale));
-}
-
-Locale LocaleManager::getLocale() const
-{
-    return fromFileString(m_engine.languageCode());
 }
 
 void LocaleManager::setLanguage(const std::string& languageCode)

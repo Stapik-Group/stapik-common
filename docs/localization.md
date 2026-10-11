@@ -4,6 +4,21 @@ Translations are JSON files named after the language code (`en.json`, `pl.json`)
 next to the common ones; an application key overrides a common key with the same name, and a key missing in the
 selected language falls back to English.
 
+## Languages
+
+A language is identified by its code, which is the name of its JSON file without the extension. Whatever files are
+found in the locales directories are the available languages, so adding `fr.json` is enough to offer French.
+`language.name` in the file is the name shown in the language menu.
+
+```cpp
+auto& loc = LocaleManager::instance();
+loc.languages();         // codes and display names of all found languages
+loc.setLanguage("fr");
+loc.languageCode();      // "fr"
+```
+
+The selected code is stored in the `locale` setting. A legacy `locale.txt` is imported in lower case.
+
 ## Placeholders
 
 `{name}` in a translation is replaced with the argument of the same name. Unknown placeholders are left as they are.

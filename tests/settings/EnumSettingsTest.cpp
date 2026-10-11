@@ -1,4 +1,3 @@
-#include "stapik/locale/LocaleJson.hpp"
 #include "stapik/settings/ObservableSetting.hpp"
 #include "stapik/theme/ThemeJson.hpp"
 
@@ -47,35 +46,6 @@ namespace
     };
 }
 
-TEST_F(EnumSettingsTest, LocaleIsStoredAsFileString)
-{
-    SettingsStore writer(m_path);
-    writer.set<Locale>("locale", Locale::PL);
-    ASSERT_TRUE(writer.save());
-
-    EXPECT_NE(readText(m_path).find("\"pl\""), std::string::npos);
-
-    SettingsStore reader(m_path);
-    ASSERT_EQ(reader.load(), LoadStatus::Loaded);
-    EXPECT_EQ(reader.get<Locale>("locale", Locale::EN), Locale::PL);
-}
-
-TEST_F(EnumSettingsTest, UnknownLocaleStringMapsToEnglish)
-{
-    SettingsStore store(m_path);
-    store.set<std::string>("locale", "xx");
-
-    EXPECT_EQ(store.get<Locale>("locale", Locale::DE), Locale::EN);
-}
-
-TEST_F(EnumSettingsTest, NonStringLocaleFallsBackToDefault)
-{
-    SettingsStore store(m_path);
-    store.set<int>("locale", 5);
-
-    EXPECT_EQ(store.get<Locale>("locale", Locale::DE), Locale::DE);
-}
-
 TEST_F(EnumSettingsTest, ThemeIsStoredAsFileString)
 {
     SettingsStore writer(m_path);
@@ -100,7 +70,7 @@ TEST_F(EnumSettingsTest, UnknownThemeStringMapsToClassic)
 TEST_F(EnumSettingsTest, ObservableThemeSettingEmitsAndPersists)
 {
     SettingsStore store(m_path);
-    ObservableSetting<Theme> setting(store, "theme", Theme::Classic);
+    ObservableSetting setting(store, "theme", Theme::Classic);
 
     std::vector<Theme> emitted;
     setting.signalChanged().connect([&emitted](const Theme& theme) { emitted.push_back(theme); });
