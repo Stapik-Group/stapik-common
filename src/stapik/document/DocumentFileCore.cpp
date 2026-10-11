@@ -31,9 +31,11 @@ namespace stapik::document
         }
     }
 
-    DocumentFileCore::DocumentFileCore(std::filesystem::path filePath, SchemaMigrator migrator) :
+    DocumentFileCore::DocumentFileCore(std::filesystem::path filePath, SchemaMigrator migrator,
+                                       const time::IClock& clock) :
         m_filePath(std::move(filePath)),
-        m_migrator(std::move(migrator))
+        m_migrator(std::move(migrator)),
+        m_clock(&clock)
     {}
 
     void DocumentFileCore::setBackupCount(const int backupCount)
@@ -162,7 +164,7 @@ namespace stapik::document
     {
         const auto stamp = std::format(
             "{:%Y%m%d-%H%M%S}",
-            std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
+            std::chrono::floor<std::chrono::seconds>(m_clock->now()));
 
         std::error_code errorCode;
         auto target = m_filePath;

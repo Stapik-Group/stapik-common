@@ -3,6 +3,8 @@
 #include "ILogSink.hpp"
 #include "LogLevel.hpp"
 
+#include "stapik/time/Clock.hpp"
+
 #include <format>
 #include <memory>
 #include <optional>
@@ -20,6 +22,9 @@ namespace stapik::log
     void addSink(std::shared_ptr<ILogSink> sink);
     [[nodiscard]] std::vector<std::shared_ptr<ILogSink>> sinks();
     void setSinks(std::vector<std::shared_ptr<ILogSink>> newSinks);
+
+    // Stamps the records. Without a clock (or with nullptr) the system clock is used.
+    void setClock(std::shared_ptr<const time::IClock> clock);
 
     [[nodiscard]] std::string redact(std::string_view secret);
 

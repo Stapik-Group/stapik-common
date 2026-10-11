@@ -1,5 +1,7 @@
 #include "stapik/log/FileSink.hpp"
 
+#include "support/FakeClock.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cstdlib>
@@ -16,7 +18,7 @@ namespace
     using stapik::log::Level;
     using stapik::log::LogRecord;
 
-    constexpr FileRotation SMALL_FILES{200, 3};
+    constexpr FileRotation SMALL_FILES{.maxFileSize = 200, .fileCount = 3};
 
     class FileSinkTest : public testing::Test
     {
@@ -68,6 +70,16 @@ TEST_F(FileSinkTest, WritesAStartMarkerAndFormattedRecords)
     const auto content = read(m_logFile);
     EXPECT_TRUE(content.starts_with("---- started "));
     EXPECT_NE(content.find("[INFO] hello\n"), std::string::npos);
+}
+
+TEST_F(FileSinkTest, StartMarkerShowsTheTimeOfTheClock)
+{
+    {
+        const stapik::test::FakeClock clock;
+        FileSink sink(m_logFile, SMALL_FILES, clock);
+    }
+
+    EXPECT_TRUE(read(m_logFile).starts_with("---- started 2026-01-15 10:30:00 UTC ----\n"));
 }
 
 TEST_F(FileSinkTest, AppendsToTheFileOfAPreviousRun)

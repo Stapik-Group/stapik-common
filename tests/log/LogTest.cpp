@@ -2,8 +2,11 @@
 
 #include "stapik/log/RingBufferSink.hpp"
 
+#include "support/FakeClock.hpp"
+
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,6 +26,7 @@ namespace
 
         void TearDown() override
         {
+            stapik::log::setClock(nullptr);
             stapik::log::setSinks(m_originalSinks);
             stapik::log::setLevel(m_originalLevel);
         }
@@ -52,6 +56,39 @@ TEST_F(LogTest, FormatsMessagesWithStdFormat)
 
     ASSERT_EQ(messages().size(), 1u);
     EXPECT_EQ(messages().front(), "value 42 and text");
+}
+
+TEST_F(LogTest, RecordsAreStampedByTheClock)
+{
+    using namespace std::chrono_literals;
+    const auto clock = std::make_shared<stapik::test::FakeClock>();
+    stapik::log::setClock(clock);
+    stapik::log::setLevel(stapik::log::Level::Info);
+
+    stapik::log::info("first");
+    clock->advance(5min);
+    stapik::log::info("second");
+
+    const auto records = m_sink->snapshot();
+    ASSERT_EQ(records.size(), 2u);
+    EXPECT_EQ(records[0].timestamp, stapik::test::FakeClock::DEFAULT_START);
+    EXPECT_EQ(records[1].timestamp, stapik::test::FakeClock::DEFAULT_START + 5min);
+}
+
+TEST_F(LogTest, WithoutAClockRecordsUseTheSystemTime)
+{
+    stapik::log::setClock(std::make_shared<stapik::test::FakeClock>());
+    stapik::log::setClock(nullptr);
+    stapik::log::setLevel(stapik::log::Level::Info);
+
+    const auto before = std::chrono::system_clock::now();
+    stapik::log::info("now");
+    const auto after = std::chrono::system_clock::now();
+
+    const auto records = m_sink->snapshot();
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_GE(records.front().timestamp, before);
+    EXPECT_LE(records.front().timestamp, after);
 }
 
 TEST_F(LogTest, MessagesBelowMinimumLevelAreDropped)

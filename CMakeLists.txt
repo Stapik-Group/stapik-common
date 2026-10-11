@@ -143,6 +143,10 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/time/Clock.cpp
+)
+
+target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/AboutDialog.cpp
         src/stapik/ui/dialog/ChoiceDialog.cpp
         src/stapik/ui/dialog/ConfirmDialog.cpp

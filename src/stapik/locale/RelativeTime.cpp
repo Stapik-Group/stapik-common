@@ -91,8 +91,8 @@ namespace stapik::locale
     }
 
     std::string formatRelativeTime(const std::chrono::system_clock::time_point when, const LocaleManager& localeManager,
-                                   const RelativeTimeOptions options)
+                                   const RelativeTimeOptions options, const time::IClock& clock)
     {
-        return render(toLocalTime(when), toLocalTime(std::chrono::system_clock::now()), localeManager, options);
+        return render(toLocalTime(when), toLocalTime(clock.now()), localeManager, options);
     }
 }

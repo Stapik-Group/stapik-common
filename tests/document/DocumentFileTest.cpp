@@ -1,7 +1,10 @@
 #include "stapik/document/DocumentFile.hpp"
 
+#include "support/FakeClock.hpp"
+
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -170,6 +173,37 @@ TEST_F(DocumentFileTest, ValidJsonWithWrongContentIsQuarantined)
     EXPECT_EQ(result.status, LoadStatus::Corrupted);
     EXPECT_FALSE(fs::exists(m_path));
     EXPECT_EQ(quarantinedFiles().size(), 1u);
+}
+
+TEST_F(DocumentFileTest, QuarantinedFileIsNamedAfterTheClock)
+{
+    const stapik::test::FakeClock clock;
+    writeText(m_path, "{ not json");
+    const DocumentFile<Note> file(m_path, 1, clock);
+
+    ASSERT_EQ(file.load().status, LoadStatus::Corrupted);
+
+    const auto quarantined = quarantinedFiles();
+    ASSERT_EQ(quarantined.size(), 1u);
+    EXPECT_EQ(quarantined.front().filename().string(), "note.json.corrupt-20260115-103000");
+}
+
+TEST_F(DocumentFileTest, QuarantinesWithinOneSecondKeepSeparateCopies)
+{
+    const stapik::test::FakeClock clock;
+    const DocumentFile<Note> file(m_path, 1, clock);
+
+    writeText(m_path, "first");
+    ASSERT_EQ(file.load().status, LoadStatus::Corrupted);
+    writeText(m_path, "second");
+    ASSERT_EQ(file.load().status, LoadStatus::Corrupted);
+
+    std::vector<std::string> names;
+    for (const auto& path : quarantinedFiles())
+        names.push_back(path.filename().string());
+    std::ranges::sort(names);
+
+    EXPECT_EQ(names, (std::vector<std::string>{"note.json.corrupt-20260115-103000", "note.json.corrupt-20260115-103000-2"}));
 }
 
 TEST_F(DocumentFileTest, SavingAfterCorruptionKeepsTheQuarantinedCopy)

@@ -78,10 +78,9 @@ namespace stapik::domain
         return {static_cast<int>(date.year()), static_cast<int>(static_cast<unsigned>(date.month()))};
     }
 
-    YearMonth YearMonth::current()
+    YearMonth YearMonth::current(const time::IClock& clock)
     {
-        const auto now = std::chrono::system_clock::now();
-        const auto today = std::chrono::floor<std::chrono::days>(now);
+        const auto today = std::chrono::floor<std::chrono::days>(clock.now());
         const std::chrono::year_month_day localDate{today};
 
         return {

@@ -44,10 +44,12 @@ namespace stapik::update
         }
     }
 
-    UpdateChecker::UpdateChecker(Semver currentVersion, ReleaseFetcher fetcher, settings::SettingsStore& settings) :
+    UpdateChecker::UpdateChecker(Semver currentVersion, ReleaseFetcher fetcher, settings::SettingsStore& settings,
+                                 const time::IClock& clock) :
         m_currentVersion(std::move(currentVersion)),
         m_fetcher(std::move(fetcher)),
-        m_settings(settings)
+        m_settings(settings),
+        m_clock(clock)
     {}
 
     std::unique_ptr<UpdateChecker> UpdateChecker::forApp(const app::AppInfo& appInfo, settings::SettingsStore& settings)
@@ -109,7 +111,7 @@ namespace stapik::update
         if (!lastCheck)
             return true;
 
-        const auto elapsed = std::chrono::system_clock::now() - *lastCheck;
+        const auto elapsed = m_clock.now() - *lastCheck;
         // A negative interval means the clock went back since the last check.
         return elapsed < std::chrono::seconds::zero() || elapsed >= CHECK_INTERVAL;
     }
@@ -125,7 +127,7 @@ namespace stapik::update
             return;
         }
 
-        m_settings.set(LAST_CHECK_SETTING, sync::toIso8601(std::chrono::system_clock::now()));
+        m_settings.set(LAST_CHECK_SETTING, sync::toIso8601(m_clock.now()));
 
         const bool announce = release
             && release->version > m_currentVersion

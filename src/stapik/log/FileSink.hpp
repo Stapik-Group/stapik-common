@@ -3,6 +3,8 @@
 #include "ILogSink.hpp"
 #include "LogFile.hpp"
 
+#include "stapik/time/Clock.hpp"
+
 #include <filesystem>
 #include <fstream>
 
@@ -13,7 +15,8 @@ namespace stapik::log
     class FileSink final : public ILogSink
     {
     public:
-        explicit FileSink(std::filesystem::path file, FileRotation rotation = DEFAULT_FILE_ROTATION);
+        explicit FileSink(std::filesystem::path file, FileRotation rotation = DEFAULT_FILE_ROTATION,
+                          const time::IClock& clock = time::systemClock());
 
         void write(const LogRecord& record) override;
 

@@ -22,7 +22,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Logging** – one logger, one format, across all apps
 - **Safe file I/O** – atomic writes, so a crash never leaves a half-written data file
 - **Document backups** – rotating copies of the data file and a dialog to restore one of them (see [docs/backups.md](docs/backups.md))
-- **Timestamps** – consistent time handling and formatting
+- **Timestamps and clock** – consistent time handling and formatting, and an injectable clock so tests do not depend on the system time (see [docs/clock.md](docs/clock.md))
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)
 - **Secret storage** – the cloud API key lives in the system keyring (Secret Service on Linux, Credential Manager on Windows), not in a plain file
