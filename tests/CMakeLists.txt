@@ -65,6 +65,7 @@ add_executable(stapikcommon_tests
         sync/TimestampTest.cpp
         task/BackgroundTaskRunnerTest.cpp
         task/DebouncedActionTest.cpp
+        text/TextFoldingTest.cpp
         text/TrimTest.cpp
         theme/ThemeRegistryTest.cpp
         theme/ThemeTest.cpp
