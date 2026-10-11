@@ -88,3 +88,30 @@ formatDateTime(when, loc.languageCode());   // 30.09.2026 14:05
 
 `formatTime` and `formatDateTime` take `withSeconds` as the last argument. The space before `AM`/`PM` is a no-break
 space. A `std::chrono::year_month_day` can be passed to `formatDate` directly, e.g. `YearMonth::firstDay()`.
+
+### Relative time
+
+`stapik/locale/RelativeTime.hpp` turns a time into "5 minutes ago", "yesterday", "3 days ago". It needs the translations,
+so it takes a `LocaleManager` (or a `LocalizationEngine`). Like the functions above it works on local wall-clock time;
+`now` is passed in, which keeps the result testable.
+
+```cpp
+formatRelativeTime(std::chrono::system_clock::now() - std::chrono::hours{3}, LocaleManager::instance());  // 3 godziny temu
+formatRelativeTime(when, now, LocaleManager::instance());                                              // LocalSeconds
+```
+
+| Distance                                  | pl                            | en                     |
+|-------------------------------------------|-------------------------------|------------------------|
+| under a minute                            | przed chwilą / za chwilę      | just now / in a moment |
+| under an hour                             | 5 minut temu / za 5 minut     | 5 minutes ago          |
+| under a day (elapsed time, not the date)  | 2 godziny temu / za 2 godziny | 2 hours ago            |
+| one calendar day                          | wczoraj / jutro               | yesterday / tomorrow   |
+| up to `maxRelativeDays` (6) calendar days | 3 dni temu / za 3 dni         | 3 days ago             |
+| further                                   | `30.09.2026` (`formatDate`)   | `09/30/2026`           |
+
+`RelativeTimeOptions::maxRelativeDays` moves the last limit. `describeRelativeTime` returns the same decision as
+data (`RelativeTimeKind` and a count) for callers that render it themselves.
+
+The messages are the plural keys `time.relative.<minutes|hours|days><Ago|Ahead>.<category>` plus `justNow`, `soon`,
+`yesterday` and `tomorrow`. A new language has to provide all of them; `CommonResourcesTest` checks that every plural
+message has a form for each number its language can produce.

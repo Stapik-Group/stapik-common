@@ -82,6 +82,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/locale/LocaleManager.cpp
         src/stapik/locale/LocalizationEngine.cpp
         src/stapik/locale/PluralRules.cpp
+        src/stapik/locale/RelativeTime.cpp
         src/stapik/locale/SystemLanguage.cpp
 )
 
