@@ -3,6 +3,7 @@
 #include "stapik/locale/LocaleManager.hpp"
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/AboutDialog.hpp"
+#include "stapik/ui/dialog/LogViewerDialog.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -26,6 +27,7 @@ StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOpt
     initLanguageAction();
     initThemeAction();
     initAboutAction();
+    initLogAction();
 
     if (m_options.undoStack != nullptr)
     {
@@ -188,6 +190,13 @@ Glib::RefPtr<Gio::Menu> StandardMenu::buildHelpMenu() const
     const auto& loc = LocaleManager::instance();
     const auto menu = Gio::Menu::create();
 
+    if (m_options.logItem)
+    {
+        const auto logSection = Gio::Menu::create();
+        logSection->append(loc.translate("menu.help.log"), "win.viewLog");
+        menu->append_section(logSection);
+    }
+
     if (m_options.aboutItem)
     {
         const auto aboutSection = Gio::Menu::create();
@@ -249,4 +258,12 @@ void StandardMenu::initAboutAction() const
         return;
 
     m_window.add_action("about", [this] { showAboutDialog(m_window); });
+}
+
+void StandardMenu::initLogAction() const
+{
+    if (!m_options.logItem)
+        return;
+
+    m_window.add_action("viewLog", [this] { showLogViewerDialog(m_window); });
 }

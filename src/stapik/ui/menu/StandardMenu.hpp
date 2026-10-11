@@ -23,6 +23,7 @@ struct StandardMenuOptions
     bool cloudItems = true;
     bool undoRedoItems = true;
     bool aboutItem = true;
+    bool logItem = true;
     const stapik::theme::ThemeRegistry* themes = nullptr;
     stapik::command::UndoStack* undoStack = nullptr;
 };
@@ -74,6 +75,7 @@ private:
     void initLanguageAction();
     void initThemeAction();
     void initAboutAction() const;
+    void initLogAction() const;
 
     Gtk::ApplicationWindow& m_window;
     StandardMenuOptions m_options;

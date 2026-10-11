@@ -23,6 +23,13 @@ independently of `STAPIK_LOG_FILE`. Only records at or above the minimum level r
 only with `--log-level debug`. `log::filterByLevel()`, `log::formatLogText()` and `log::formatBugReport()` turn its
 snapshot into text; the last one adds the application, version and platform for a bug report.
 
+## Log viewer
+
+`StandardMenu` adds Help > View log (disable with `StandardMenuOptions::logItem = false`), which opens
+`showLogViewerDialog()`. The dialog lists the in-memory log, filtered by minimum level, and can copy the report to
+the clipboard or save it to a file. An application without `StandardMenu` can call `showLogViewerDialog(window)`
+from its own action.
+
 ## Log file
 
 `AppContext::initialize()` adds a `FileSink` for `stapik.log` in the cache directory of the application
