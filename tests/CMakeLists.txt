@@ -28,6 +28,7 @@ add_executable(stapikcommon_tests
         document/SchemaMigratorTest.cpp
         locale/LanguageRegistryTest.cpp
         locale/LocalizationEngineTest.cpp
+        locale/PluralRulesTest.cpp
         locale/SystemLanguageTest.cpp
         log/ConsoleSinkTest.cpp
         log/FileSinkTest.cpp

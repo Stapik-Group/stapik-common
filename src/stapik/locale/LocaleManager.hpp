@@ -20,6 +20,8 @@ public:
     [[nodiscard]] const std::string& languageCode() const;
     [[nodiscard]] std::string translate(std::string_view key) const;
     [[nodiscard]] std::string translate(std::string_view key, const LocalizationEngine::Arguments& arguments) const;
+    [[nodiscard]] std::string translatePlural(std::string_view key, long long count) const;
+    [[nodiscard]] std::string translatePlural(std::string_view key, long long count, const LocalizationEngine::Arguments& arguments) const;
     [[nodiscard]] const std::vector<stapik::locale::LanguageInfo>& languages() const;
     sigc::signal<void()>& signalLocaleChanged();
 private:

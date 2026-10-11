@@ -97,6 +97,16 @@ std::string LocaleManager::translate(const std::string_view key, const Localizat
     return m_engine.translate(key, arguments);
 }
 
+std::string LocaleManager::translatePlural(const std::string_view key, const long long count) const
+{
+    return m_engine.translatePlural(key, count);
+}
+
+std::string LocaleManager::translatePlural(const std::string_view key, const long long count, const LocalizationEngine::Arguments& arguments) const
+{
+    return m_engine.translatePlural(key, count, arguments);
+}
+
 const std::vector<stapik::locale::LanguageInfo>& LocaleManager::languages() const
 {
     return m_engine.languages();
