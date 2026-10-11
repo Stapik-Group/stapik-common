@@ -130,6 +130,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/ConfirmDialog.cpp
         src/stapik/ui/dialog/ConnectDialog.cpp
         src/stapik/ui/dialog/DialogUtils.cpp
+        src/stapik/ui/dialog/LogViewerDialog.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
         src/stapik/ui/dialog/TextInputDialog.cpp
         src/stapik/ui/dialog/UpdateDialog.cpp
