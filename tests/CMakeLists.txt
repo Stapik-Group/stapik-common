@@ -50,6 +50,7 @@ add_executable(stapikcommon_tests
         settings/SettingsStoreTest.cpp
         storage/AppPathsTest.cpp
         storage/AtomicFileTest.cpp
+        storage/CloudStorageConfigStorageTest.cpp
         storage/DirectoryLockTest.cpp
         storage/PathTextTest.cpp
         sync/AsyncSyncSchedulerPartitionTest.cpp
