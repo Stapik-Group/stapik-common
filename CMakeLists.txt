@@ -128,6 +128,8 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/update/GitHubRelease.cpp
+        src/stapik/update/GitHubReleaseClient.cpp
         src/stapik/update/Semver.cpp
 )
 
