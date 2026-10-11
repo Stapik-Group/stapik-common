@@ -26,9 +26,12 @@ add_executable(stapikcommon_tests
         domain/MoneyFormatterTest.cpp
         domain/MoneyTest.cpp
         document/SchemaMigratorTest.cpp
+        locale/DateFormatterTest.cpp
+        locale/LanguageCodeTest.cpp
         locale/LanguageRegistryTest.cpp
         locale/LocalizationEngineTest.cpp
         locale/PluralRulesTest.cpp
+        locale/RelativeTimeTest.cpp
         locale/SystemLanguageTest.cpp
         log/ConsoleSinkTest.cpp
         log/FileSinkTest.cpp

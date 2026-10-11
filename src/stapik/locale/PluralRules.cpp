@@ -1,7 +1,6 @@
 #include "PluralRules.hpp"
 
-#include <cctype>
-#include <string>
+#include "LanguageCode.hpp"
 
 namespace stapik::locale
 {
@@ -117,14 +116,6 @@ namespace stapik::locale
             { .language = "vi", .rule = noPlurals },
             { .language = "zh", .rule = noPlurals },
         };
-
-        std::string primaryLanguage(const std::string_view code)
-        {
-            std::string language;
-            for (const char character : code.substr(0, code.find_first_of("-_")))
-                language.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(character))));
-            return language;
-        }
 
         Rule ruleFor(const std::string_view languageCode)
         {
