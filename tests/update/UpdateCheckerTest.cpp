@@ -2,6 +2,7 @@
 #include "stapik/sync/Timestamp.hpp"
 #include "stapik/update/UpdateChecker.hpp"
 
+#include "support/FakeClock.hpp"
 #include "support/MainLoopPump.hpp"
 
 #include <gtest/gtest.h>
@@ -73,7 +74,8 @@ namespace
 
                     return latest;
                 },
-                *m_settings);
+                *m_settings,
+                m_clock);
 
             m_checker->signalUpdateAvailable().connect([this](const ReleaseInfo& release) { m_announced.push_back(release.version.toString()); });
         }
@@ -101,6 +103,7 @@ namespace
 
         fs::path m_directory;
         fs::path m_settingsPath;
+        stapik::test::FakeClock m_clock;
         std::unique_ptr<SettingsStore> m_settings;
         std::unique_ptr<UpdateChecker> m_checker;
         std::optional<ReleaseInfo> m_latest;
@@ -169,10 +172,10 @@ TEST_F(UpdateCheckerTest, ChecksAtMostOncePerInterval)
     checkAndWait();
     EXPECT_EQ(m_fetches.load(), 1);
 
+    m_clock.advance(UpdateChecker::CHECK_INTERVAL - 1min);
     checkAndExpectNoFetch();
 
-    const auto longAgo = std::chrono::system_clock::now() - UpdateChecker::CHECK_INTERVAL - 1h;
-    m_settings->set<std::string>(LAST_CHECK, stapik::sync::toIso8601(longAgo));
+    m_clock.advance(1min);
     checkAndWait();
     EXPECT_EQ(m_fetches.load(), 2);
 }
@@ -180,7 +183,7 @@ TEST_F(UpdateCheckerTest, ChecksAtMostOncePerInterval)
 TEST_F(UpdateCheckerTest, LastCheckInTheFutureDoesNotBlockTheCheck)
 {
     createChecker("1.0.0");
-    m_settings->set<std::string>(LAST_CHECK, stapik::sync::toIso8601(std::chrono::system_clock::now() + 48h));
+    m_settings->set<std::string>(LAST_CHECK, stapik::sync::toIso8601(m_clock.now() + 48h));
 
     checkAndWait();
 
