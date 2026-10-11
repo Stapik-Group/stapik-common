@@ -34,6 +34,11 @@ find_package(CURL REQUIRED)
 if(UNIX AND NOT APPLE)
     # Window position on X11 (see ui/window/WindowPlacement.cpp); without it the position is not remembered
     pkg_check_modules(X11 IMPORTED_TARGET x11)
+    # Secret Service client (see storage/SecretStore.cpp); without it secrets cannot be kept in the system keyring
+    pkg_check_modules(LIBSECRET IMPORTED_TARGET libsecret-1)
+    if(NOT LIBSECRET_FOUND)
+        message(WARNING "libsecret-1 not found: the cloud API key will be stored in a plain file")
+    endif()
 endif()
 
 add_library(stapikcommon STATIC)
@@ -111,6 +116,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
         src/stapik/storage/DirectoryLock.cpp
+        src/stapik/storage/SecretStore.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -183,11 +189,18 @@ target_link_libraries(stapikcommon PUBLIC
 if(WIN32)
     # MessageBoxW and AllowSetForegroundWindow of SingleInstanceGuard, window placement
     target_link_libraries(stapikcommon PUBLIC user32)
+    # Credential Manager of SecretStore
+    target_link_libraries(stapikcommon PUBLIC advapi32)
 endif()
 
 if(TARGET PkgConfig::X11)
     target_link_libraries(stapikcommon PUBLIC PkgConfig::X11)
     target_compile_definitions(stapikcommon PRIVATE STAPIK_HAS_X11)
+endif()
+
+if(TARGET PkgConfig::LIBSECRET)
+    target_link_libraries(stapikcommon PUBLIC PkgConfig::LIBSECRET)
+    target_compile_definitions(stapikcommon PRIVATE STAPIK_HAS_LIBSECRET)
 endif()
 
 set(STAPIK_COMMON_RESOURCES_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/stapik-common" CACHE STRING
