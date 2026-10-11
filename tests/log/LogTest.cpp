@@ -1,8 +1,10 @@
 #include "stapik/log/Log.hpp"
 
-#include <glib.h>
+#include "stapik/log/RingBufferSink.hpp"
+
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -14,25 +16,31 @@ namespace
         void SetUp() override
         {
             m_originalLevel = stapik::log::level();
-            m_handlerId = g_log_set_handler("stapik", G_LOG_LEVEL_MASK, &LogTest::collect, &m_messages);
+            m_originalSinks = stapik::log::sinks();
+            m_sink = std::make_shared<stapik::log::RingBufferSink>(100);
+            stapik::log::setSinks({m_sink});
         }
 
         void TearDown() override
         {
-            g_log_remove_handler("stapik", m_handlerId);
+            stapik::log::setSinks(m_originalSinks);
             stapik::log::setLevel(m_originalLevel);
         }
 
-        std::vector<std::string> m_messages;
-
-    private:
-        static void collect(const gchar*, GLogLevelFlags, const gchar* message, gpointer userData)
+        [[nodiscard]] std::vector<std::string> messages() const
         {
-            static_cast<std::vector<std::string>*>(userData)->emplace_back(message);
+            std::vector<std::string> result;
+            for (const auto& record : m_sink->snapshot())
+                result.push_back(record.message);
+
+            return result;
         }
 
+        std::shared_ptr<stapik::log::RingBufferSink> m_sink;
+
+    private:
         stapik::log::Level m_originalLevel{};
-        guint m_handlerId{};
+        std::vector<std::shared_ptr<stapik::log::ILogSink>> m_originalSinks;
     };
 }
 
@@ -42,8 +50,8 @@ TEST_F(LogTest, FormatsMessagesWithStdFormat)
 
     stapik::log::warning("value {} and {}", 42, "text");
 
-    ASSERT_EQ(m_messages.size(), 1u);
-    EXPECT_EQ(m_messages.front(), "value 42 and text");
+    ASSERT_EQ(messages().size(), 1u);
+    EXPECT_EQ(messages().front(), "value 42 and text");
 }
 
 TEST_F(LogTest, MessagesBelowMinimumLevelAreDropped)
@@ -55,9 +63,9 @@ TEST_F(LogTest, MessagesBelowMinimumLevelAreDropped)
     stapik::log::warning("warning");
     stapik::log::error("error");
 
-    ASSERT_EQ(m_messages.size(), 2u);
-    EXPECT_EQ(m_messages[0], "warning");
-    EXPECT_EQ(m_messages[1], "error");
+    ASSERT_EQ(messages().size(), 2u);
+    EXPECT_EQ(messages()[0], "warning");
+    EXPECT_EQ(messages()[1], "error");
 }
 
 TEST_F(LogTest, SetLevelIsReflectedByLevel)
@@ -65,6 +73,41 @@ TEST_F(LogTest, SetLevelIsReflectedByLevel)
     stapik::log::setLevel(stapik::log::Level::Error);
 
     EXPECT_EQ(stapik::log::level(), stapik::log::Level::Error);
+}
+
+TEST_F(LogTest, RecordsCarryTheirLevel)
+{
+    stapik::log::setLevel(stapik::log::Level::Debug);
+
+    stapik::log::debug("first");
+    stapik::log::error("second");
+
+    const auto records = m_sink->snapshot();
+    ASSERT_EQ(records.size(), 2u);
+    EXPECT_EQ(records[0].level, stapik::log::Level::Debug);
+    EXPECT_EQ(records[1].level, stapik::log::Level::Error);
+}
+
+TEST_F(LogTest, EveryRegisteredSinkReceivesTheRecord)
+{
+    const auto second = std::make_shared<stapik::log::RingBufferSink>(10);
+    stapik::log::addSink(second);
+
+    stapik::log::warning("shared");
+
+    EXPECT_EQ(m_sink->snapshot().size(), 1u);
+    EXPECT_EQ(second->snapshot().size(), 1u);
+}
+
+TEST_F(LogTest, SinkListCanBeReplaced)
+{
+    const auto replacement = std::make_shared<stapik::log::RingBufferSink>(10);
+    stapik::log::setSinks({replacement});
+
+    stapik::log::warning("only here");
+
+    EXPECT_TRUE(m_sink->snapshot().empty());
+    EXPECT_EQ(replacement->snapshot().size(), 1u);
 }
 
 TEST(LogRedactTest, HidesShortSecretsCompletely)

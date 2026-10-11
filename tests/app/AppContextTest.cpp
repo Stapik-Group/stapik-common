@@ -27,6 +27,7 @@ namespace
         void SetUp() override
         {
             AppContext::resetForTests();
+            setenv("STAPIK_LOG_FILE", "off", 1);
 
             auto pattern = (fs::temp_directory_path() / "stapik-appcontext-XXXXXX").string();
             ASSERT_NE(mkdtemp(pattern.data()), nullptr);
@@ -46,6 +47,7 @@ namespace
 
     private:
         stapik::test::ScopedEnvironment m_configHome{ "XDG_CONFIG_HOME" };
+        stapik::test::ScopedEnvironment m_logFile{ "STAPIK_LOG_FILE" };
     };
 }
 

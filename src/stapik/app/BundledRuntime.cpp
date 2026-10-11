@@ -1,6 +1,8 @@
 #include "BundledRuntime.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/log/FileSink.hpp"
+#include "stapik/log/GLibLogBridge.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
@@ -9,17 +11,23 @@
 
 #include <algorithm>
 #include <cctype>
-#include <chrono>
 #include <cstdio>
-#include <format>
 #include <fstream>
 #include <iterator>
+#include <memory>
+#include <mutex>
 #include <optional>
+#include <string_view>
 #include <system_error>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 namespace
 {
     constexpr std::string_view PIXBUF_LOADERS_CACHE_NAME = "pixbuf-loaders.cache";
+    constexpr auto LOG_FILE_NAME = "stapik.log";
 
     bool endsWithCaseInsensitive(const std::string_view text, const std::string_view suffix)
     {
@@ -165,28 +173,18 @@ namespace
         setEnvironment("GDK_PIXBUF_MODULE_FILE", cacheFile);
     }
 
-#ifdef _WIN32
-    constexpr std::uintmax_t MAX_LOG_FILE_SIZE = std::uintmax_t{ 1 } << 20;
-
-    void redirectStandardErrorToFile(const std::filesystem::path& logFile)
+    bool shouldWriteLogFile()
     {
-        std::error_code errorCode;
-        if (std::filesystem::exists(logFile, errorCode) && std::filesystem::file_size(logFile, errorCode) > MAX_LOG_FILE_SIZE)
-        {
-            auto previous = logFile;
-            previous += ".old";
-            std::filesystem::rename(logFile, previous, errorCode);
-        }
+        if (const auto* setting = g_getenv("STAPIK_LOG_FILE"); setting != nullptr && std::string_view(setting) == "off")
+            return false;
 
-        if (_wfreopen(logFile.c_str(), L"a", stderr) == nullptr)
-            return;
-
-        std::setvbuf(stderr, nullptr, _IONBF, 0);
-
-        const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
-        std::fprintf(stderr, "---- started %s UTC ----\n", std::format("{:%F %T}", now).c_str());
-    }
+#ifdef _WIN32
+        return true;
+#else
+        // Started from a terminal, the output belongs there.
+        return isatty(fileno(stderr)) == 0;
 #endif
+    }
 }
 
 namespace stapik::app
@@ -230,14 +228,30 @@ namespace stapik::app
         configurePixbufLoaders(bundleRoot, cacheDirectory);
     }
 
+    void prepareLogging(const std::string& appName)
+    {
+        static std::once_flag once;
+        std::call_once(once, [&appName]
+        {
+            log::forwardGLibMessagesToLog();
+
+            if (!shouldWriteLogFile())
+                return;
+
+            const auto cacheDirectory = AppPaths::userCacheDir(appName);
+            std::error_code errorCode;
+            std::filesystem::create_directories(cacheDirectory, errorCode);
+
+            log::addSink(std::make_shared<log::FileSink>(cacheDirectory / LOG_FILE_NAME));
+        });
+    }
+
     void prepareWindowsRuntime(const std::string& appName)
     {
 #ifdef _WIN32
         const auto cacheDirectory = AppPaths::userCacheDir(appName);
         std::error_code errorCode;
         std::filesystem::create_directories(cacheDirectory, errorCode);
-
-        redirectStandardErrorToFile(cacheDirectory / "stapik.log");
 
         const auto bundleRoot = AppPaths::executableDir();
         configureBundledRuntime(bundleRoot, cacheDirectory);
