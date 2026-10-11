@@ -76,6 +76,7 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/locale/DateFormatter.cpp
         src/stapik/locale/LanguageCode.cpp
         src/stapik/locale/LanguageRegistry.cpp
         src/stapik/locale/LocaleManager.cpp

@@ -65,3 +65,26 @@ loc.translatePlural("transactions", 12);  // 12 transakcji
 | everything else, including `en`, `de`    | `one` (1), `other`                                |
 
 Rules are keyed by the language part of the code, so `pt-BR` follows `pt`. Fractional numbers are not supported.
+
+## Dates and times
+
+`stapik/locale/DateFormatter.hpp` formats dates and times by the language code, like `formatMoney` does for amounts.
+The functions take a wall-clock time (`LocalSeconds`, a `std::chrono::local_seconds`), so they do not depend on a
+time zone database. `toLocalTime` converts a `system_clock::time_point` to the local time of the user.
+
+```cpp
+using namespace stapik::locale;
+
+const auto when = toLocalTime(std::chrono::system_clock::now());
+formatDate(when, loc.languageCode());       // 30.09.2026
+formatTime(when, loc.languageCode());       // 14:05
+formatDateTime(when, loc.languageCode());   // 30.09.2026 14:05
+```
+
+| Languages  | Date         | Time      | Date and time         |
+|------------|--------------|-----------|-----------------------|
+| `pl`, `de` | `30.09.2026` | `14:05`   | `30.09.2026 14:05`    |
+| other      | `09/30/2026` | `2:05 PM` | `09/30/2026, 2:05 PM` |
+
+`formatTime` and `formatDateTime` take `withSeconds` as the last argument. The space before `AM`/`PM` is a no-break
+space. A `std::chrono::year_month_day` can be passed to `formatDate` directly, e.g. `YearMonth::firstDay()`.
