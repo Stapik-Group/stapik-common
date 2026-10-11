@@ -24,6 +24,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Timestamps** – consistent time handling and formatting
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)
+- **Secret storage** – the cloud API key lives in the system keyring (Secret Service on Linux, Credential Manager on Windows), not in a plain file
 - **Update checker** – a "new version available" notice based on GitHub Releases (see [docs/updates.md](docs/updates.md))
 - **GTK helpers** – shared gtkmm-4 pieces for a consistent look and feel
 - **Localization** – JSON translations with `{arg}` placeholders and CLDR plural forms (see [docs/localization.md](docs/localization.md))
@@ -58,11 +59,12 @@ Pin `GIT_TAG` to a release tag – never to a moving branch – so your app buil
 
 ## Requirements
 
-| What      | Version                    |
-|-----------|----------------------------|
-| Compiler  | C++20 capable (GCC / Clang)|
-| CMake     | 3.x+                       |
-| gtkmm     | 4.x                        |
+| What      | Version                     |
+|-----------|-----------------------------|
+| Compiler  | C++20 capable (GCC / Clang) |
+| CMake     | 3.x+                        |
+| gtkmm     | 4.x                         |
+| libsecret | 1.x (Linux, optional)       |
 
 ## Building & testing
 
