@@ -2,6 +2,8 @@
 
 #include "DateFormatter.hpp"
 
+#include "stapik/time/Clock.hpp"
+
 #include <chrono>
 #include <string>
 
@@ -53,9 +55,10 @@ namespace stapik::locale
         const LocaleManager& localeManager,
         RelativeTimeOptions options = {});
 
-    // Relative to the current time.
+    // Relative to the current time of the clock.
     [[nodiscard]] std::string formatRelativeTime(
         std::chrono::system_clock::time_point when,
         const LocaleManager& localeManager,
-        RelativeTimeOptions options = {});
+        RelativeTimeOptions options = {},
+        const time::IClock& clock = time::systemClock());
 }
