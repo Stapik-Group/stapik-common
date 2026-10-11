@@ -27,6 +27,15 @@ TEST(TextFoldingTest, DecomposeSplitsLettersWithAStroke)
     EXPECT_TRUE(decompose("Ø") == U"O\u0338");
 }
 
+TEST(TextFoldingTest, DecomposeSpellsOutLigaturesAndSimilarLetters)
+{
+    EXPECT_TRUE(decompose("æ") == U"ae");
+    EXPECT_TRUE(decompose("Œ") == U"OE");
+    EXPECT_TRUE(decompose("þ") == U"th");
+    EXPECT_TRUE(decompose("ð") == U"d");
+    EXPECT_TRUE(decompose("ı") == U"i");
+}
+
 TEST(TextFoldingTest, DecomposeAcceptsTextThatIsAlreadyDecomposed)
 {
     EXPECT_TRUE(decompose("a\xCC\xA8") == decompose("ą"));
@@ -63,8 +72,17 @@ TEST(TextFoldingTest, FoldForSearchRemovesDiacriticsOfOtherLatinAndGreekLetters)
     EXPECT_EQ(foldForSearch("Été"), "ete");
     EXPECT_EQ(foldForSearch("İstanbul"), "istanbul");
     EXPECT_EQ(foldForSearch("Đorđe"), "dorde");
-    EXPECT_EQ(foldForSearch("Ærø"), "æro");
+    EXPECT_EQ(foldForSearch("Ærø"), "aero");
     EXPECT_EQ(foldForSearch("ΆΛΦΑ"), "αλφα");
+}
+
+TEST(TextFoldingTest, FoldForSearchMatchesLigaturesWithTheirLetters)
+{
+    EXPECT_EQ(foldForSearch("cœur"), "coeur");
+    EXPECT_EQ(foldForSearch("Œuf"), "oeuf");
+    EXPECT_EQ(foldForSearch("Þór"), "thor");
+    EXPECT_EQ(foldForSearch("ığdır"), "igdir");
+    EXPECT_TRUE(containsFolded("Cœur de Lion", "COEUR"));
 }
 
 TEST(TextFoldingTest, FoldForSearchResolvesCompatibilityForms)

@@ -28,6 +28,24 @@ namespace stapik::text
             SplitLetter{.letter = 0x00F8, .base = U'o', .mark = LONG_SOLIDUS_OVERLAY},
         };
 
+        struct Replacement
+        {
+            char32_t letter;
+            std::u32string_view letters;
+        };
+
+        constexpr std::array REPLACEMENTS = {
+            Replacement{.letter = 0x00C6, .letters = U"AE"},
+            Replacement{.letter = 0x00E6, .letters = U"ae"},
+            Replacement{.letter = 0x0152, .letters = U"OE"},
+            Replacement{.letter = 0x0153, .letters = U"oe"},
+            Replacement{.letter = 0x00DE, .letters = U"TH"},
+            Replacement{.letter = 0x00FE, .letters = U"th"},
+            Replacement{.letter = 0x00D0, .letters = U"D"},
+            Replacement{.letter = 0x00F0, .letters = U"d"},
+            Replacement{.letter = 0x0131, .letters = U"i"},
+        };
+
         using GlibString = std::unique_ptr<gchar, decltype(&g_free)>;
 
         GlibString validUtf8(const std::string_view text)
@@ -49,6 +67,16 @@ namespace stapik::text
             {
                 if (split.letter == codePoint)
                     return &split;
+            }
+            return nullptr;
+        }
+
+        const Replacement* findReplacement(const char32_t codePoint)
+        {
+            for (const auto& replacement : REPLACEMENTS)
+            {
+                if (replacement.letter == codePoint)
+                    return &replacement;
             }
             return nullptr;
         }
@@ -75,6 +103,9 @@ namespace stapik::text
             {
                 result.push_back(split->base);
                 result.push_back(split->mark);
+            } else if (const auto* replacement = findReplacement(codePoint))
+            {
+                result.append(replacement->letters);
             } else
             {
                 result.push_back(codePoint);
