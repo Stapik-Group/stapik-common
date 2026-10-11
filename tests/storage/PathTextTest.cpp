@@ -23,3 +23,10 @@ TEST(PathTextTest, NonAsciiCharactersComeOutAsUtf8)
 
     EXPECT_EQ(pathText(path), "/home/zażółć/gęślą.json");
 }
+
+TEST(PathTextTest, PathFromTextRoundTripsUtf8)
+{
+    const std::string text = "/home/zażółć/gęślą.json";
+
+    EXPECT_EQ(pathText(stapik::storage::pathFromText(text)), text);
+}

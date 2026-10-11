@@ -138,3 +138,32 @@ TEST_F(CommonResourcesDirTest, ReturnsTheFirstCandidateWhenNothingExists)
     EXPECT_EQ(AppPaths::resolveCommonResourcesDir(m_executableDir, {}),
         m_executableDir / "resources" / "stapik-common");
 }
+
+TEST_F(AppPathsTest, RootOverrideRelocatesAllUserDirectories)
+{
+    setenv("XDG_DATA_HOME", "/xdg/data", 1);
+    setenv("XDG_CONFIG_HOME", "/xdg/config", 1);
+    setenv("XDG_CACHE_HOME", "/xdg/cache", 1);
+    AppPaths::setRootOverride("/portable/root");
+
+    EXPECT_EQ(AppPaths::userDataDir("app"), "/portable/root/data");
+    EXPECT_EQ(AppPaths::userConfigDir("app"), "/portable/root/config");
+    EXPECT_EQ(AppPaths::userCacheDir("app"), "/portable/root/cache");
+
+    AppPaths::clearRootOverride();
+}
+
+TEST_F(AppPathsTest, ClearingRootOverrideRestoresDefaults)
+{
+    setenv("XDG_DATA_HOME", "/xdg/data", 1);
+    AppPaths::setRootOverride("/portable/root");
+    AppPaths::clearRootOverride();
+
+    EXPECT_FALSE(AppPaths::rootOverride().has_value());
+    EXPECT_EQ(AppPaths::userDataDir("app"), "/xdg/data/app");
+}
+
+TEST(AppPathsPortableTest, PortableRootLivesNextToTheExecutable)
+{
+    EXPECT_EQ(AppPaths::portableRoot(), AppPaths::executableDir() / "portable");
+}
