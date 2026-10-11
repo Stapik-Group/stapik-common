@@ -294,3 +294,38 @@ TEST(CommonResourcesTest, CurrencyCatalogLoadsAndEveryCurrencyHasAName)
             EXPECT_TRUE(keys.contains(currency.nameKey())) << language << " lacks " << currency.nameKey();
     }
 }
+
+TEST(CommonResourcesTest, CurrencyFileHoldsUniqueThreeLetterCodes)
+{
+    const auto currencies = nlohmann::json::parse(readFile(RESOURCES_DIR / "currencies.json"));
+    const std::regex isoCode("[A-Z]{3}");
+    std::set<std::string> codes;
+
+    for (const auto& entry : currencies)
+    {
+        const auto code = entry.at("code").get<std::string>();
+        EXPECT_TRUE(std::regex_match(code, isoCode)) << code;
+        EXPECT_TRUE(codes.insert(code).second) << "duplicate " << code;
+    }
+
+    EXPECT_GE(codes.size(), 150u);
+}
+
+TEST(CommonResourcesTest, CurrencyCatalogFollowsIsoMinorUnits)
+{
+    stapik::domain::CurrencyCatalog catalog;
+    ASSERT_TRUE(catalog.addFromFile(RESOURCES_DIR / "currencies.json"));
+
+    const auto decimalPlaces = [&catalog](const std::string& code)
+    {
+        const auto* currency = catalog.find(code);
+        return currency == nullptr ? -1 : currency->decimalPlaces;
+    };
+
+    EXPECT_EQ(decimalPlaces("PLN"), 2);
+    EXPECT_EQ(decimalPlaces("CHF"), 2);
+    EXPECT_EQ(decimalPlaces("JPY"), 0);
+    EXPECT_EQ(decimalPlaces("ISK"), 0);
+    EXPECT_EQ(decimalPlaces("KWD"), 3);
+    EXPECT_EQ(decimalPlaces("TND"), 3);
+}
