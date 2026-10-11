@@ -91,6 +91,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/storage/AppPaths.cpp
         src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
+        src/stapik/storage/DirectoryLock.cpp
 )
 
 target_sources(stapikcommon PRIVATE

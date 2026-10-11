@@ -117,7 +117,29 @@ namespace stapik::app
 
         m_commandLine = parsed.options;
         applyCommandLineOptions(m_commandLine, m_info.internalName);
+
+        if (m_options.singleInstance && !acquireDataDirLock())
+            return EXIT_FAILURE;
+
         return -1;
+    }
+
+    bool StapikApplication::acquireDataDirLock()
+    {
+        // Registering shows whether GApplication already has a primary instance. That one owns the data, and
+        // this process is only forwarded to it, so it must not take the lock.
+        if (!register_application() || is_remote())
+            return true;
+
+        m_dataDirLock = storage::DirectoryLock::tryAcquire(AppPaths::ensureUserDataDir(m_info.internalName));
+        if (m_dataDirLock)
+            return true;
+
+        const auto& displayName = m_info.displayName.empty() ? m_info.internalName : m_info.displayName;
+        const auto text = LocaleManager::instance().translate("app.alreadyRunning", { { "name", displayName } });
+        log::error("{}", text);
+        std::cerr << text << '\n';
+        return false;
     }
 
     void StapikApplication::on_startup()

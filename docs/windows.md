@@ -13,7 +13,7 @@ a self-contained folder; there is no installer.
 | Executable directory | `/proc/self/exe` | `GetModuleFileNameW` |
 | Atomic file write | temp file, `fsync`, `rename`, directory `fsync` | temp file, `FlushFileBuffers`, `MoveFileExW(REPLACE_EXISTING \| WRITE_THROUGH)` with a short retry when a virus scanner holds the file |
 | Console output | stderr | stderr is written to `%LOCALAPPDATA%\<app>\cache\stapik.log` (GUI programs have no console) |
-| Single instance | GApplication | named mutex and named pipe (`SingleInstanceGuard`) |
+| Single instance | GApplication, plus a lock on the data directory (`DirectoryLock`) | named mutex and named pipe (`SingleInstanceGuard`) |
 | TLS certificates (cloud sync) | system | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable |
 
 The `XDG_*_HOME` variables are honoured on Windows too (tests and portable setups use them).

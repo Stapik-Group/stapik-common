@@ -4,6 +4,7 @@
 #include "CommandLine.hpp"
 #include "SingleInstanceGuard.hpp"
 
+#include "stapik/storage/DirectoryLock.hpp"
 #include "stapik/ui/style/AppStyleProvider.hpp"
 #include "stapik/update/UpdateChecker.hpp"
 
@@ -51,6 +52,7 @@ namespace stapik::app
     private:
         static const std::string& initializeContext(const AppInfo& appInfo);
 
+        [[nodiscard]] bool acquireDataDirLock();
         void applyTheme();
         void startUpdateCheck();
         void announceUpdate(const update::ReleaseInfo& release);
@@ -66,6 +68,7 @@ namespace stapik::app
         CommandLineOptions m_commandLine;
         AppStyleProvider m_styleProvider;
         std::unique_ptr<SingleInstanceGuard> m_instanceGuard;
+        std::unique_ptr<storage::DirectoryLock> m_dataDirLock;
         sigc::connection m_windowAddedConnection;
         sigc::connection m_themeConnection;
         std::unique_ptr<update::UpdateChecker> m_updateChecker;
