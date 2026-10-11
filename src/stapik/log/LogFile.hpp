@@ -17,8 +17,4 @@ namespace stapik::log
     // Shifts <file> to <file>.1, <file>.1 to <file>.2 and so on, dropping the oldest, once <file> has reached the
     // maximum size. Does nothing for a smaller or missing file.
     void rotateLogFiles(const std::filesystem::path& file, FileRotation rotation = DEFAULT_FILE_ROTATION);
-
-    // Rotates, then appends everything written to stderr (GLib messages included) to <file>. The size is checked
-    // only here, so a single long session can exceed the limit.
-    [[nodiscard]] bool redirectStandardErrorToFile(const std::filesystem::path& file, FileRotation rotation = DEFAULT_FILE_ROTATION);
 }

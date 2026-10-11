@@ -1,8 +1,5 @@
 #include "LogFile.hpp"
 
-#include <chrono>
-#include <cstdio>
-#include <format>
 #include <string>
 #include <system_error>
 
@@ -23,15 +20,6 @@ namespace
 
         const auto size = std::filesystem::file_size(file, errorCode);
         return !errorCode && size >= maxFileSize;
-    }
-
-    FILE* reopenStandardError(const std::filesystem::path& file)
-    {
-#ifdef _WIN32
-        return _wfreopen(file.c_str(), L"a", stderr);
-#else
-        return std::freopen(file.c_str(), "a", stderr);
-#endif
     }
 }
 
@@ -58,19 +46,5 @@ namespace stapik::log
         }
 
         std::filesystem::rename(file, backupPath(file, 1), errorCode);
-    }
-
-    bool redirectStandardErrorToFile(const std::filesystem::path& file, const FileRotation rotation)
-    {
-        rotateLogFiles(file, rotation);
-
-        if (reopenStandardError(file) == nullptr)
-            return false;
-
-        std::setvbuf(stderr, nullptr, _IONBF, 0);
-
-        const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
-        std::fprintf(stderr, "---- started %s UTC ----\n", std::format("{:%F %T}", now).c_str());
-        return true;
     }
 }

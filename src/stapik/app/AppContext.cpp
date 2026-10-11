@@ -49,7 +49,7 @@ namespace stapik::app
             }
         }
 
-        prepareLogFile(appInfo.internalName);
+        prepareLogging(appInfo.internalName);
         prepareWindowsRuntime(appInfo.internalName);
         preferStableRenderer();
 

@@ -5,16 +5,16 @@ a self-contained folder; there is no installer.
 
 ## What differs from Linux
 
-| Area | Linux | Windows |
-| --- | --- | --- |
-| Data directory | `$XDG_DATA_HOME/<app>` | `%APPDATA%\<app>\data` |
-| Config directory | `$XDG_CONFIG_HOME/<app>` | `%APPDATA%\<app>\config` |
-| Cache directory | `$XDG_CACHE_HOME/<app>` | `%LOCALAPPDATA%\<app>\cache` |
-| Executable directory | `/proc/self/exe` | `GetModuleFileNameW` |
-| Atomic file write | temp file, `fsync`, `rename`, directory `fsync` | temp file, `FlushFileBuffers`, `MoveFileExW(REPLACE_EXISTING \| WRITE_THROUGH)` with a short retry when a virus scanner holds the file |
-| Console output | stderr, or the log file when stderr is not a terminal | stderr is always written to the log file (GUI programs have no console), see [logging](logging.md) |
-| Single instance | GApplication, plus a lock on the data directory (`DirectoryLock`) | named mutex and named pipe (`SingleInstanceGuard`) |
-| TLS certificates (cloud sync) | system | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable |
+| Area                          | Linux                                                             | Windows                                                                                                                                |
+|-------------------------------|-------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Data directory                | `$XDG_DATA_HOME/<app>`                                            | `%APPDATA%\<app>\data`                                                                                                                 |
+| Config directory              | `$XDG_CONFIG_HOME/<app>`                                          | `%APPDATA%\<app>\config`                                                                                                               |
+| Cache directory               | `$XDG_CACHE_HOME/<app>`                                           | `%LOCALAPPDATA%\<app>\cache`                                                                                                           |
+| Executable directory          | `/proc/self/exe`                                                  | `GetModuleFileNameW`                                                                                                                   |
+| Atomic file write             | temp file, `fsync`, `rename`, directory `fsync`                   | temp file, `FlushFileBuffers`, `MoveFileExW(REPLACE_EXISTING \| WRITE_THROUGH)` with a short retry when a virus scanner holds the file |
+| Console output                | stderr, plus the log file when stderr is not a terminal           | stderr, plus the log file always (GUI programs have no console), see [logging](logging.md)                                             |
+| Single instance               | GApplication, plus a lock on the data directory (`DirectoryLock`) | named mutex and named pipe (`SingleInstanceGuard`)                                                                                     |
+| TLS certificates (cloud sync) | system                                                            | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable                                                   |
 
 The `XDG_*_HOME` variables are honoured on Windows too (tests and portable setups use them).
 File permissions are not applied on Windows: files inherit the access rules of the user profile.

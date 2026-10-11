@@ -1,7 +1,8 @@
 #include "BundledRuntime.hpp"
 
 #include "stapik/log/Log.hpp"
-#include "stapik/log/LogFile.hpp"
+#include "stapik/log/FileSink.hpp"
+#include "stapik/log/GLibLogBridge.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
@@ -13,6 +14,8 @@
 #include <cstdio>
 #include <fstream>
 #include <iterator>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string_view>
 #include <system_error>
@@ -225,17 +228,22 @@ namespace stapik::app
         configurePixbufLoaders(bundleRoot, cacheDirectory);
     }
 
-    void prepareLogFile(const std::string& appName)
+    void prepareLogging(const std::string& appName)
     {
-        if (!shouldWriteLogFile())
-            return;
+        static std::once_flag once;
+        std::call_once(once, [&appName]
+        {
+            log::forwardGLibMessagesToLog();
 
-        const auto cacheDirectory = AppPaths::userCacheDir(appName);
-        std::error_code errorCode;
-        std::filesystem::create_directories(cacheDirectory, errorCode);
+            if (!shouldWriteLogFile())
+                return;
 
-        if (!log::redirectStandardErrorToFile(cacheDirectory / LOG_FILE_NAME))
-            log::warning("Cannot open the log file in {}", storage::pathText(cacheDirectory));
+            const auto cacheDirectory = AppPaths::userCacheDir(appName);
+            std::error_code errorCode;
+            std::filesystem::create_directories(cacheDirectory, errorCode);
+
+            log::addSink(std::make_shared<log::FileSink>(cacheDirectory / LOG_FILE_NAME));
+        });
     }
 
     void prepareWindowsRuntime(const std::string& appName)

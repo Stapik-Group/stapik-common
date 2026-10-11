@@ -30,6 +30,8 @@ add_executable(stapikcommon_tests
         locale/LocalizationEngineTest.cpp
         locale/SystemLanguageTest.cpp
         log/ConsoleSinkTest.cpp
+        log/FileSinkTest.cpp
+        log/GLibLogBridgeTest.cpp
         log/LogFileTest.cpp
         log/LogTest.cpp
         log/RingBufferSinkTest.cpp

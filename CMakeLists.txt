@@ -84,6 +84,8 @@ target_sources(stapikcommon PRIVATE
 
 target_sources(stapikcommon PRIVATE
         src/stapik/log/ConsoleSink.cpp
+        src/stapik/log/FileSink.cpp
+        src/stapik/log/GLibLogBridge.cpp
         src/stapik/log/Log.cpp
         src/stapik/log/LogFile.cpp
         src/stapik/log/LogRecord.cpp
