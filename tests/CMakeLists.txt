@@ -54,6 +54,7 @@ add_executable(stapikcommon_tests
         theme/ThemeTest.cpp
         ui/RadioOptionsTest.cpp
         ui/WindowStateTest.cpp
+        update/SemverTest.cpp
 )
 
 target_link_libraries(stapikcommon_tests PRIVATE

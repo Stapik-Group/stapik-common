@@ -127,6 +127,10 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/window/WindowState.cpp
 )
 
+target_sources(stapikcommon PRIVATE
+        src/stapik/update/Semver.cpp
+)
+
 stapik_enable_warnings(stapikcommon)
 
 target_compile_definitions(stapikcommon PRIVATE
