@@ -33,6 +33,7 @@ add_executable(stapikcommon_tests
         log/FileSinkTest.cpp
         log/GLibLogBridgeTest.cpp
         log/LogFileTest.cpp
+        log/LogReportTest.cpp
         log/LogTest.cpp
         log/RingBufferSinkTest.cpp
         resources/CommonResourcesTest.cpp

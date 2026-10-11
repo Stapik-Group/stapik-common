@@ -89,6 +89,8 @@ target_sources(stapikcommon PRIVATE
         src/stapik/log/Log.cpp
         src/stapik/log/LogFile.cpp
         src/stapik/log/LogRecord.cpp
+        src/stapik/log/LogReport.cpp
+        src/stapik/log/MemoryLog.cpp
         src/stapik/log/RingBufferSink.cpp
 )
 
