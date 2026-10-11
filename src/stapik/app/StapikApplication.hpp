@@ -5,6 +5,7 @@
 #include "SingleInstanceGuard.hpp"
 
 #include "stapik/ui/style/AppStyleProvider.hpp"
+#include "stapik/update/UpdateChecker.hpp"
 
 #include <giomm/application.h>
 #include <glibmm/refptr.h>
@@ -23,6 +24,7 @@ namespace stapik::app
     {
         bool singleInstance = true;
         bool rememberWindowState = true;
+        bool checkForUpdates = false;
         std::filesystem::path resourcesDir;
     };
 
@@ -49,6 +51,8 @@ namespace stapik::app
         static const std::string& initializeContext(const AppInfo& appInfo);
 
         void applyTheme();
+        void startUpdateCheck();
+        void announceUpdate(const update::ReleaseInfo& release);
         void onWindowAdded(Gtk::Window& window);
         void installQuitAction(Gtk::Window& window);
         static void restoreWindowState(Gtk::Window& window, const std::string& key) ;
@@ -61,5 +65,7 @@ namespace stapik::app
         std::unique_ptr<SingleInstanceGuard> m_instanceGuard;
         sigc::connection m_windowAddedConnection;
         sigc::connection m_themeConnection;
+        std::unique_ptr<update::UpdateChecker> m_updateChecker;
+        sigc::connection m_updateConnection;
     };
 }

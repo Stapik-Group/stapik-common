@@ -59,6 +59,9 @@
   "dialog.about.version": "Version {version}",
   "dialog.about.author": "Autor: {author}",
   "dialog.about.website": "Webseite",
+  "dialog.update.title": "Update verfügbar",
+  "dialog.update.message": "{name} {latest} ist verfügbar (Sie verwenden Version {current}). Downloadseite öffnen?",
+  "dialog.update.download": "Herunterladen",
 
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",

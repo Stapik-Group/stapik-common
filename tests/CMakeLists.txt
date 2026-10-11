@@ -56,6 +56,7 @@ add_executable(stapikcommon_tests
         ui/WindowStateTest.cpp
         update/GitHubReleaseTest.cpp
         update/SemverTest.cpp
+        update/UpdateCheckerTest.cpp
 )
 
 target_link_libraries(stapikcommon_tests PRIVATE
