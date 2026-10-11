@@ -62,6 +62,11 @@ namespace stapik::document
             return convert(readRaw(source), false);
         }
 
+        [[nodiscard]] LoadResult<DocumentType> loadBackup(const BackupInfo& backup) const
+        {
+            return importFrom(backup.path);
+        }
+
     private:
         LoadResult<DocumentType> convert(RawLoad raw, const bool quarantineIfCorrupted) const
         {

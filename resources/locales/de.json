@@ -5,6 +5,7 @@
   "menu.file": "Datei",
   "menu.file.connect": "Mit Cloud verbinden",
   "menu.file.sync": "Synchronisieren",
+  "menu.file.restoreBackup": "Aus Sicherung wiederherstellen…",
   "menu.file.quit": "Beenden",
   "menu.edit": "Bearbeiten",
   "menu.edit.undo": "Rückgängig",
@@ -95,6 +96,10 @@
   "dialog.log.copied": "In die Zwischenablage kopiert.",
   "dialog.log.saved": "Gespeichert: {path}",
   "dialog.log.saveFailed": "Datei konnte nicht gespeichert werden: {error}",
+  "dialog.restore.title": "Aus Sicherung wiederherstellen",
+  "dialog.restore.message": "Wählen Sie die Sicherung aus, die wiederhergestellt werden soll. Die aktuellen Daten werden ersetzt.",
+  "dialog.restore.button": "Wiederherstellen",
+  "dialog.restore.none": "Es gibt noch keine Sicherungen zum Wiederherstellen.",
 
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
