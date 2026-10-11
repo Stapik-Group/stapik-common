@@ -61,7 +61,7 @@ namespace stapik::app
         void onWindowAdded(Gtk::Window& window);
         void installQuitAction(Gtk::Window& window);
         static void restoreWindowState(Gtk::Window& window, const std::string& key) ;
-        static void saveWindowState(const Gtk::Window& window, const std::string& key) ;
+        static void saveWindowState(Gtk::Window& window, const std::string& key);
 
         AppInfo m_info;
         StapikApplicationOptions m_options;

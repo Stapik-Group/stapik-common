@@ -31,6 +31,10 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-4.0)
 pkg_check_modules(SIGCPP REQUIRED IMPORTED_TARGET sigc++-3.0)
 find_package(CURL REQUIRED)
+if(UNIX AND NOT APPLE)
+    # Window position on X11 (see ui/window/WindowPlacement.cpp); without it the position is not remembered
+    pkg_check_modules(X11 IMPORTED_TARGET x11)
+endif()
 
 add_library(stapikcommon STATIC)
 add_library(stapik::common ALIAS stapikcommon)
@@ -126,6 +130,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
+        src/stapik/ui/window/WindowPlacement.cpp
         src/stapik/ui/window/WindowState.cpp
 )
 
@@ -159,8 +164,13 @@ target_link_libraries(stapikcommon PUBLIC
 )
 
 if(WIN32)
-    # MessageBoxW and AllowSetForegroundWindow of SingleInstanceGuard
+    # MessageBoxW and AllowSetForegroundWindow of SingleInstanceGuard, window placement
     target_link_libraries(stapikcommon PUBLIC user32)
+endif()
+
+if(TARGET PkgConfig::X11)
+    target_link_libraries(stapikcommon PUBLIC PkgConfig::X11)
+    target_compile_definitions(stapikcommon PRIVATE STAPIK_HAS_X11)
 endif()
 
 set(STAPIK_COMMON_RESOURCES_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/stapik-common" CACHE STRING

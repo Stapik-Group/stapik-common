@@ -9,6 +9,7 @@
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/UpdateDialog.hpp"
 #include "stapik/ui/menu/StandardMenu.hpp"
+#include "stapik/ui/window/WindowPlacement.hpp"
 #include "stapik/ui/window/WindowState.hpp"
 
 #include <giomm/actionmap.h>
@@ -280,10 +281,16 @@ namespace stapik::app
             window.set_default_size(state->width, state->height);
 
         if (state->maximized)
+        {
             window.maximize();
+            return;
+        }
+
+        if (state->hasPosition())
+            ui::restoreWindowPositionWhenMapped(window, *state->position);
     }
 
-    void StapikApplication::saveWindowState(const Gtk::Window& window, const std::string& key)
+    void StapikApplication::saveWindowState(Gtk::Window& window, const std::string& key)
     {
         auto& store = AppContext::instance().settings();
 
@@ -294,6 +301,9 @@ namespace stapik::app
         {
             state.width = window.get_width();
             state.height = window.get_height();
+
+            if (const auto position = ui::currentWindowPosition(window))
+                state.position = position;
         }
 
         if (!state.save(store, key))
