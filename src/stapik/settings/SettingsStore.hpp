@@ -50,6 +50,9 @@ namespace stapik::settings
 
         void remove(const std::string& key);
 
+        // Forgets all values and moves the file aside as <file>.bak.
+        bool reset();
+
         [[nodiscard]] int schemaVersion() const;
         [[nodiscard]] const std::filesystem::path& filePath() const;
 
