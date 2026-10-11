@@ -14,6 +14,8 @@
 #include <glibmm/ustring.h>
 
 #include <cstdlib>
+#include <format>
+#include <iostream>
 #include <utility>
 
 namespace
@@ -46,7 +48,7 @@ namespace stapik::app
         m_options(std::move(options)),
         m_styleProvider(AppStyleProvider::withCommonThemes(resolveResourcesDir(m_options.resourcesDir)))
     {
-        LocaleManager::instance();
+        addCommandLineOptions(*this);
 
         m_windowAddedConnection = signal_window_added().connect([this](Gtk::Window* window)
         {
@@ -66,6 +68,11 @@ namespace stapik::app
         return m_info;
     }
 
+    const CommandLineOptions& StapikApplication::commandLine() const
+    {
+        return m_commandLine;
+    }
+
     AppStyleProvider& StapikApplication::styleProvider()
     {
         return m_styleProvider;
@@ -81,6 +88,19 @@ namespace stapik::app
         if (const int status = Application::on_handle_local_options(options); status >= 0)
             return status;
 
+        const auto parsed = readCommandLineOptions(*options);
+        if (!parsed.ok())
+        {
+            std::cerr << std::format("{}: {}\nTry '--help' for more information.\n", m_info.internalName, parsed.error);
+            return EXIT_FAILURE;
+        }
+
+        if (parsed.options.showVersion)
+        {
+            std::cout << versionLine(m_info) << '\n';
+            return EXIT_SUCCESS;
+        }
+
         if (m_options.singleInstance && !m_instanceGuard)
         {
             const auto& displayName = m_info.displayName.empty() ? m_info.internalName : m_info.displayName;
@@ -90,12 +110,16 @@ namespace stapik::app
                 return EXIT_SUCCESS;
         }
 
+        m_commandLine = parsed.options;
+        applyCommandLineOptions(m_commandLine, m_info.internalName);
         return -1;
     }
 
     void StapikApplication::on_startup()
     {
         Application::on_startup();
+
+        LocaleManager::instance();
 
         const auto& displayName = m_info.displayName.empty() ? m_info.internalName : m_info.displayName;
         Glib::set_application_name(Glib::ustring(displayName));
@@ -135,7 +159,7 @@ namespace stapik::app
     {
         installQuitAction(window);
 
-        if (!m_options.rememberWindowState)
+        if (!m_options.rememberWindowState || m_commandLine.safeMode)
             return;
 
         const auto key = windowStateKey(window);
