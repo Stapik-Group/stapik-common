@@ -34,12 +34,14 @@ namespace stapik::document
     class DocumentFile : public DocumentFileCore
     {
     public:
-        DocumentFile(std::filesystem::path filePath, const int currentSchemaVersion) :
-            DocumentFileCore(std::move(filePath), SchemaMigrator(currentSchemaVersion))
+        DocumentFile(std::filesystem::path filePath, const int currentSchemaVersion,
+                     const time::IClock& clock = time::systemClock()) :
+            DocumentFileCore(std::move(filePath), SchemaMigrator(currentSchemaVersion), clock)
         {}
 
-        DocumentFile(std::filesystem::path filePath, SchemaMigrator migrator) :
-            DocumentFileCore(std::move(filePath), std::move(migrator))
+        DocumentFile(std::filesystem::path filePath, SchemaMigrator migrator,
+                     const time::IClock& clock = time::systemClock()) :
+            DocumentFileCore(std::move(filePath), std::move(migrator), clock)
         {}
 
         [[nodiscard]] LoadResult<DocumentType> load() const

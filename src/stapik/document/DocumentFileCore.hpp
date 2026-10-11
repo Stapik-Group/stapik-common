@@ -3,6 +3,8 @@
 #include "BackupInfo.hpp"
 #include "SchemaMigrator.hpp"
 
+#include "stapik/time/Clock.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -30,7 +32,8 @@ namespace stapik::document
     class DocumentFileCore
     {
     public:
-        DocumentFileCore(std::filesystem::path filePath, SchemaMigrator migrator);
+        DocumentFileCore(std::filesystem::path filePath, SchemaMigrator migrator,
+                         const time::IClock& clock = time::systemClock());
         void setBackupCount(int backupCount);
         [[nodiscard]] const std::filesystem::path& filePath() const;
         [[nodiscard]] const SchemaMigrator& migrator() const;
@@ -48,5 +51,6 @@ namespace stapik::document
         std::filesystem::path m_filePath;
         SchemaMigrator m_migrator;
         int m_backupCount = 1;
+        const time::IClock* m_clock;
     };
 }
