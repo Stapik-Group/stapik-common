@@ -21,6 +21,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 
 - **Logging** – one logger, one format, across all apps
 - **Safe file I/O** – atomic writes, so a crash never leaves a half-written data file
+- **Document backups** – rotating copies of the data file and a dialog to restore one of them (see [docs/backups.md](docs/backups.md))
 - **Timestamps** – consistent time handling and formatting
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)

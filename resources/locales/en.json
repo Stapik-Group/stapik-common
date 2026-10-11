@@ -5,6 +5,7 @@
   "menu.file": "File",
   "menu.file.connect": "Connect to cloud",
   "menu.file.sync": "Sync",
+  "menu.file.restoreBackup": "Restore from backup…",
   "menu.file.quit": "Exit",
   "menu.edit": "Edit",
   "menu.edit.undo": "Undo",
@@ -95,6 +96,10 @@
   "dialog.log.copied": "Copied to the clipboard.",
   "dialog.log.saved": "Saved: {path}",
   "dialog.log.saveFailed": "Could not save the file: {error}",
+  "dialog.restore.title": "Restore from backup",
+  "dialog.restore.message": "Choose the backup to restore. The current data will be replaced.",
+  "dialog.restore.button": "Restore",
+  "dialog.restore.none": "There are no backups to restore yet.",
 
   "cloud.connected": "Connected",
   "cloud.connected.secondary": "Successfully connected to the cloud.",

@@ -5,6 +5,7 @@
   "menu.file": "Plik",
   "menu.file.connect": "Połącz z chmurą",
   "menu.file.sync": "Synchronizuj",
+  "menu.file.restoreBackup": "Przywróć z kopii zapasowej…",
   "menu.file.quit": "Wyjście",
   "menu.edit": "Edycja",
   "menu.edit.undo": "Cofnij",
@@ -101,6 +102,10 @@
   "dialog.log.copied": "Skopiowano do schowka.",
   "dialog.log.saved": "Zapisano: {path}",
   "dialog.log.saveFailed": "Nie udało się zapisać pliku: {error}",
+  "dialog.restore.title": "Przywróć z kopii zapasowej",
+  "dialog.restore.message": "Wybierz kopię zapasową do przywrócenia. Bieżące dane zostaną zastąpione.",
+  "dialog.restore.button": "Przywróć",
+  "dialog.restore.none": "Nie ma jeszcze kopii zapasowych do przywrócenia.",
 
   "cloud.connected": "Połączono",
   "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",
