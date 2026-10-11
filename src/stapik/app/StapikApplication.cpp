@@ -6,6 +6,7 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/theme/ThemeManager.hpp"
+#include "stapik/ui/dialog/UpdateDialog.hpp"
 #include "stapik/ui/menu/StandardMenu.hpp"
 #include "stapik/ui/window/WindowState.hpp"
 
@@ -61,6 +62,7 @@ namespace stapik::app
     {
         m_windowAddedConnection.disconnect();
         m_themeConnection.disconnect();
+        m_updateConnection.disconnect();
     }
 
     const AppInfo& StapikApplication::appInfo() const
@@ -129,6 +131,9 @@ namespace stapik::app
 
         StandardMenu::installShortcuts(*this);
         add_action(QUIT_ACTION, [this] { requestQuit(); });
+
+        if (m_options.checkForUpdates)
+            startUpdateCheck();
     }
 
     void StapikApplication::requestQuit()
@@ -153,6 +158,34 @@ namespace stapik::app
     void StapikApplication::applyTheme()
     {
         m_styleProvider.apply(ThemeManager::instance().themeId());
+    }
+
+    void StapikApplication::startUpdateCheck()
+    {
+        m_updateChecker = update::UpdateChecker::forApp(m_info, AppContext::instance().settings());
+        if (!m_updateChecker)
+            return;
+
+        m_updateConnection = m_updateChecker->signalUpdateAvailable().connect([this](const update::ReleaseInfo& release) { announceUpdate(release); });
+        m_updateChecker->check();
+    }
+
+    void StapikApplication::announceUpdate(const update::ReleaseInfo& release)
+    {
+        auto* window = get_active_window();
+        if (window == nullptr)
+        {
+            if (const auto windows = get_windows(); !windows.empty())
+                window = windows.front();
+        }
+
+        if (window == nullptr)
+        {
+            log::debug("Version {} is available, but there is no window to announce it in", release.version.toString());
+            return;
+        }
+
+        showUpdateAvailableDialog(*window, m_info, release);
     }
 
     void StapikApplication::onWindowAdded(Gtk::Window& window)

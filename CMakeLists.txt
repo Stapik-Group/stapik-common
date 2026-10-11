@@ -119,12 +119,20 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/DialogUtils.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
         src/stapik/ui/dialog/TextInputDialog.cpp
+        src/stapik/ui/dialog/UpdateDialog.cpp
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
         src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
         src/stapik/ui/window/WindowState.cpp
+)
+
+target_sources(stapikcommon PRIVATE
+        src/stapik/update/GitHubRelease.cpp
+        src/stapik/update/GitHubReleaseClient.cpp
+        src/stapik/update/Semver.cpp
+        src/stapik/update/UpdateChecker.cpp
 )
 
 stapik_enable_warnings(stapikcommon)

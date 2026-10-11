@@ -24,6 +24,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Timestamps** – consistent time handling and formatting
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)
+- **Update checker** – a "new version available" notice based on GitHub Releases (see [docs/updates.md](docs/updates.md))
 - **GTK helpers** – shared gtkmm-4 pieces for a consistent look and feel
 
 > The goal: apps contain only what makes them unique. Everything boring and repeatable lives here.
