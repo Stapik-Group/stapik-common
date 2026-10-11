@@ -16,6 +16,20 @@ are dropped before they reach a sink.
 The logger calls sinks under its own lock, so a sink needs no locking for `write()` and must not log itself. To add
 a destination, implement `ILogSink::write()`.
 
+## In-memory log
+
+`AppContext::initialize()` also registers one `RingBufferSink` with the newest 2000 records (`log::memoryLog()`),
+independently of `STAPIK_LOG_FILE`. Only records at or above the minimum level reach it, so `debug` lines appear
+only with `--log-level debug`. `log::filterByLevel()`, `log::formatLogText()` and `log::formatBugReport()` turn its
+snapshot into text; the last one adds the application, version and platform for a bug report.
+
+## Log viewer
+
+`StandardMenu` adds Help > View log (disable with `StandardMenuOptions::logItem = false`), which opens
+`showLogViewerDialog()`. The dialog lists the in-memory log, filtered by minimum level, and can copy the report to
+the clipboard or save it to a file. An application without `StandardMenu` can call `showLogViewerDialog(window)`
+from its own action.
+
 ## Log file
 
 `AppContext::initialize()` adds a `FileSink` for `stapik.log` in the cache directory of the application

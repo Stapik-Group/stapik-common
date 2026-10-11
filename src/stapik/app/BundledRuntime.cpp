@@ -3,6 +3,7 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/log/FileSink.hpp"
 #include "stapik/log/GLibLogBridge.hpp"
+#include "stapik/log/MemoryLog.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
@@ -234,6 +235,7 @@ namespace stapik::app
         std::call_once(once, [&appName]
         {
             log::forwardGLibMessagesToLog();
+            log::installMemoryLog();
 
             if (!shouldWriteLogFile())
                 return;
