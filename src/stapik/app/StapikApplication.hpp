@@ -12,6 +12,7 @@
 #include <glibmm/refptr.h>
 #include <glibmm/variantdict.h>
 #include <gtkmm/application.h>
+#include <gtkmm/paned.h>
 #include <gtkmm/window.h>
 #include <sigc++/connection.h>
 
@@ -41,6 +42,10 @@ namespace stapik::app
         [[nodiscard]] const theme::ThemeRegistry& themes() const;
 
         void requestQuit();
+
+        // Remembers the divider of the paned under the settings key window.panes.<name>, unless the window state
+        // is turned off or the application runs in safe mode.
+        void rememberPanedPosition(Gtk::Paned& paned, const std::string& name) const;
     protected:
         explicit StapikApplication(const AppInfo& appInfo, StapikApplicationOptions options = {});
         ~StapikApplication() override;
@@ -61,7 +66,7 @@ namespace stapik::app
         void onWindowAdded(Gtk::Window& window);
         void installQuitAction(Gtk::Window& window);
         static void restoreWindowState(Gtk::Window& window, const std::string& key) ;
-        static void saveWindowState(const Gtk::Window& window, const std::string& key) ;
+        static void saveWindowState(Gtk::Window& window, const std::string& key);
 
         AppInfo m_info;
         StapikApplicationOptions m_options;

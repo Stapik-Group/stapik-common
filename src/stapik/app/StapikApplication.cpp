@@ -9,6 +9,8 @@
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/UpdateDialog.hpp"
 #include "stapik/ui/menu/StandardMenu.hpp"
+#include "stapik/ui/window/PanedPosition.hpp"
+#include "stapik/ui/window/WindowPlacement.hpp"
 #include "stapik/ui/window/WindowState.hpp"
 
 #include <giomm/actionmap.h>
@@ -24,6 +26,7 @@
 namespace
 {
     constexpr auto MAIN_WINDOW_STATE_KEY = "window";
+    constexpr auto PANED_KEY_PREFIX = "window.panes.";
     constexpr auto QUIT_ACTION = "quit";
 
     std::filesystem::path resolveResourcesDir(const std::filesystem::path& configured)
@@ -174,6 +177,14 @@ namespace stapik::app
             window->close();
     }
 
+    void StapikApplication::rememberPanedPosition(Gtk::Paned& paned, const std::string& name) const
+    {
+        if (!m_options.rememberWindowState || m_commandLine.safeMode)
+            return;
+
+        ui::rememberPanedPosition(paned, AppContext::instance().settings(), PANED_KEY_PREFIX + name);
+    }
+
     std::string StapikApplication::windowStateKey(const Gtk::Window&)
     {
         // The window is already on the list when window_added is emitted, so the first one is alone there.
@@ -280,10 +291,16 @@ namespace stapik::app
             window.set_default_size(state->width, state->height);
 
         if (state->maximized)
+        {
             window.maximize();
+            return;
+        }
+
+        if (state->hasPosition())
+            ui::restoreWindowPositionWhenMapped(window, *state->position);
     }
 
-    void StapikApplication::saveWindowState(const Gtk::Window& window, const std::string& key)
+    void StapikApplication::saveWindowState(Gtk::Window& window, const std::string& key)
     {
         auto& store = AppContext::instance().settings();
 
@@ -294,6 +311,9 @@ namespace stapik::app
         {
             state.width = window.get_width();
             state.height = window.get_height();
+
+            if (const auto position = ui::currentWindowPosition(window))
+                state.position = position;
         }
 
         if (!state.save(store, key))
