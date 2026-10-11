@@ -67,6 +67,7 @@ TEST(CommandLineTest, NoFlagsGiveDefaultOptions)
     EXPECT_FALSE(result.options.portable);
     EXPECT_FALSE(result.options.resetSettings);
     EXPECT_FALSE(result.options.safeMode);
+    EXPECT_TRUE(result.options.files.empty());
 }
 
 TEST(CommandLineTest, ReadsBooleanFlags)
@@ -84,6 +85,20 @@ TEST(CommandLineTest, ReadsBooleanFlags)
     EXPECT_TRUE(result.options.portable);
     EXPECT_TRUE(result.options.resetSettings);
     EXPECT_TRUE(result.options.safeMode);
+}
+
+TEST(CommandLineTest, FilesAreMadeAbsoluteAndKeepTheirOrder)
+{
+    const auto values = makeValues();
+    values->insert_value("", Glib::Variant<std::vector<std::string>>::create({"first.txt", "/tmp/second.txt", ""}));
+
+    const auto result = readCommandLineOptions(*values);
+
+    ASSERT_TRUE(result.ok());
+    ASSERT_EQ(result.options.files.size(), 2U);
+    EXPECT_TRUE(result.options.files[0].is_absolute());
+    EXPECT_EQ(result.options.files[0].filename(), "first.txt");
+    EXPECT_EQ(result.options.files[1], fs::path("/tmp/second.txt"));
 }
 
 TEST(CommandLineTest, ReadsLogLevel)

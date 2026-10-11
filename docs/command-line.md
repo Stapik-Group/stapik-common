@@ -11,6 +11,9 @@ Every application built on `StapikApplication` understands these flags (see `--h
 | `--reset-settings` | Moves `settings.json` (and the legacy `locale.txt`, `theme.txt`) aside as `*.bak` before the application starts. |
 | `--safe-mode` | The window state is neither restored nor saved. Applications can read `commandLine().safeMode` to skip risky startup work. |
 
+Any further arguments are files to open: `commandLine().files` holds them as absolute paths. An application that
+wants them sets `Gio::Application::Flags::HANDLES_OPEN` and overrides `on_open`.
+
 The flags are applied in `on_handle_local_options`, before settings are loaded. Application code must not touch
 settings, `AppPaths` or `LocaleManager` before `run()`, otherwise `--data-dir`, `--portable` and
 `--reset-settings` do not take effect.

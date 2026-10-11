@@ -10,6 +10,8 @@
 
 namespace
 {
+    constexpr auto FILES_KEY = G_OPTION_REMAINING;
+
     std::optional<std::string> lookupString(const Glib::VariantDict& values, const char* key)
     {
         Glib::VariantBase value;
@@ -26,6 +28,21 @@ namespace
         std::error_code errorCode;
         const auto result = std::filesystem::absolute(path, errorCode);
         return errorCode ? path : result.lexically_normal();
+    }
+
+    std::vector<std::filesystem::path> lookupPaths(const Glib::VariantDict& values, const char* key)
+    {
+        Glib::VariantBase value;
+        if (!values.lookup_value(key, value))
+            return {};
+
+        std::vector<std::filesystem::path> paths;
+        for (const auto& text : Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<std::string>>>(value).get())
+        {
+            if (!text.empty())
+                paths.push_back(absolutePath(text));
+        }
+        return paths;
     }
 }
 
@@ -46,17 +63,19 @@ namespace stapik::app
             "Reset settings to defaults before starting (the old file is kept as settings.json.bak)");
         application.add_main_option_entry(BOOL, "safe-mode", '\0',
             "Start without restoring or saving the window state, for troubleshooting");
+        application.add_main_option_entry(FILENAME_VECTOR, FILES_KEY, '\0', "Files to open", "[FILE...]");
     }
 
     CommandLineParseResult readCommandLineOptions(const Glib::VariantDict& values)
     {
         CommandLineParseResult result;
-        auto&[showVersion, logLevel, dataDir, portable, resetSettings, safeMode] = result.options;
+        auto&[showVersion, logLevel, dataDir, portable, resetSettings, safeMode, files] = result.options;
 
         showVersion = values.contains("version");
         portable = values.contains("portable");
         resetSettings = values.contains("reset-settings");
         safeMode = values.contains("safe-mode");
+        files = lookupPaths(values, FILES_KEY);
 
         if (const auto levelName = lookupString(values, "log-level"))
         {

@@ -158,7 +158,7 @@ target_link_libraries(stapikcommon PUBLIC
 )
 
 if(WIN32)
-    # MessageBoxW of SingleInstanceGuard
+    # MessageBoxW and AllowSetForegroundWindow of SingleInstanceGuard
     target_link_libraries(stapikcommon PUBLIC user32)
 endif()
 

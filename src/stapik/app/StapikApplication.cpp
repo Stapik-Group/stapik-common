@@ -5,12 +5,14 @@
 #include "stapik/locale/LocaleManager.hpp"
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
+#include "stapik/storage/PathText.hpp"
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/UpdateDialog.hpp"
 #include "stapik/ui/menu/StandardMenu.hpp"
 #include "stapik/ui/window/WindowState.hpp"
 
 #include <giomm/actionmap.h>
+#include <giomm/file.h>
 #include <glibmm/miscutils.h>
 #include <glibmm/ustring.h>
 
@@ -106,7 +108,8 @@ namespace stapik::app
         if (m_options.singleInstance && !m_instanceGuard)
         {
             const auto& displayName = m_info.displayName.empty() ? m_info.internalName : m_info.displayName;
-            m_instanceGuard = SingleInstanceGuard::acquire(m_info.applicationId, displayName);
+            m_instanceGuard = SingleInstanceGuard::acquire(m_info.applicationId, displayName, parsed.options.files,
+                [this](const std::vector<std::filesystem::path>& files) { onSecondInstance(files); });
 
             if (!m_instanceGuard)
                 return EXIT_SUCCESS;
@@ -172,13 +175,7 @@ namespace stapik::app
 
     void StapikApplication::announceUpdate(const update::ReleaseInfo& release)
     {
-        auto* window = get_active_window();
-        if (window == nullptr)
-        {
-            if (const auto windows = get_windows(); !windows.empty())
-                window = windows.front();
-        }
-
+        auto* window = primaryWindow();
         if (window == nullptr)
         {
             log::debug("Version {} is available, but there is no window to announce it in", release.version.toString());
@@ -186,6 +183,40 @@ namespace stapik::app
         }
 
         showUpdateAvailableDialog(*window, m_info, release);
+    }
+
+    Gtk::Window* StapikApplication::primaryWindow()
+    {
+        if (auto* active = get_active_window())
+            return active;
+
+        const auto windows = get_windows();
+        return windows.empty() ? nullptr : windows.front();
+    }
+
+    void StapikApplication::onSecondInstance(const std::vector<std::filesystem::path>& files)
+    {
+        using Flags = Gio::Application::Flags;
+
+        if (!files.empty() && (get_flags() & Flags::HANDLES_OPEN) == Flags::HANDLES_OPEN)
+        {
+            std::vector<Glib::RefPtr<Gio::File>> toOpen;
+            toOpen.reserve(files.size());
+            for (const auto& file : files)
+                toOpen.push_back(Gio::File::create_for_path(storage::pathText(file)));
+
+            open(toOpen);
+        }
+        else
+        {
+            activate();
+        }
+
+        if (auto* window = primaryWindow())
+        {
+            window->unminimize();
+            window->present();
+        }
     }
 
     void StapikApplication::onWindowAdded(Gtk::Window& window)

@@ -9,8 +9,8 @@ TEST(SingleInstanceGuardTest, AlwaysSucceedsOutsideWindows)
 #ifdef _WIN32
     GTEST_SKIP() << "Windows behaviour is covered by the CI smoke test of the applications";
 #else
-    const auto first = stapik::app::SingleInstanceGuard::acquire("pl.stapik.test", "Test");
-    const auto second = stapik::app::SingleInstanceGuard::acquire("pl.stapik.test", "Test");
+    const auto first = stapik::app::SingleInstanceGuard::acquire("pl.stapik.test", "Test", {}, {});
+    const auto second = stapik::app::SingleInstanceGuard::acquire("pl.stapik.test", "Test", {}, {});
 
     EXPECT_NE(first, nullptr);
     EXPECT_NE(second, nullptr);

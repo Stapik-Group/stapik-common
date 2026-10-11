@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace stapik::app
 {
@@ -53,6 +54,8 @@ namespace stapik::app
         void applyTheme();
         void startUpdateCheck();
         void announceUpdate(const update::ReleaseInfo& release);
+        void onSecondInstance(const std::vector<std::filesystem::path>& files);
+        [[nodiscard]] Gtk::Window* primaryWindow();
         void onWindowAdded(Gtk::Window& window);
         void installQuitAction(Gtk::Window& window);
         static void restoreWindowState(Gtk::Window& window, const std::string& key) ;

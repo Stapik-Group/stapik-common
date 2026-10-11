@@ -13,7 +13,7 @@ a self-contained folder; there is no installer.
 | Executable directory | `/proc/self/exe` | `GetModuleFileNameW` |
 | Atomic file write | temp file, `fsync`, `rename`, directory `fsync` | temp file, `FlushFileBuffers`, `MoveFileExW(REPLACE_EXISTING \| WRITE_THROUGH)` with a short retry when a virus scanner holds the file |
 | Console output | stderr | stderr is written to `%LOCALAPPDATA%\<app>\cache\stapik.log` (GUI programs have no console) |
-| Single instance | GApplication | named mutex (`SingleInstanceGuard`) |
+| Single instance | GApplication | named mutex and named pipe (`SingleInstanceGuard`) |
 | TLS certificates (cloud sync) | system | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable |
 
 The `XDG_*_HOME` variables are honoured on Windows too (tests and portable setups use them).
@@ -33,7 +33,11 @@ used for that: on Windows it converts to the ANSI code page and breaks on user n
 * selects the Cairo renderer unless `GSK_RENDERER` is set. GTK 4 would otherwise use OpenGL, which fails or shows a
   blank window on virtual machines and old graphics drivers; a list and forms do not need a GPU.
 
-Applications should also acquire a `SingleInstanceGuard` right after `AppContext::initialize()`.
+`StapikApplication` acquires a `SingleInstanceGuard` itself. A second instance sends the files from its command line
+through a named pipe (`\\.\pipe\<applicationId>.<session>`) to the first one and exits. The first instance then
+behaves as GApplication does on Linux for a remote instance: it emits `open` when the application sets
+`Gio::Application::Flags::HANDLES_OPEN` and there are files, `activate` otherwise, and brings its window to the front.
+When the first instance does not answer, the second one shows a message box instead.
 
 ## Building the folder
 

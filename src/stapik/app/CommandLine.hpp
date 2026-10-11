@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace stapik::app
 {
@@ -21,6 +22,7 @@ namespace stapik::app
         bool portable = false;
         bool resetSettings = false;
         bool safeMode = false;
+        std::vector<std::filesystem::path> files;
     };
 
     struct CommandLineParseResult
