@@ -1,10 +1,14 @@
 #include "stapik/domain/YearMonth.hpp"
 
+#include "support/FakeClock.hpp"
+
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <stdexcept>
 
 using namespace stapik::domain;
+using stapik::test::FakeClock;
 
 TEST(YearMonthTest, ConstructorRejectsInvalidValues)
 {
@@ -111,6 +115,27 @@ TEST(YearMonthTest, CurrentIsAValidMonth)
     EXPECT_GE(current.year(), 2026);
     EXPECT_GE(current.month(), 1);
     EXPECT_LE(current.month(), 12);
+}
+
+TEST(YearMonthTest, CurrentFollowsTheClock)
+{
+    using namespace std::chrono;
+    FakeClock clock(sys_days{2026y / October / 31} + 12h);
+
+    EXPECT_EQ(YearMonth::current(clock), YearMonth(2026, 10));
+
+    clock.advance(24h);
+    EXPECT_EQ(YearMonth::current(clock), YearMonth(2026, 11));
+}
+
+TEST(YearMonthTest, CurrentSwitchesAtMidnightOfTheFirstDay)
+{
+    using namespace std::chrono;
+    FakeClock clock(sys_days{2026y / December / 31} + 23h + 59min + 59s);
+    EXPECT_EQ(YearMonth::current(clock), YearMonth(2026, 12));
+
+    clock.advance(1s);
+    EXPECT_EQ(YearMonth::current(clock), YearMonth(2027, 1));
 }
 
 TEST(YearMonthTest, MonthNameKeyMatchesCommonLocaleKeys)
