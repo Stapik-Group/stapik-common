@@ -132,6 +132,11 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/text/Collation.cpp
+        src/stapik/text/TextFolding.cpp
+)
+
+target_sources(stapikcommon PRIVATE
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp
         src/stapik/theme/ThemeRegistry.cpp
