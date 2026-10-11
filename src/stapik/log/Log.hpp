@@ -1,6 +1,7 @@
 #pragma once
 
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -15,6 +16,7 @@ namespace stapik::log
         Error
     };
 
+    [[nodiscard]] std::optional<Level> parseLevel(std::string_view name);
     [[nodiscard]] Level level();
     void setLevel(Level newLevel);
 
