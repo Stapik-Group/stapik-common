@@ -3,9 +3,17 @@
 #include "Currency.hpp"
 
 #include <compare>
+#include <cstddef>
+#include <vector>
 
 namespace stapik::domain
 {
+    enum class RoundingMode
+    {
+        HalfUp,
+        HalfEven,
+    };
+
     class Money
     {
     public:
@@ -27,6 +35,23 @@ namespace stapik::domain
 
         Money& operator+=(const Money& other);
         Money& operator-=(const Money& other);
+
+        [[nodiscard]] Money operator*(std::int64_t factor) const;
+        Money& operator*=(std::int64_t factor);
+
+        [[nodiscard]] Money multiply(
+            std::int64_t numerator,
+            std::int64_t denominator,
+            RoundingMode mode = RoundingMode::HalfUp) const;
+
+        [[nodiscard]] Money percent(
+            std::int64_t numerator,
+            std::int64_t denominator = 1,
+            RoundingMode mode = RoundingMode::HalfUp) const;
+
+        [[nodiscard]] std::vector<Money> allocate(std::size_t parts) const;
+
+        [[nodiscard]] std::vector<Money> allocateProportionally(const std::vector<std::int64_t>& ratios) const;
 
         [[nodiscard]] bool operator==(const Money& other) const;
         [[nodiscard]] std::strong_ordering operator<=>(const Money& other) const;

@@ -116,9 +116,7 @@ TEST(CommonResourcesTest, AllTranslationsAreNonEmptyStrings)
 {
     for (const auto& language : LANGUAGES)
     {
-        const auto locale = readLocale(language);
-
-        for (const auto& [key, value] : locale.items())
+        for (const auto locale = readLocale(language); const auto& [key, value] : locale.items())
         {
             EXPECT_TRUE(value.is_string()) << language << ": " << key;
 
@@ -144,8 +142,7 @@ TEST(CommonResourcesTest, PluralMessagesCoverEveryCategoryOfTheirLanguage)
             std::set<std::string> missing;
             for (long long count = 0; count <= 200; ++count)
             {
-                const std::string category(stapik::locale::pluralCategoryName(stapik::locale::pluralCategory(language, count)));
-                if (!keys.contains(message + "." + category) && !keys.contains(message + ".other"))
+                if (const std::string category(stapik::locale::pluralCategoryName(stapik::locale::pluralCategory(language, count))); !keys.contains(message + "." + category) && !keys.contains(message + ".other"))
                     missing.insert(category);
             }
 
@@ -158,12 +155,12 @@ TEST(CommonResourcesTest, PluralFormsShowTheCount)
 {
     for (const auto& language : LANGUAGES)
     {
-        const auto locale = readLocale(language);
-
-        for (const auto& [key, value] : locale.items())
+        for (const auto locale = readLocale(language); const auto& [key, value] : locale.items())
         {
             if (hasPluralSuffix(key) && value.is_string())
+            {
                 EXPECT_NE(value.get<std::string>().find("{count}"), std::string::npos) << language << ": " << key;
+            }
         }
     }
 }
