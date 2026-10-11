@@ -69,10 +69,13 @@ target_sources(stapikcommon PRIVATE
 target_sources(stapikcommon PRIVATE
         src/stapik/domain/CategoryColor.cpp
         src/stapik/domain/CurrencyCatalog.cpp
+        src/stapik/domain/DateRange.cpp
         src/stapik/domain/IdGenerator.cpp
         src/stapik/domain/Money.cpp
         src/stapik/domain/MoneyFormatter.cpp
         src/stapik/domain/YearMonth.cpp
+        src/stapik/domain/YearMonthRange.cpp
+        src/stapik/domain/YearRange.cpp
 )
 
 target_sources(stapikcommon PRIVATE

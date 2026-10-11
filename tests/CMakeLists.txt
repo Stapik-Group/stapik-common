@@ -23,8 +23,11 @@ add_executable(stapikcommon_tests
         command/UndoStackTest.cpp
         document/DocumentFileTest.cpp
         domain/CurrencyCatalogTest.cpp
+        domain/DateRangeTest.cpp
         domain/MoneyFormatterTest.cpp
         domain/MoneyTest.cpp
+        domain/YearMonthRangeTest.cpp
+        domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
         locale/DateFormatterTest.cpp
         locale/LanguageCodeTest.cpp
