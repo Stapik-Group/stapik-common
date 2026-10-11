@@ -79,3 +79,22 @@ TEST(LogRedactTest, ShowsOnlyPrefixOfLongSecrets)
     EXPECT_EQ(stapik::log::redact("123456789"), "1234...");
     EXPECT_EQ(stapik::log::redact("abcdefghijklmnop"), "abcd...");
 }
+
+TEST(LogParseLevelTest, RecognizesLevelNamesAndAliasesIgnoringCase)
+{
+    using stapik::log::Level;
+    using stapik::log::parseLevel;
+
+    EXPECT_EQ(parseLevel("debug"), Level::Debug);
+    EXPECT_EQ(parseLevel("INFO"), Level::Info);
+    EXPECT_EQ(parseLevel("Warn"), Level::Warning);
+    EXPECT_EQ(parseLevel("warning"), Level::Warning);
+    EXPECT_EQ(parseLevel("err"), Level::Error);
+    EXPECT_EQ(parseLevel("error"), Level::Error);
+}
+
+TEST(LogParseLevelTest, RejectsUnknownNames)
+{
+    EXPECT_FALSE(stapik::log::parseLevel("").has_value());
+    EXPECT_FALSE(stapik::log::parseLevel("verbose").has_value());
+}

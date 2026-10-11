@@ -11,6 +11,12 @@ namespace stapik::storage
     [[nodiscard]] inline std::string pathText(const std::filesystem::path& path)
     {
         const auto text = path.u8string();
-        return std::string(reinterpret_cast<const char*>(text.data()), text.size());
+        return {text.begin(), text.end()};
+    }
+
+    [[nodiscard]] inline std::filesystem::path pathFromText(const std::string& text)
+    {
+        std::u8string u8Str(text.begin(), text.end());
+        return {u8Str};
     }
 }

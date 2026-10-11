@@ -76,6 +76,28 @@ namespace stapik::settings
         m_values.erase(key);
     }
 
+    bool SettingsStore::reset()
+    {
+        m_values = nlohmann::json::object();
+
+        if (std::error_code errorCode; !std::filesystem::exists(m_filePath, errorCode))
+            return true;
+
+        auto backupPath = m_filePath;
+        backupPath += ".bak";
+
+        std::error_code errorCode;
+        std::filesystem::rename(m_filePath, backupPath, errorCode);
+        if (errorCode)
+        {
+            log::warning("Cannot move settings file {} aside: {}", storage::pathText(m_filePath), errorCode.message());
+            return false;
+        }
+
+        log::info("Settings reset; the previous file is kept as {}", storage::pathText(backupPath));
+        return true;
+    }
+
     int SettingsStore::schemaVersion() const
     {
         return m_schemaVersion;

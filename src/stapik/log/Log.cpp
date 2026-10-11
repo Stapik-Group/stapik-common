@@ -11,22 +11,11 @@ namespace
 
     stapik::log::Level levelFromEnvironment()
     {
-        using stapik::log::Level;
         const auto* value = std::getenv("STAPIK_LOG_LEVEL");
         if (value == nullptr)
-            return Level::Info;
+            return stapik::log::Level::Info;
 
-        std::string name(value);
-        std::ranges::transform(name, name.begin(), [](const unsigned char character)
-        {
-            return static_cast<char>(std::tolower(character));
-        });
-
-        if (name == "debug") return Level::Debug;
-        if (name == "warning" || name == "warn") return Level::Warning;
-        if (name == "error" || name == "err") return Level::Error;
-
-        return Level::Info;
+        return stapik::log::parseLevel(value).value_or(stapik::log::Level::Info);
     }
 
     std::atomic<stapik::log::Level>& currentLevel()
@@ -54,6 +43,22 @@ namespace
 
 namespace stapik::log
 {
+    std::optional<Level> parseLevel(const std::string_view name)
+    {
+        std::string lowered(name);
+        std::ranges::transform(lowered, lowered.begin(), [](const unsigned char character)
+        {
+            return static_cast<char>(std::tolower(character));
+        });
+
+        if (lowered == "debug") return Level::Debug;
+        if (lowered == "info") return Level::Info;
+        if (lowered == "warning" || lowered == "warn") return Level::Warning;
+        if (lowered == "error" || lowered == "err") return Level::Error;
+
+        return std::nullopt;
+    }
+
     Level level()
     {
         return currentLevel().load();

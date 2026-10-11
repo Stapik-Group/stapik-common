@@ -13,6 +13,7 @@ include(GoogleTest)
 add_executable(stapikcommon_tests
         app/AppContextTest.cpp
         app/BundledRuntimeTest.cpp
+        app/CommandLineTest.cpp
         app/SingleInstanceGuardTest.cpp
         cloud/CloudAssetProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp

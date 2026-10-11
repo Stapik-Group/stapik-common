@@ -185,3 +185,23 @@ TEST_F(SettingsStoreTest, OlderSchemaVersionKeepsCurrentVersion)
     ASSERT_EQ(store.load(), LoadStatus::Loaded);
     EXPECT_EQ(store.schemaVersion(), 3);
 }
+
+TEST_F(SettingsStoreTest, ResetClearsValuesAndKeepsBackupOfTheFile)
+{
+    writeText(m_path, R"({"version":1,"settings":{"theme":"dark"}})");
+    SettingsStore store(m_path);
+    store.load();
+
+    EXPECT_TRUE(store.reset());
+
+    EXPECT_FALSE(store.contains("theme"));
+    EXPECT_FALSE(fs::exists(m_path));
+    EXPECT_TRUE(fs::exists(fs::path(m_path) += ".bak"));
+}
+
+TEST_F(SettingsStoreTest, ResetWithoutFileSucceeds)
+{
+    SettingsStore store(m_path);
+
+    EXPECT_TRUE(store.reset());
+}

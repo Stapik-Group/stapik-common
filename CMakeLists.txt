@@ -39,6 +39,7 @@ set_target_properties(stapikcommon PROPERTIES EXPORT_NAME common)
 target_sources(stapikcommon PRIVATE
         src/stapik/app/AppContext.cpp
         src/stapik/app/BundledRuntime.cpp
+        src/stapik/app/CommandLine.cpp
         src/stapik/app/SingleInstanceGuard.cpp
         src/stapik/app/StapikApplication.cpp
 )

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 
 class AppPaths
@@ -17,4 +18,11 @@ public:
     [[nodiscard]] static std::filesystem::path userConfigDir(const std::string& appName);
     [[nodiscard]] static std::filesystem::path userCacheDir(const std::string& appName);
     [[nodiscard]] static std::filesystem::path executableDir();
+
+    // Moves data, config and cache under <root>/{data,config,cache}, ignoring the platform defaults and XDG_*_HOME.
+    // Must be called before anything reads settings or user data: stores created earlier keep their old paths.
+    static void setRootOverride(std::filesystem::path root);
+    static void clearRootOverride();
+    [[nodiscard]] static std::optional<std::filesystem::path> rootOverride();
+    [[nodiscard]] static std::filesystem::path portableRoot();
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AppInfo.hpp"
+#include "CommandLine.hpp"
 #include "SingleInstanceGuard.hpp"
 
 #include "stapik/ui/style/AppStyleProvider.hpp"
@@ -31,6 +32,7 @@ namespace stapik::app
         [[nodiscard]] static Glib::RefPtr<StapikApplication> create(const AppInfo& appInfo, StapikApplicationOptions options = {});
 
         [[nodiscard]] const AppInfo& appInfo() const;
+        [[nodiscard]] const CommandLineOptions& commandLine() const;
         [[nodiscard]] AppStyleProvider& styleProvider();
         [[nodiscard]] const theme::ThemeRegistry& themes() const;
 
@@ -54,6 +56,7 @@ namespace stapik::app
 
         AppInfo m_info;
         StapikApplicationOptions m_options;
+        CommandLineOptions m_commandLine;
         AppStyleProvider m_styleProvider;
         std::unique_ptr<SingleInstanceGuard> m_instanceGuard;
         sigc::connection m_windowAddedConnection;
