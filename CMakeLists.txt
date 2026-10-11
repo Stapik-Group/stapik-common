@@ -130,6 +130,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
+        src/stapik/ui/window/PanedPosition.cpp
         src/stapik/ui/window/WindowPlacement.cpp
         src/stapik/ui/window/WindowState.cpp
 )

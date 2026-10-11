@@ -54,6 +54,7 @@ add_executable(stapikcommon_tests
         text/TrimTest.cpp
         theme/ThemeRegistryTest.cpp
         theme/ThemeTest.cpp
+        ui/PanedPositionTest.cpp
         ui/RadioOptionsTest.cpp
         ui/WindowStateTest.cpp
         update/GitHubReleaseTest.cpp

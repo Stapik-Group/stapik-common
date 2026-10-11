@@ -9,6 +9,7 @@
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/UpdateDialog.hpp"
 #include "stapik/ui/menu/StandardMenu.hpp"
+#include "stapik/ui/window/PanedPosition.hpp"
 #include "stapik/ui/window/WindowPlacement.hpp"
 #include "stapik/ui/window/WindowState.hpp"
 
@@ -25,6 +26,7 @@
 namespace
 {
     constexpr auto MAIN_WINDOW_STATE_KEY = "window";
+    constexpr auto PANED_KEY_PREFIX = "window.panes.";
     constexpr auto QUIT_ACTION = "quit";
 
     std::filesystem::path resolveResourcesDir(const std::filesystem::path& configured)
@@ -173,6 +175,14 @@ namespace stapik::app
 
         for (auto* window : windows)
             window->close();
+    }
+
+    void StapikApplication::rememberPanedPosition(Gtk::Paned& paned, const std::string& name) const
+    {
+        if (!m_options.rememberWindowState || m_commandLine.safeMode)
+            return;
+
+        ui::rememberPanedPosition(paned, AppContext::instance().settings(), PANED_KEY_PREFIX + name);
     }
 
     std::string StapikApplication::windowStateKey(const Gtk::Window&)
