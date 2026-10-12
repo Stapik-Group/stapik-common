@@ -211,6 +211,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/SettingsDialog.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
         src/stapik/ui/dialog/TextInputDialog.cpp
+        src/stapik/ui/dialog/TutorialWindow.cpp
         src/stapik/ui/dialog/UpdateDialog.cpp
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
@@ -226,6 +227,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/widget/CategoryChip.cpp
         src/stapik/ui/widget/DatePicker.cpp
         src/stapik/ui/widget/EmptyState.cpp
+        src/stapik/ui/widget/MarkdownView.cpp
         src/stapik/ui/widget/MoneyEntry.cpp
         src/stapik/ui/widget/MonthPicker.cpp
         src/stapik/ui/widget/SearchEntry.cpp

@@ -3,6 +3,7 @@
 #include <glibmm/ustring.h>
 #include <gtkmm/window.h>
 
+#include <string>
 #include <utility>
 
 template<typename DialogT, typename... Args>
@@ -15,4 +16,5 @@ DialogT* showAutoDeletingDialog(Args&&... args)
     return dialog;
 }
 
+void openInBrowser(const std::string& url);
 void showMessageDialog(Gtk::Window& parent, const Glib::ustring& primaryText, const Glib::ustring& secondaryText);

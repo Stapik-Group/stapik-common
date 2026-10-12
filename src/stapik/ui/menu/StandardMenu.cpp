@@ -7,6 +7,7 @@
 #include "stapik/ui/dialog/AboutDialog.hpp"
 #include "stapik/ui/dialog/LogViewerDialog.hpp"
 #include "stapik/ui/dialog/SettingsDialog.hpp"
+#include "stapik/ui/dialog/TutorialWindow.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -32,6 +33,7 @@ StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOpt
     initSettingsAction();
     initAboutAction();
     initLogAction();
+    initTutorialAction();
 
     if (m_options.undoStack != nullptr)
     {
@@ -72,6 +74,7 @@ void StandardMenu::installShortcuts(Gtk::Application& application)
     application.set_accels_for_action("win.undo", { "<Primary>z" });
     application.set_accels_for_action("win.redo", { "<Primary><Shift>z" });
     application.set_accels_for_action("win.quit", { "<Primary>q" });
+    application.set_accels_for_action("win.tutorial", { "F1" });
 }
 
 Gtk::PopoverMenuBar& StandardMenu::menuBar()
@@ -170,6 +173,13 @@ Glib::RefPtr<Gio::Menu> StandardMenu::buildHelpMenu() const
     const auto& loc = LocaleManager::instance();
     const auto menu = Gio::Menu::create();
 
+    if (!m_options.tutorialDirectory.empty())
+    {
+        const auto tutorialSection = Gio::Menu::create();
+        tutorialSection->append(loc.translate("menu.help.tutorial"), "win.tutorial");
+        menu->append_section(tutorialSection);
+    }
+
     if (m_options.logItem)
     {
         const auto logSection = Gio::Menu::create();
@@ -259,4 +269,12 @@ void StandardMenu::initLogAction() const
         return;
 
     m_window.add_action("viewLog", [this] { showLogViewerDialog(m_window); });
+}
+
+void StandardMenu::initTutorialAction() const
+{
+    if (m_options.tutorialDirectory.empty())
+        return;
+
+    m_window.add_action("tutorial", [this] { showTutorialWindow(m_window, m_options.tutorialDirectory); });
 }

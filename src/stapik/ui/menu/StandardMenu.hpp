@@ -11,6 +11,7 @@
 #include <gtkmm/popovermenubar.h>
 #include <sigc++/connection.h>
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -23,6 +24,7 @@ struct StandardMenuOptions
     bool aboutItem = true;
     bool logItem = true;
     bool settingsItem = true;
+    std::filesystem::path tutorialDirectory;
     const stapik::theme::ThemeRegistry* themes = nullptr;
     stapik::command::UndoStack* undoStack = nullptr;
 };
@@ -76,6 +78,7 @@ private:
     void initSettingsAction() const;
     void initAboutAction() const;
     void initLogAction() const;
+    void initTutorialAction() const;
 
     Gtk::ApplicationWindow& m_window;
     StandardMenuOptions m_options;

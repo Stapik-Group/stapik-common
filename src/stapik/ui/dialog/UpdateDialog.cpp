@@ -1,29 +1,9 @@
 #include "UpdateDialog.hpp"
 
 #include "ConfirmDialog.hpp"
+#include "DialogUtils.hpp"
 
 #include "stapik/locale/LocaleManager.hpp"
-#include "stapik/log/Log.hpp"
-
-#include <giomm/appinfo.h>
-#include <glibmm/error.h>
-
-#include <string>
-
-namespace
-{
-    void openInBrowser(const std::string& url)
-    {
-        try
-        {
-            Gio::AppInfo::launch_default_for_uri(url);
-        }
-        catch (const Glib::Error& error)
-        {
-            stapik::log::warning("Cannot open {}: {}", url, error.what());
-        }
-    }
-}
 
 void showUpdateAvailableDialog(Gtk::Window& parent, const stapik::app::AppInfo& appInfo, const stapik::update::ReleaseInfo& release)
 {

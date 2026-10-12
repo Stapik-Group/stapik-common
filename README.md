@@ -43,6 +43,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **List view** – `ListColumnView` joins `Gio::ListStore`, search filter, Polish-aware sorting and `Gtk::ColumnView` (see [docs/list-view.md](docs/list-view.md))
 - **Window state** – size, maximization, position and paned dividers are remembered between runs (see [docs/window-state.md](docs/window-state.md))
 - **Settings window** – a dialog built declaratively from `ObservableSetting` rows: switches, choices, numbers and paths (see [docs/settings-window.md](docs/settings-window.md))
+- **Built-in tutorial** – a help window with a contents tree, fed by Markdown files kept in the application (see [docs/tutorial.md](docs/tutorial.md))
 
 > The goal: apps contain only what makes them unique. Everything boring and repeatable lives here.
 
