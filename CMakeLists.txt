@@ -200,7 +200,10 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/menu/StandardMenu.cpp
         src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
+        src/stapik/ui/widget/CalendarButton.cpp
+        src/stapik/ui/widget/DatePicker.cpp
         src/stapik/ui/widget/MoneyEntry.cpp
+        src/stapik/ui/widget/MonthPicker.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
         src/stapik/ui/window/PanedPosition.cpp
         src/stapik/ui/window/WindowPlacement.cpp
