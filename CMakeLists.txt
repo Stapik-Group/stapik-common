@@ -31,6 +31,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-4.0)
 pkg_check_modules(SIGCPP REQUIRED IMPORTED_TARGET sigc++-3.0)
 find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
 if(UNIX AND NOT APPLE)
     # Window position on X11 (see ui/window/WindowPlacement.cpp); without it the position is not remembered
     pkg_check_modules(X11 IMPORTED_TARGET x11)
@@ -51,6 +52,11 @@ target_sources(stapikcommon PRIVATE
         src/stapik/app/CommandLine.cpp
         src/stapik/app/SingleInstanceGuard.cpp
         src/stapik/app/StapikApplication.cpp
+)
+
+target_sources(stapikcommon PRIVATE
+        src/stapik/archive/ZipReader.cpp
+        src/stapik/archive/ZipWriter.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -195,6 +201,8 @@ target_link_libraries(stapikcommon PUBLIC
         nlohmann_json::nlohmann_json
         CURL::libcurl
 )
+
+target_link_libraries(stapikcommon PRIVATE ZLIB::ZLIB)
 
 if(WIN32)
     # MessageBoxW and AllowSetForegroundWindow of SingleInstanceGuard, window placement

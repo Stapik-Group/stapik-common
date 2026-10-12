@@ -10,6 +10,7 @@ if(UNIX AND NOT APPLE)
     pkg_check_modules(LIBSECRET IMPORTED_TARGET libsecret-1)
 endif()
 find_dependency(CURL)
+find_dependency(ZLIB)
 find_dependency(nlohmann_json)
 
 include("${CMAKE_CURRENT_LIST_DIR}/stapikcommon-targets.cmake")
