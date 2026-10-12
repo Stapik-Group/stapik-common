@@ -3,6 +3,7 @@
 
 #include <curl/curl.h>
 
+#include <chrono>
 #include <limits>
 #include <utility>
 
@@ -57,15 +58,31 @@ namespace stapik::http
 
         std::size_t collectBody(const char *data, const std::size_t size, const std::size_t count, void *destination)
         {
-            auto &sink = *static_cast<ResponseSink *>(destination);
+            auto &[body, limit] = *static_cast<ResponseSink *>(destination);
             const auto length = size * count;
 
-            if (length > sink.limit - sink.body.size())
+            if (length > limit - body.size())
                 return 0;
 
             const auto *bytes = reinterpret_cast<const std::uint8_t *>(data);
-            sink.body.insert(sink.body.end(), bytes, bytes + length);
+            body.insert(body.end(), bytes, bytes + length);
             return length;
+        }
+
+        long seconds(const std::chrono::seconds duration)
+        {
+            return duration.count();
+        }
+
+        void applyTimeouts(CURL *curl, const Request &request)
+        {
+            constexpr long MINIMAL_SPEED_BYTES_PER_SECOND = 1L;
+
+            curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, seconds(request.timeout));
+            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, seconds(request.connectTimeout));
+            curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, MINIMAL_SPEED_BYTES_PER_SECOND);
+            curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, seconds(request.stallTimeout));
         }
 
         void applyMethod(CURL *curl, const Method method)
@@ -80,7 +97,6 @@ namespace stapik::http
                     return;
                 case Delete:
                     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-                    return;
             }
         }
 
@@ -129,8 +145,8 @@ namespace stapik::http
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, transfer.headers());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, collectBody);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sink);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(request.timeout.count()));
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+        applyTimeouts(curl, request);
         applySecurityOptions(curl);
         applyMethod(curl, request.method);
         applyBody(transfer, request.body);

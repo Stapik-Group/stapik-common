@@ -30,6 +30,15 @@ TEST(HttpMessageTest, EmptyTextGivesEmptyBytes)
     EXPECT_TRUE(toText({}).empty());
 }
 
+TEST(HttpMessageTest, RequestHasConnectAndStallTimeoutsByDefault)
+{
+    const Request request;
+
+    EXPECT_EQ(request.connectTimeout, std::chrono::seconds(10));
+    EXPECT_EQ(request.stallTimeout, std::chrono::seconds(30));
+    EXPECT_NE(request.timeout, NO_TIMEOUT);
+}
+
 TEST(HttpMessageTest, RequestDefaultsToBodylessGet)
 {
     const Request request;

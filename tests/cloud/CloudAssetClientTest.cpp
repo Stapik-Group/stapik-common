@@ -57,6 +57,17 @@ TEST_F(CloudAssetClientTest, ListSendsAuthenticatedGetToTheAssetsSlot)
     EXPECT_TRUE(std::holds_alternative<stapik::http::NoBody>(request.body));
 }
 
+TEST_F(CloudAssetClientTest, TransfersHaveNoOverallTimeButStillStallWhenIdle)
+{
+    m_http.respondWith(201, ASSET_METADATA);
+
+    std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    const auto& request = m_http.requests.front();
+    EXPECT_EQ(request.timeout, stapik::http::NO_TIMEOUT);
+    EXPECT_GT(request.stallTimeout, 0s);
+}
+
 TEST_F(CloudAssetClientTest, EveryRequestHasAResponseSizeLimit)
 {
     m_http.respondWith(404);

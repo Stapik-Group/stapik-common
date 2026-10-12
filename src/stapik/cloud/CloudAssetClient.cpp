@@ -3,7 +3,6 @@
 
 #include "stapik/log/Log.hpp"
 
-#include <chrono>
 #include <format>
 #include <utility>
 
@@ -11,7 +10,6 @@ namespace stapik::cloud
 {
     namespace
     {
-        constexpr std::chrono::seconds TIMEOUT{ 30 };
         constexpr std::size_t MAX_RESPONSE_BYTES = 64U * 1024U * 1024U;
         constexpr int HTTP_OK = 200;
         constexpr int HTTP_CREATED = 201;
@@ -46,7 +44,7 @@ namespace stapik::cloud
             .url = url,
             .headers = { { "x-api-key", m_config.apiKey } },
             .body = std::move(body),
-            .timeout = TIMEOUT,
+            .timeout = http::NO_TIMEOUT,
             .maxResponseBytes = MAX_RESPONSE_BYTES
         };
 

@@ -18,6 +18,10 @@ if (!response)
 
 - Any response is a success, whatever its status. Only a request that got no response at all (connection, TLS,
   timeout, a body above `maxResponseBytes`) is a `TransportError`, returned as a `Result` (see [results.md](results.md)).
+- A request has three time limits: `connectTimeout` (10 s) for establishing the connection, `stallTimeout` (30 s) for
+  a transfer that has stopped moving data, and `timeout` (30 s) for the whole request. `NO_TIMEOUT` removes the
+  overall limit, which is what large transfers such as asset uploads use, so that a slow but alive connection is
+  not cut off.
 - `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`.
 - `defaultHttpClient()` is libcurl restricted to `http` and `https`, TLS 1.2 or newer, without redirects.
 

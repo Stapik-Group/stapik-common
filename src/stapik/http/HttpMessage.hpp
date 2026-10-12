@@ -34,6 +34,8 @@ namespace stapik::http
 
     using RequestBody = std::variant<NoBody, Bytes, MultipartFile>;
 
+    inline constexpr std::chrono::seconds NO_TIMEOUT{ 0 };
+
     struct Request
     {
         Method method = Method::Get;
@@ -41,6 +43,8 @@ namespace stapik::http
         std::map<std::string, std::string> headers;
         RequestBody body;
         std::chrono::seconds timeout{ 30 };
+        std::chrono::seconds connectTimeout{ 10 };
+        std::chrono::seconds stallTimeout{ 30 };
         std::optional<std::size_t> maxResponseBytes;
     };
 
