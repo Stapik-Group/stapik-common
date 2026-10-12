@@ -38,3 +38,24 @@ It is filled from what `stapik_add_application()` already knows:
 Set `RELEASE_DATE` for a release build so that the file does not change with every configuration. Flathub also wants
 screenshots, which need a published URL: provide your own template for them. Check the result with
 `appstreamcli validate --no-net <file>`.
+
+## Flatpak
+
+    cmake --build build --target <name>_flatpak
+
+generates `<name>-flatpak/<application id>.yml` in the build directory and builds `<name>-<version>.flatpak` there
+with `flatpak-builder` (the `org.gnome.Platform` runtime and SDK are installed from Flathub on the first run; the
+runtime version is `STAPIK_FLATPAK_RUNTIME_VERSION`, 50 by default). The manifest
+
+* builds gtkmm 4, libsodium and nlohmann_json from `cmake/templates/flatpak/stapik-dependencies.yml`, because the
+  GNOME runtime does not contain them. The versions are git tags in that file,
+* builds stapik-common from the sources the application uses and installs it as a CMake package into `/app`, then
+  builds the application with `FETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS`, so that nothing is downloaded during the
+  (offline) build: the application has to declare stapik-common with `FIND_PACKAGE_ARGS`,
+* gives the sandbox network access (cloud sync), Wayland and X11 and the GPU. Files are reached through the file
+  chooser portal and the cloud API key through the secret portal, which libsecret uses by itself in a sandbox.
+
+Inside the sandbox the application is installed into `/app`, which is also `STAPIK_APP_SYSTEM_PREFIX`; the launcher
+is then not installed, because it would take the place of the executable. Flatpak exports only files that start with
+the application id, so the icon is installed as `<APPLICATION_ID>.svg` (or `.png`) and the desktop entry refers to it
+by that name.

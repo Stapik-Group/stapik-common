@@ -4,6 +4,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/StapikWarnings.cmake")
 
 set(STAPIK_COMMON_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "Directory with the stapik-common CMake modules")
 set(STAPIK_APP_SYSTEM_PREFIX "/usr" CACHE PATH "Where launcher, .desktop file and icon are installed (outside the application prefix)")
+set(STAPIK_FLATPAK_RUNTIME_VERSION "50" CACHE STRING "Linux: version of the org.gnome.Platform runtime the Flatpak is built against")
 option(STAPIK_WINDOWS_SIGN "Windows: sign the executable and the installer (the certificate is taken from the environment, see docs/windows.md)" OFF)
 option(STAPIK_WINDOWS_CONSOLE "Windows: build applications with a console window (for debugging) instead of as GUI programs" OFF)
 
@@ -273,13 +274,15 @@ function(stapik_add_application)
 
     set(STAPIK_APP_ICON_NAME "application-x-executable")
     if(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.svg")
-        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_NAME}")
+        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_APPLICATION_ID}")
         install(FILES "${packagingDirectory}/${STAPIK_APP_NAME}.svg"
-                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/scalable/apps")
+                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/scalable/apps"
+                RENAME "${STAPIK_APP_ICON_NAME}.svg")
     elseif(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.png")
-        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_NAME}")
+        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_APPLICATION_ID}")
         install(FILES "${packagingDirectory}/${STAPIK_APP_NAME}.png"
-                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/256x256/apps")
+                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/256x256/apps"
+                RENAME "${STAPIK_APP_ICON_NAME}.png")
     endif()
 
     list(JOIN STAPIK_APP_DESKTOP_CATEGORIES ";" desktopCategories)
@@ -307,7 +310,10 @@ function(stapik_add_application)
     configure_file("${launcherTemplate}" "${generatedDirectory}/${STAPIK_APP_NAME}" @ONLY)
     configure_file("${desktopTemplate}" "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.desktop" @ONLY)
 
-    install(PROGRAMS "${generatedDirectory}/${STAPIK_APP_NAME}" DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/bin")
+    cmake_path(COMPARE "${CMAKE_INSTALL_PREFIX}" EQUAL "${STAPIK_APP_SYSTEM_PREFIX}" applicationIsInSystemPrefix)
+    if(NOT applicationIsInSystemPrefix)
+        install(PROGRAMS "${generatedDirectory}/${STAPIK_APP_NAME}" DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/bin")
+    endif()
     install(FILES "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.desktop"
             DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/applications")
 
@@ -361,6 +367,42 @@ function(stapik_add_application)
         configure_file("${metainfoTemplate}" "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.metainfo.xml" @ONLY)
         install(FILES "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.metainfo.xml"
                 DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/metainfo")
+    endif()
+
+    # --- Flatpak ---
+    find_program(STAPIK_FLATPAK_BUILDER flatpak-builder)
+    find_program(STAPIK_FLATPAK flatpak)
+    set(commonSourceDirectory "${STAPIK_COMMON_CMAKE_DIR}/..")
+    if(STAPIK_FLATPAK_BUILDER AND STAPIK_FLATPAK AND EXISTS "${commonSourceDirectory}/CMakeLists.txt")
+        cmake_path(NORMAL_PATH commonSourceDirectory)
+        set(STAPIK_FLATPAK_COMMON_SOURCE_DIRECTORY "${commonSourceDirectory}")
+        set(STAPIK_FLATPAK_SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+        set(STAPIK_FLATPAK_SKIPPED "[\".git\", \".flatpak-builder\"")
+        cmake_path(IS_PREFIX CMAKE_CURRENT_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE buildIsInSource)
+        if(buildIsInSource)
+            file(RELATIVE_PATH buildRelativePath "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+            string(REGEX REPLACE "/.*$" "" buildTopDirectory "${buildRelativePath}")
+            string(APPEND STAPIK_FLATPAK_SKIPPED ", \"${buildTopDirectory}\"")
+        endif()
+        string(APPEND STAPIK_FLATPAK_SKIPPED "]")
+
+        set(flatpakDirectory "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-flatpak")
+        set(flatpakManifest "${flatpakDirectory}/${STAPIK_APP_APPLICATION_ID}.yml")
+        configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/flatpak/manifest.yml.in" "${flatpakManifest}" @ONLY)
+        configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/flatpak/stapik-dependencies.yml"
+                "${flatpakDirectory}/stapik-dependencies.yml" COPYONLY)
+
+        set(flatpakBundleName "${STAPIK_APP_NAME}-${STAPIK_APP_VERSION}.flatpak")
+        add_custom_target(${STAPIK_APP_NAME}_flatpak
+                COMMAND "${STAPIK_FLATPAK_BUILDER}" --force-clean --user --install-deps-from=flathub
+                        --repo=repo build "${flatpakManifest}"
+                COMMAND "${STAPIK_FLATPAK}" build-bundle repo "${flatpakBundleName}" "${STAPIK_APP_APPLICATION_ID}"
+                WORKING_DIRECTORY "${flatpakDirectory}"
+                COMMENT "Building ${flatpakBundleName}"
+                VERBATIM)
+    else()
+        message(STATUS "stapik_add_application: flatpak-builder or the stapik-common sources not found, target ${STAPIK_APP_NAME}_flatpak is not available")
     endif()
 
     # --- CPack DEB (only for the top-level project) ---
