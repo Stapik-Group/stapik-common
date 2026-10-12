@@ -157,7 +157,7 @@ namespace stapik::document
             { "document", document }
         };
 
-        return storage::writeFileAtomically(target, root.dump(2) + "\n");
+        return storage::writeFileAtomically(target, root.dump(2) + "\n").hasValue();
     }
 
     void DocumentFileCore::quarantineFile() const

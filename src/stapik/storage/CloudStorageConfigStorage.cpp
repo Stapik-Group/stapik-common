@@ -38,7 +38,7 @@ namespace
         if (!plainTextApiKey.empty())
             json["apiKey"] = plainTextApiKey;
 
-        return stapik::storage::writeFileAtomically(path, json.dump(2), stapik::storage::OWNER_READ_WRITE);
+        return stapik::storage::writeFileAtomically(path, json.dump(2), stapik::storage::OWNER_READ_WRITE).hasValue();
     }
 
     void moveLegacyApiKeyToSecretStore(

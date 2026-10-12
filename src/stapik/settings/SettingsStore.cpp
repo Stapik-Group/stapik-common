@@ -63,7 +63,7 @@ namespace stapik::settings
             { "settings", m_values }
         };
 
-        return storage::writeFileAtomically(m_filePath, root.dump(2) + "\n");
+        return storage::writeFileAtomically(m_filePath, root.dump(2) + "\n").hasValue();
     }
 
     bool SettingsStore::contains(const std::string& key) const

@@ -53,6 +53,7 @@ add_executable(stapikcommon_tests
         storage/AtomicFileTest.cpp
         storage/CloudStorageConfigStorageTest.cpp
         storage/DirectoryLockTest.cpp
+        storage/FileErrorTest.cpp
         storage/PathTextTest.cpp
         sync/AsyncSyncSchedulerPartitionTest.cpp
         sync/AsyncSyncSchedulerTest.cpp
