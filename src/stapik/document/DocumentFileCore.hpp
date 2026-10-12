@@ -5,6 +5,8 @@
 
 #include "stapik/time/Clock.hpp"
 
+#include "stapik/storage/FileError.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -42,8 +44,8 @@ namespace stapik::document
     protected:
         void quarantineFile() const;
         [[nodiscard]] RawLoad readRaw(const std::filesystem::path& source) const;
-        [[nodiscard]] bool writeRaw(const nlohmann::json& document) const;
-        [[nodiscard]] bool writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const;
+        [[nodiscard]] storage::FileResult writeRaw(const nlohmann::json& document) const;
+        [[nodiscard]] storage::FileResult writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const;
     private:
         [[nodiscard]] std::filesystem::path backupPath(int index) const;
         void rotateBackups() const;

@@ -26,7 +26,7 @@ namespace stapik::ui
             return false;
 
         store.set<int>(key, position);
-        return store.save();
+        return store.save().hasValue();
     }
 
     void rememberPanedPosition(Gtk::Paned& paned, settings::SettingsStore& store, const std::string& key)

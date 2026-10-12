@@ -144,20 +144,20 @@ namespace stapik::document
         return result;
     }
 
-    bool DocumentFileCore::writeRaw(const nlohmann::json& document) const
+    storage::FileResult DocumentFileCore::writeRaw(const nlohmann::json& document) const
     {
         rotateBackups();
         return writeRawTo(m_filePath, document);
     }
 
-    bool DocumentFileCore::writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const
+    storage::FileResult DocumentFileCore::writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const
     {
         const nlohmann::json root = {
             { "schemaVersion", m_migrator.currentVersion() },
             { "document", document }
         };
 
-        return storage::writeFileAtomically(target, root.dump(2) + "\n").hasValue();
+        return storage::writeFileAtomically(target, root.dump(2) + "\n");
     }
 
     void DocumentFileCore::quarantineFile() const

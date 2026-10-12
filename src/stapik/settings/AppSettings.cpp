@@ -33,9 +33,9 @@ namespace stapik::settings
         return *store;
     }
 
-    bool resetAppSettings(const std::string& appName)
+    storage::FileResult resetAppSettings(const std::string& appName)
     {
-        bool success = appSettingsStore(appName).reset();
+        auto result = appSettingsStore(appName).reset();
 
         for (const auto* name : LEGACY_SETTING_FILES)
         {
@@ -51,11 +51,12 @@ namespace stapik::settings
             if (errorCode)
             {
                 log::warning("Cannot move legacy setting file {} aside: {}", storage::pathText(legacyFile), errorCode.message());
-                success = false;
+                if (result)
+                    result = Failure(storage::FileError{ .path = legacyFile, .step = "move aside", .code = errorCode });
             }
         }
 
-        return success;
+        return result;
     }
 
     bool importLegacyTextSetting(

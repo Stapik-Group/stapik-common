@@ -49,12 +49,12 @@ namespace stapik::document
             return convert(readRaw(filePath()), true);
         }
 
-        [[nodiscard]] bool save(const DocumentType& document) const
+        [[nodiscard]] storage::FileResult save(const DocumentType& document) const
         {
             return writeRaw(document.toJson());
         }
 
-        [[nodiscard]] bool exportTo(const DocumentType& document, const std::filesystem::path& target) const
+        [[nodiscard]] storage::FileResult exportTo(const DocumentType& document, const std::filesystem::path& target) const
         {
             return writeRawTo(target, document.toJson());
         }
