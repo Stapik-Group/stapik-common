@@ -32,6 +32,7 @@ pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-4.0)
 pkg_check_modules(SIGCPP REQUIRED IMPORTED_TARGET sigc++-3.0)
 find_package(CURL REQUIRED)
 find_package(ZLIB REQUIRED)
+pkg_check_modules(SODIUM REQUIRED IMPORTED_TARGET libsodium)
 if(UNIX AND NOT APPLE)
     # Window position on X11 (see ui/window/WindowPlacement.cpp); without it the position is not remembered
     pkg_check_modules(X11 IMPORTED_TARGET x11)
@@ -67,11 +68,17 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/CloudCurl.cpp
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
+        src/stapik/cloud/CloudStorageFactory.cpp
+        src/stapik/cloud/EncryptedCloudStorage.cpp
 )
 
 target_sources(stapikcommon PRIVATE
         src/stapik/command/CompositeCommand.cpp
         src/stapik/command/UndoStack.cpp
+)
+
+target_sources(stapikcommon PRIVATE
+        src/stapik/crypto/PayloadCipher.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -208,7 +215,7 @@ target_link_libraries(stapikcommon PUBLIC
         CURL::libcurl
 )
 
-target_link_libraries(stapikcommon PRIVATE ZLIB::ZLIB)
+target_link_libraries(stapikcommon PRIVATE ZLIB::ZLIB PkgConfig::SODIUM)
 
 if(WIN32)
     # MessageBoxW and AllowSetForegroundWindow of SingleInstanceGuard, window placement

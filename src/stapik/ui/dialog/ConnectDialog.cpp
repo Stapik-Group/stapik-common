@@ -23,6 +23,16 @@ void ConnectDialog::initLayout()
     m_apiKeyEntry.set_placeholder_text(loc.translate("dialog.connect.key.placeholder"));
     m_apiKeyEntry.set_visibility(false);
 
+    m_passphraseLabel.set_text(loc.translate("dialog.connect.encryption.label"));
+    m_passphraseLabel.set_halign(Gtk::Align::START);
+    m_passphraseEntry.set_placeholder_text(loc.translate("dialog.connect.encryption.placeholder"));
+    m_passphraseEntry.set_visibility(false);
+
+    m_passphraseHintLabel.set_text(loc.translate("dialog.connect.encryption.hint"));
+    m_passphraseHintLabel.set_halign(Gtk::Align::START);
+    m_passphraseHintLabel.set_wrap(true);
+    m_passphraseHintLabel.add_css_class("dim-label");
+
     m_apiUrlHintLabel.set_halign(Gtk::Align::START);
     m_apiUrlHintLabel.set_wrap(true);
     m_apiUrlHintLabel.set_visible(false);
@@ -31,6 +41,7 @@ void ConnectDialog::initLayout()
     m_showKeyCheck.signal_toggled().connect([this]
     {
         m_apiKeyEntry.set_visibility(m_showKeyCheck.get_active());
+        m_passphraseEntry.set_visibility(m_showKeyCheck.get_active());
     });
 
     m_apiUrlEntry.signal_changed().connect([this] { updateValidation(); });
@@ -41,6 +52,9 @@ void ConnectDialog::initLayout()
     contentBox().append(m_apiUrlHintLabel);
     contentBox().append(m_apiKeyLabel);
     contentBox().append(m_apiKeyEntry);
+    contentBox().append(m_passphraseLabel);
+    contentBox().append(m_passphraseEntry);
+    contentBox().append(m_passphraseHintLabel);
     contentBox().append(m_showKeyCheck);
 
     addCancelButton();
@@ -48,13 +62,18 @@ void ConnectDialog::initLayout()
 
     m_apiUrlEntry.set_activates_default(true);
     m_apiKeyEntry.set_activates_default(true);
+    m_passphraseEntry.set_activates_default(true);
 
     updateValidation();
 }
 
 CloudStorageConfig ConnectDialog::currentConfig() const
 {
-    CloudStorageConfig config{ .apiUrl = m_apiUrlEntry.get_text(), .apiKey = m_apiKeyEntry.get_text() };
+    CloudStorageConfig config{
+        .apiUrl = m_apiUrlEntry.get_text(),
+        .apiKey = m_apiKeyEntry.get_text(),
+        .encryptionPassphrase = m_passphraseEntry.get_text()
+    };
     config.apiUrl = config.normalizedApiUrl();
     return config;
 }
@@ -107,6 +126,7 @@ void ConnectDialog::prefillConfig(const CloudStorageConfig& config)
 {
     m_apiUrlEntry.set_text(config.apiUrl);
     m_apiKeyEntry.set_text(config.apiKey);
+    m_passphraseEntry.set_text(config.encryptionPassphrase);
 }
 
 void showConnectDialog(

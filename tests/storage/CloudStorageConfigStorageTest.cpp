@@ -17,6 +17,7 @@ namespace
 
     constexpr auto APP_NAME = "app";
     constexpr auto API_KEY_ACCOUNT = "cloud-api-key";
+    constexpr auto PASSPHRASE_ACCOUNT = "cloud-encryption-passphrase";
 
     class CloudStorageConfigStorageTest : public testing::Test
     {
@@ -226,4 +227,77 @@ TEST_F(CloudStorageConfigStorageTest, SaveRemovesLegacyFile)
 
     EXPECT_FALSE(fs::exists(legacyConfigPath()));
     EXPECT_NE(configText().find("https://cloud.example"), std::string::npos);
+}
+
+TEST_F(CloudStorageConfigStorageTest, SavedPassphraseGoesToSecretStoreNotToFile)
+{
+    const CloudStorageConfig config{ .apiUrl = "https://cloud.example", .apiKey = "secret-key", .encryptionPassphrase = "secret-passphrase" };
+
+    ASSERT_TRUE(CloudStorageConfigStorage::save(config, APP_NAME, m_secretStore));
+
+    EXPECT_EQ(m_secretStore.lookup(APP_NAME, PASSPHRASE_ACCOUNT), "secret-passphrase");
+    EXPECT_EQ(configText().find("secret-passphrase"), std::string::npos);
+}
+
+TEST_F(CloudStorageConfigStorageTest, LoadReturnsPassphraseFromSecretStore)
+{
+    const CloudStorageConfig config{ .apiUrl = "https://cloud.example", .apiKey = "secret-key", .encryptionPassphrase = "secret-passphrase" };
+    ASSERT_TRUE(CloudStorageConfigStorage::save(config, APP_NAME, m_secretStore));
+
+    const auto loaded = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->apiKey, "secret-key");
+    EXPECT_EQ(loaded->encryptionPassphrase, "secret-passphrase");
+}
+
+TEST_F(CloudStorageConfigStorageTest, PassphraseStaysInFileWhenSecretStoreIsUnavailable)
+{
+    m_secretStore.available = false;
+    const CloudStorageConfig config{ .apiUrl = "https://cloud.example", .apiKey = "secret-key", .encryptionPassphrase = "secret-passphrase" };
+
+    ASSERT_TRUE(CloudStorageConfigStorage::save(config, APP_NAME, m_secretStore));
+    const auto loaded = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    EXPECT_NE(configText().find("secret-passphrase"), std::string::npos);
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->encryptionPassphrase, "secret-passphrase");
+}
+
+TEST_F(CloudStorageConfigStorageTest, PlainTextSecretsBothMoveToSecretStoreOnLoad)
+{
+    writeConfigText(R"({"apiUrl":"https://cloud.example","apiKey":"old-key","encryptionPassphrase":"old-passphrase"})");
+
+    const auto loaded = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->apiKey, "old-key");
+    EXPECT_EQ(loaded->encryptionPassphrase, "old-passphrase");
+    EXPECT_EQ(m_secretStore.lookup(APP_NAME, API_KEY_ACCOUNT), "old-key");
+    EXPECT_EQ(m_secretStore.lookup(APP_NAME, PASSPHRASE_ACCOUNT), "old-passphrase");
+    EXPECT_EQ(configText().find("old-key"), std::string::npos);
+    EXPECT_EQ(configText().find("old-passphrase"), std::string::npos);
+}
+
+TEST_F(CloudStorageConfigStorageTest, SavingEmptyPassphraseRemovesItFromSecretStore)
+{
+    const CloudStorageConfig encrypted{ .apiUrl = "https://cloud.example", .apiKey = "secret-key", .encryptionPassphrase = "secret-passphrase" };
+    ASSERT_TRUE(CloudStorageConfigStorage::save(encrypted, APP_NAME, m_secretStore));
+
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key" }, APP_NAME, m_secretStore));
+    const auto loaded = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    EXPECT_FALSE(m_secretStore.contains(APP_NAME, PASSPHRASE_ACCOUNT));
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_TRUE(loaded->encryptionPassphrase.empty());
+}
+
+TEST_F(CloudStorageConfigStorageTest, LoadWithoutStoredPassphraseReturnsEmptyPassphrase)
+{
+    writeConfigText(R"({"apiUrl":"https://cloud.example"})");
+
+    const auto loaded = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_FALSE(loaded->isEndToEndEncrypted());
 }
