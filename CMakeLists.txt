@@ -108,7 +108,9 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/http/CurlHttpClient.cpp
         src/stapik/http/CurlSecurity.cpp
+        src/stapik/http/HttpMessage.cpp
 )
 
 target_sources(stapikcommon PRIVATE

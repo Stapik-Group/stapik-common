@@ -26,6 +26,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Application archive** – one ZIP with the document, the settings and the cloud files: "back up the whole application" and restore it (see [docs/archive.md](docs/archive.md))
 - **Timestamps and clock** – consistent time handling and formatting, and an injectable clock so tests do not depend on the system time (see [docs/clock.md](docs/clock.md))
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
+- **HTTP client** – `IHttpClient` over libcurl, so network code is testable with a fake (see [docs/http.md](docs/http.md))
 - **End-to-end encryption** – documents are encrypted before they leave the device; the cloud only stores a blob (see [docs/encryption.md](docs/encryption.md))
 - **Compression** – large cloud documents are gzipped before they are sent (see [docs/compression.md](docs/compression.md))
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)

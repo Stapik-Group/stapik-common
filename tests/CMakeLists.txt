@@ -39,6 +39,7 @@ add_executable(stapikcommon_tests
         domain/YearMonthRangeTest.cpp
         domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
+        http/HttpMessageTest.cpp
         locale/DateFormatterTest.cpp
         locale/LanguageCodeTest.cpp
         locale/LanguageRegistryTest.cpp
