@@ -203,6 +203,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/menu/UndoActions.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/CalendarButton.cpp
+        src/stapik/ui/widget/CategoryChip.cpp
         src/stapik/ui/widget/DatePicker.cpp
         src/stapik/ui/widget/EmptyState.cpp
         src/stapik/ui/widget/MoneyEntry.cpp
