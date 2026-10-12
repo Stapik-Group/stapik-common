@@ -21,6 +21,7 @@ add_executable(stapikcommon_tests
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
         command/UndoStackTest.cpp
+        core/ResultTest.cpp
         document/DocumentFileTest.cpp
         domain/CurrencyCatalogTest.cpp
         domain/DateRangeTest.cpp
