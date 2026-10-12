@@ -146,6 +146,10 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/markdown/MarkdownParser.cpp
+)
+
+target_sources(stapikcommon PRIVATE
         src/stapik/settings/AppSettings.cpp
         src/stapik/settings/SettingsStore.cpp
 )

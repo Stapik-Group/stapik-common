@@ -62,6 +62,7 @@ add_executable(stapikcommon_tests
         log/LogReportTest.cpp
         log/LogTest.cpp
         log/RingBufferSinkTest.cpp
+        markdown/MarkdownParserTest.cpp
         resources/CommonResourcesTest.cpp
         settings/AppSettingsTest.cpp
         settings/EnumSettingsTest.cpp
