@@ -1,0 +1,16 @@
+name: Pull request
+
+on:
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.head_ref == 'develop'
+    uses: Stapik-Group/stapik-common/.github/workflows/build.yml@v1.6.0
+    with:
+      cmake-args: -DBUILD_TESTING=ON

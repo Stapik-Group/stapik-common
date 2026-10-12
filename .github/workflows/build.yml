@@ -1,0 +1,168 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      application-name:
+        description: NAME passed to stapik_add_application(); needed for the Windows packages
+        type: string
+        default: ""
+      images:
+        description: JSON array of the Docker images the Linux build runs in
+        type: string
+        default: '["ubuntu:24.04"]'
+      cmake-args:
+        description: Extra arguments of the CMake configuration (Linux and Windows)
+        type: string
+        default: ""
+      apt-packages:
+        description: Extra apt packages installed next to the gtkmm ones
+        type: string
+        default: ""
+      msys2-packages:
+        description: Extra MSYS2 packages in pacboy syntax, e.g. "libarchive:p" for mingw-w64-ucrt-x86_64-libarchive
+        type: string
+        default: ""
+      run-tests:
+        type: boolean
+        default: true
+      windows:
+        description: Also build on Windows (MSYS2 UCRT64)
+        type: boolean
+        default: true
+      package:
+        description: Build .deb packages (one per image) and the Windows installer and portable ZIP, and upload them as artifacts
+        type: boolean
+        default: false
+    secrets:
+      sign-pfx-base64:
+        description: Base64 of the .pfx certificate; the Windows executable and installer are signed when it is set
+        required: false
+      sign-pfx-password:
+        required: false
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(inputs.images) }}
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential git ca-certificates pkg-config python3 python3-venv xvfb xauth \
+            libgtkmm-4.0-dev libcurl4-openssl-dev libsodium-dev zlib1g-dev libsecret-1-dev libx11-dev \
+            ${{ inputs.apt-packages }}
+          python3 -m venv /opt/build-tools
+          /opt/build-tools/bin/pip install cmake ninja
+          echo /opt/build-tools/bin >> "$GITHUB_PATH"
+
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${{ inputs.cmake-args }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        if: inputs.run-tests
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
+
+      - name: Package
+        if: inputs.package
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          cpack --config build/CPackConfig.cmake -G DEB -B dist
+          suffix="${IMAGE//[:\/]/-}"
+          for package in dist/*.deb; do
+            mv "$package" "${package%.deb}-$suffix.deb"
+          done
+
+      - name: Upload packages
+        if: inputs.package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-deb-${{ strategy.job-index }}
+          path: dist/*.deb
+          if-no-files-found: error
+
+  windows:
+    name: Windows (MSYS2 UCRT64)
+    if: inputs.windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      SIGN_PFX_BASE64: ${{ secrets.sign-pfx-base64 }}
+      SIGN_PFX_PASSWORD: ${{ secrets.sign-pfx-password }}
+    steps:
+      - name: Check inputs
+        if: inputs.package && inputs.application-name == ''
+        shell: bash
+        run: |
+          echo "::error::application-name is required to build the Windows packages"
+          exit 1
+
+      - uses: actions/checkout@v5
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          pacboy: >-
+            gcc:p cmake:p ninja:p pkgconf:p gtkmm-4.0:p curl:p libsodium:p zlib:p
+            adwaita-icon-theme:p hicolor-icon-theme:p ${{ inputs.msys2-packages }}
+
+      - name: Install Inno Setup
+        if: inputs.package
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Prepare signing
+        if: inputs.package && env.SIGN_PFX_BASE64 != ''
+        run: |
+          certificate="$(cygpath -u "$RUNNER_TEMP")/sign.pfx"
+          echo "$SIGN_PFX_BASE64" | base64 -d > "$certificate"
+          echo "STAPIK_SIGN_PFX=$(cygpath -w "$certificate")" >> "$GITHUB_ENV"
+          echo "STAPIK_SIGN_PFX_PASSWORD=$SIGN_PFX_PASSWORD" >> "$GITHUB_ENV"
+          echo "SIGN_CMAKE_ARGS=-DSTAPIK_WINDOWS_SIGN=ON" >> "$GITHUB_ENV"
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            "-DSTAPIK_ISCC=C:/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+            ${SIGN_CMAKE_ARGS:-} ${{ inputs.cmake-args }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        if: inputs.run-tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        if: inputs.package
+        run: |
+          cmake --build build --target \
+            ${{ inputs.application-name }}_windows_installer \
+            ${{ inputs.application-name }}_windows_portable
+
+      - name: Upload packages
+        if: inputs.package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-windows
+          path: |
+            build/*-setup.exe
+            build/*-windows-portable.zip
+          if-no-files-found: error
