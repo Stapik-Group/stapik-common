@@ -208,6 +208,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/widget/MoneyEntry.cpp
         src/stapik/ui/widget/MonthPicker.cpp
         src/stapik/ui/widget/SearchEntry.cpp
+        src/stapik/ui/widget/SectionHeader.cpp
         src/stapik/ui/widget/StatusIndicator.cpp
         src/stapik/ui/window/PanedPosition.cpp
         src/stapik/ui/window/WindowPlacement.cpp
