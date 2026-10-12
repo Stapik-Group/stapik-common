@@ -193,6 +193,11 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/tutorial/Tutorial.cpp
+        src/stapik/tutorial/TutorialLoader.cpp
+)
+
+target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/AboutDialog.cpp
         src/stapik/ui/dialog/ChoiceDialog.cpp
         src/stapik/ui/dialog/ConfirmDialog.cpp

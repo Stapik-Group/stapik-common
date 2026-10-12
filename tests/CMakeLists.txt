@@ -94,6 +94,8 @@ add_executable(stapikcommon_tests
         theme/ThemeRegistryTest.cpp
         theme/ThemeTest.cpp
         time/ClockTest.cpp
+        tutorial/TutorialLoaderTest.cpp
+        tutorial/TutorialTest.cpp
         ui/FileDropTest.cpp
         ui/LastDirectoryTest.cpp
         ui/PanedPositionTest.cpp
