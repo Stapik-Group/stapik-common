@@ -1,6 +1,8 @@
 #include "StandardMenu.hpp"
 
 #include "stapik/locale/LocaleManager.hpp"
+#include "stapik/theme/FontScale.hpp"
+#include "stapik/theme/FontSizeManager.hpp"
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/AboutDialog.hpp"
 #include "stapik/ui/dialog/LogViewerDialog.hpp"
@@ -11,6 +13,8 @@
 
 namespace
 {
+    constexpr int FONT_SCALE_STEP_PERCENT = 5;
+
     std::string actionLabel(const LocaleManager& loc, const std::string& baseKey, const std::string& description)
     {
         if (description.empty())
@@ -226,6 +230,11 @@ void StandardMenu::initSettingsLayout()
             return options;
         });
     }
+
+    m_settings.addNumber<int>("menu.settings.fontSize", FontSizeManager::instance().scaleSetting(), {
+        .min = stapik::theme::MIN_FONT_SCALE_PERCENT,
+        .max = stapik::theme::MAX_FONT_SCALE_PERCENT,
+        .step = FONT_SCALE_STEP_PERCENT });
 }
 
 void StandardMenu::initSettingsAction() const

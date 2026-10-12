@@ -100,6 +100,7 @@ TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheSettingsWindow)
     {
         const auto translations = readJson(file);
         expectNonEmptyString(translations, "menu.settings.open", file.filename().string());
+        expectNonEmptyString(translations, "menu.settings.fontSize", file.filename().string());
         expectNonEmptyString(translations, "dialog.settings.title", file.filename().string());
         expectNonEmptyString(translations, "dialog.settings.browse", file.filename().string());
     }

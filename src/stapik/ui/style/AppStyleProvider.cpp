@@ -1,14 +1,40 @@
 #include "AppStyleProvider.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/theme/FontScale.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/PathText.hpp"
 
+#include <gtk/gtk.h>
 #include <gtkmm/stylecontext.h>
+
+#include <fstream>
+#include <optional>
+#include <sstream>
 
 namespace
 {
     constexpr auto FALLBACK_THEME_ID = "classic";
+
+    std::optional<std::string> readText(const std::filesystem::path& file)
+    {
+        std::ifstream stream(file, std::ios::binary);
+        if (!stream)
+            return std::nullopt;
+
+        std::ostringstream content;
+        content << stream.rdbuf();
+        return content.str();
+    }
+
+    void loadCss(const Glib::RefPtr<Gtk::CssProvider>& provider, const std::string& css)
+    {
+#if GTK_CHECK_VERSION(4, 12, 0)
+        gtk_css_provider_load_from_string(provider->gobj(), css.c_str());
+#else
+        gtk_css_provider_load_from_data(provider->gobj(), css.c_str(), -1);
+#endif
+    }
 }
 
 AppStyleProvider::AppStyleProvider(const std::filesystem::path& resourcesDir)
@@ -41,7 +67,7 @@ void AppStyleProvider::apply(const Theme theme)
     apply(themeToFileString(theme));
 }
 
-void AppStyleProvider::apply(const std::string& themeId)
+void AppStyleProvider::apply(const std::string& themeId, const int fontScalePercent)
 {
     removeCurrentProviders();
 
@@ -68,15 +94,14 @@ void AppStyleProvider::apply(const std::string& themeId)
                 stapik::log::warning("CSS parsing error in {}: {}", stapik::storage::pathText(file), error.what());
             });
 
-        try
+        const auto css = readText(file);
+        if (!css)
         {
-            provider->load_from_path(stapik::storage::pathText(file));
-        }
-        catch (const Glib::Error& error)
-        {
-            stapik::log::warning("Cannot load CSS file {}: {}", stapik::storage::pathText(file), error.what());
+            stapik::log::warning("Cannot read CSS file {}", stapik::storage::pathText(file));
             continue;
         }
+
+        loadCss(provider, stapik::theme::scaleFontSizes(*css, fontScalePercent));
 
         Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), provider, priority);
         m_currentProviders.push_back(provider);

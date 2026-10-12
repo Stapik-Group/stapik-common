@@ -44,3 +44,12 @@ off with `StandardMenuOptions::settingsItem`.
 The language and theme rows are added by `StandardMenu` itself (the theme row only when `StandardMenuOptions::themes`
 is set). `LocaleManager::languageSetting()` and `ThemeManager::themeSetting()` give access to the underlying settings;
 `signalLocaleChanged` and `signalThemeChanged` are emitted only when the value really changes.
+
+## Font size
+
+The font size is a percentage scale of the theme's sizes (70–200 %, 100 % by default), stored in the `fontScale`
+setting and edited in the window as a number row. `FontSizeManager` holds it and emits `signalFontSizeChanged`;
+`StapikApplication` re-applies the theme when it changes.
+
+`AppStyleProvider::apply(themeId, fontScalePercent)` scales every `font-size: <n>px` declaration of the theme files,
+so the proportions between the sizes of a theme are kept. Sizes in other units (`em`, `pt`, `%`) are not touched.

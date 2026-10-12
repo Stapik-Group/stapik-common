@@ -22,6 +22,7 @@
   "menu.settings.language.en": "Englisch",
   "menu.settings.language.de": "Deutsch",
   "menu.settings.theme": "Thema",
+  "menu.settings.fontSize": "Schriftgröße (%)",
   "menu.settings.theme.classic": "Klassisch",
   "menu.settings.theme.classicPink": "Klassisch Pink",
   "menu.settings.theme.modern": "Modern",
