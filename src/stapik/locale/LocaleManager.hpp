@@ -14,6 +14,7 @@ public:
     static LocaleManager& instance();
     static LocaleManager& instance(const std::string& appName);
     void setLanguage(const std::string& languageCode);
+    [[nodiscard]] stapik::settings::ObservableSetting<std::string>& languageSetting();
     [[nodiscard]] const std::string& languageCode() const;
     [[nodiscard]] std::string translate(std::string_view key) const;
     [[nodiscard]] std::string translate(std::string_view key, const LocalizationEngine::Arguments& arguments) const;
