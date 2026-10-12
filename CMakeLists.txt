@@ -55,6 +55,7 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/archive/AppArchive.cpp
         src/stapik/archive/ZipReader.cpp
         src/stapik/archive/ZipWriter.cpp
 )

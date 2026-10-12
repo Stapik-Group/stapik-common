@@ -6,6 +6,8 @@
   "menu.file.connect": "Connect to cloud",
   "menu.file.sync": "Sync",
   "menu.file.restoreBackup": "Restore from backup…",
+  "menu.file.exportArchive": "Back up the whole application…",
+  "menu.file.importArchive": "Restore the whole application…",
   "menu.file.quit": "Exit",
   "menu.edit": "Edit",
   "menu.edit.undo": "Undo",
@@ -100,6 +102,9 @@
   "dialog.restore.message": "Choose the backup to restore. The current data will be replaced.",
   "dialog.restore.button": "Restore",
   "dialog.restore.none": "There are no backups to restore yet.",
+  "dialog.archive.import.title": "Restore the whole application",
+  "dialog.archive.import.message": "The current document and settings will be replaced by the ones from the backup, and files in the cloud with the same names will be overwritten.",
+  "dialog.archive.import.button": "Restore",
 
   "cloud.connected": "Connected",
   "cloud.connected.secondary": "Successfully connected to the cloud.",

@@ -6,6 +6,8 @@
   "menu.file.connect": "Mit Cloud verbinden",
   "menu.file.sync": "Synchronisieren",
   "menu.file.restoreBackup": "Aus Sicherung wiederherstellen…",
+  "menu.file.exportArchive": "Gesamte Anwendung sichern…",
+  "menu.file.importArchive": "Gesamte Anwendung wiederherstellen…",
   "menu.file.quit": "Beenden",
   "menu.edit": "Bearbeiten",
   "menu.edit.undo": "Rückgängig",
@@ -100,6 +102,9 @@
   "dialog.restore.message": "Wählen Sie die Sicherung aus, die wiederhergestellt werden soll. Die aktuellen Daten werden ersetzt.",
   "dialog.restore.button": "Wiederherstellen",
   "dialog.restore.none": "Es gibt noch keine Sicherungen zum Wiederherstellen.",
+  "dialog.archive.import.title": "Gesamte Anwendung wiederherstellen",
+  "dialog.archive.import.message": "Das aktuelle Dokument und die Einstellungen werden durch die der Sicherung ersetzt, und Dateien in der Cloud mit denselben Namen werden überschrieben.",
+  "dialog.archive.import.button": "Wiederherstellen",
 
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
