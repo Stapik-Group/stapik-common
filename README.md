@@ -40,6 +40,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Date and month pickers** – `DatePicker` and `MonthPicker` open a calendar popover and report `year_month_day` / `YearMonth` (see [docs/date-pickers.md](docs/date-pickers.md))
 - **File dialogs and drag & drop** – open/save/folder dialogs that remember the last directory, and a drop target that accepts files by extension (see [docs/file-dialogs.md](docs/file-dialogs.md))
 - **Printing and PDF export** – one `IPrintableDocument` drawn with Cairo goes to the print dialog or to a PDF file (see [docs/printing.md](docs/printing.md))
+- **List view** – `ListColumnView` joins `Gio::ListStore`, search filter, Polish-aware sorting and `Gtk::ColumnView` (see [docs/list-view.md](docs/list-view.md))
 - **Window state** – size, maximization, position and paned dividers are remembered between runs (see [docs/window-state.md](docs/window-state.md))
 - **Settings window** – a dialog built declaratively from `ObservableSetting` rows: switches, choices, numbers and paths (see [docs/settings-window.md](docs/settings-window.md))
 
