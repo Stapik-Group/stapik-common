@@ -69,6 +69,7 @@ Pin `GIT_TAG` to a release tag – never to a moving branch – so your app buil
 | Compiler  | C++20 capable (GCC / Clang) |
 | CMake     | 3.x+                        |
 | gtkmm     | 4.x                         |
+| libsodium | 1.0.18+                     |
 | libsecret | 1.x (Linux, optional)       |
 
 ## Building & testing

@@ -25,6 +25,7 @@ add_executable(stapikcommon_tests
         cloud/CloudStorageConfigTest.cpp
         command/UndoStackTest.cpp
         core/ResultTest.cpp
+        crypto/PayloadCipherTest.cpp
         csv/CsvWriterTest.cpp
         document/DocumentFileTest.cpp
         domain/CurrencyCatalogTest.cpp
