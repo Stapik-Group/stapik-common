@@ -195,6 +195,7 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-sync-offline { color: #404040; }
 .stapik-sync-conflict { color: #804000; }
 .stapik-sync-error { color: #800000; font-weight: bold; }
+entry.stapik-amount-invalid { color: #800000; }
 
 .stapik-about-banner {
     background: linear-gradient(to right, @stapik_blue, @stapik_blue_light);

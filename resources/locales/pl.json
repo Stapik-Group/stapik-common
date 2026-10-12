@@ -118,6 +118,7 @@
   "cloud.connected": "Połączono",
   "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",
   "cloud.failed.header": "Nie udało się połączyć",
+  "money.entry.invalid": "Wpisz kwotę, np. {example}",
   "sync.status.idle": "Aktualne",
   "sync.status.syncing": "Synchronizacja…",
   "sync.status.offline": "Offline",

@@ -67,3 +67,17 @@ TEST(CommonLocaleKeysTest, EveryLanguageTranslatesEveryCategoryColor)
             expectNonEmptyString(translations, categoryColorNameKey(color), file.filename().string());
     }
 }
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheMoneyEntryHint)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+    {
+        const auto translations = readJson(file);
+        expectNonEmptyString(translations, "money.entry.invalid", file.filename().string());
+        EXPECT_NE(translations.at("money.entry.invalid").get<std::string>().find("{example}"), std::string::npos)
+            << file.filename().string();
+    }
+}

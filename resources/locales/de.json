@@ -112,6 +112,7 @@
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
   "cloud.failed.header": "Verbindung fehlgeschlagen",
+  "money.entry.invalid": "Betrag eingeben, z. B. {example}",
   "sync.status.idle": "Aktuell",
   "sync.status.syncing": "Synchronisiere…",
   "sync.status.offline": "Offline",

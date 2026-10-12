@@ -233,6 +233,7 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-sync-offline { color: @stapik_text_muted; }
 .stapik-sync-conflict { color: #ff9500; }
 .stapik-sync-error { color: #ff3b30; font-weight: 600; }
+entry.stapik-amount-invalid { color: #ff3b30; }
 
 .stapik-about-banner { padding: 24px 16px 8px 16px; }
 
