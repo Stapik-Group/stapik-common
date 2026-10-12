@@ -179,7 +179,8 @@ namespace
     {
         const FileDialogOptions options{
             .title = LocaleManager::instance().translate("dialog.log.save.title"),
-            .initialName = defaultFileName()};
+            .initialName = defaultFileName(),
+            .lastDirectoryKey = "dialog.log.lastDirectory"};
 
         showSaveFileDialog(
             *this,

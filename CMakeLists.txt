@@ -195,6 +195,8 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/ConnectDialog.cpp
         src/stapik/ui/dialog/DialogUtils.cpp
         src/stapik/ui/dialog/FileDialogs.cpp
+        src/stapik/ui/dialog/FileDrop.cpp
+        src/stapik/ui/dialog/LastDirectory.cpp
         src/stapik/ui/dialog/LogViewerDialog.cpp
         src/stapik/ui/dialog/RestoreBackupDialog.cpp
         src/stapik/ui/dialog/SettingsDialog.cpp

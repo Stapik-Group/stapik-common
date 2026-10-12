@@ -1,5 +1,9 @@
 #include "FileDialogs.hpp"
 
+#include "LastDirectory.hpp"
+
+#include "stapik/app/AppContext.hpp"
+#include "stapik/log/Log.hpp"
 #include "stapik/storage/PathText.hpp"
 
 #include <giomm/asyncresult.h>
@@ -26,9 +30,19 @@ namespace
             onFailed(message);
     }
 
+    void rememberDirectory(const std::string& key, const std::filesystem::path& chosen)
+    {
+        if (key.empty() || !stapik::app::AppContext::isInitialized())
+            return;
+
+        if (const auto saved = stapik::ui::saveLastDirectory(stapik::app::AppContext::instance().settings(), key, chosen); !saved)
+            stapik::log::warning("Cannot remember the directory of '{}': {}", stapik::storage::pathText(chosen), saved.error().message());
+    }
+
     void handleResult(const Glib::RefPtr<Gtk::FileDialog>& dialog,
                       const Glib::RefPtr<Gio::AsyncResult>& result,
                       const FinishFunction finish,
+                      const FileDialogOptions& options,
                       const FileChosenHandler& onChosen,
                       const FileFailedHandler& onFailed)
     {
@@ -51,8 +65,11 @@ namespace
             return;
         }
 
+        const auto chosen = stapik::storage::pathFromText(path);
+        rememberDirectory(options.lastDirectoryKey, chosen);
+
         if (onChosen)
-            onChosen(stapik::storage::pathFromText(path));
+            onChosen(chosen);
     }
 
     Glib::RefPtr<Gtk::FileDialog> createDialog(const FileDialogOptions& options)
@@ -62,6 +79,12 @@ namespace
         dialog->set_modal(true);
         if (!options.initialName.empty())
             dialog->set_initial_name(options.initialName);
+
+        if (options.lastDirectoryKey.empty() || !stapik::app::AppContext::isInitialized())
+            return dialog;
+
+        if (const auto directory = stapik::ui::loadLastDirectory(stapik::app::AppContext::instance().settings(), options.lastDirectoryKey))
+            dialog->set_initial_folder(Gio::File::create_for_path(stapik::storage::pathText(*directory)));
         return dialog;
     }
 }
@@ -72,9 +95,9 @@ void showSaveFileDialog(Gtk::Window& parent,
                         FileFailedHandler onFailed)
 {
     const auto dialog = createDialog(options);
-    dialog->save(parent, [dialog, onChosen = std::move(onChosen), onFailed = std::move(onFailed)](const Glib::RefPtr<Gio::AsyncResult>& result)
+    dialog->save(parent, [dialog, options, onChosen = std::move(onChosen), onFailed = std::move(onFailed)](const Glib::RefPtr<Gio::AsyncResult>& result)
     {
-        handleResult(dialog, result, &Gtk::FileDialog::save_finish, onChosen, onFailed);
+        handleResult(dialog, result, &Gtk::FileDialog::save_finish, options, onChosen, onFailed);
     });
 }
 
@@ -84,9 +107,9 @@ void showOpenFileDialog(Gtk::Window& parent,
                         FileFailedHandler onFailed)
 {
     const auto dialog = createDialog(options);
-    dialog->open(parent, [dialog, onChosen = std::move(onChosen), onFailed = std::move(onFailed)](const Glib::RefPtr<Gio::AsyncResult>& result)
+    dialog->open(parent, [dialog, options, onChosen = std::move(onChosen), onFailed = std::move(onFailed)](const Glib::RefPtr<Gio::AsyncResult>& result)
     {
-        handleResult(dialog, result, &Gtk::FileDialog::open_finish, onChosen, onFailed);
+        handleResult(dialog, result, &Gtk::FileDialog::open_finish, options, onChosen, onFailed);
     });
 }
 
@@ -96,8 +119,8 @@ void showSelectFolderDialog(Gtk::Window& parent,
                             FileFailedHandler onFailed)
 {
     const auto dialog = createDialog(options);
-    dialog->select_folder(parent, [dialog, onChosen = std::move(onChosen), onFailed = std::move(onFailed)](const Glib::RefPtr<Gio::AsyncResult>& result)
+    dialog->select_folder(parent, [dialog, options, onChosen = std::move(onChosen), onFailed = std::move(onFailed)](const Glib::RefPtr<Gio::AsyncResult>& result)
     {
-        handleResult(dialog, result, &Gtk::FileDialog::select_folder_finish, onChosen, onFailed);
+        handleResult(dialog, result, &Gtk::FileDialog::select_folder_finish, options, onChosen, onFailed);
     });
 }

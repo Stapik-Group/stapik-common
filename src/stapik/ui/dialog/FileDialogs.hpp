@@ -11,6 +11,8 @@ struct FileDialogOptions
 {
     Glib::ustring title;
     std::string initialName;
+    // Settings key under which the directory of the last chosen file is remembered. Empty turns the memory off.
+    std::string lastDirectoryKey{};
 };
 
 using FileChosenHandler = std::function<void(const std::filesystem::path&)>;

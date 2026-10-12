@@ -38,6 +38,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **CSV export** – RFC 4180 files, optionally with a byte order mark and a `;` separator for Polish Excel (see [docs/csv.md](docs/csv.md))
 - **Money input** – `MoneyEntry` reads amounts with the separators of the current language and marks wrong input (see [docs/money-entry.md](docs/money-entry.md))
 - **Date and month pickers** – `DatePicker` and `MonthPicker` open a calendar popover and report `year_month_day` / `YearMonth` (see [docs/date-pickers.md](docs/date-pickers.md))
+- **File dialogs and drag & drop** – open/save/folder dialogs that remember the last directory, and a drop target that accepts files by extension (see [docs/file-dialogs.md](docs/file-dialogs.md))
 - **Window state** – size, maximization, position and paned dividers are remembered between runs (see [docs/window-state.md](docs/window-state.md))
 - **Settings window** – a dialog built declaratively from `ObservableSetting` rows: switches, choices, numbers and paths (see [docs/settings-window.md](docs/settings-window.md))
 
