@@ -39,6 +39,19 @@ TEST(HttpMessageTest, RequestHasConnectAndStallTimeoutsByDefault)
     EXPECT_NE(request.timeout, NO_TIMEOUT);
 }
 
+TEST(HttpMessageTest, RequestHasNoProgressOrCancelCallbacksByDefault)
+{
+    const Request request;
+
+    EXPECT_FALSE(request.onProgress);
+    EXPECT_FALSE(request.isCancelled);
+}
+
+TEST(HttpMessageTest, TransportErrorIsNotCancelledByDefault)
+{
+    EXPECT_FALSE(TransportError{ .message = "timeout" }.cancelled);
+}
+
 TEST(HttpMessageTest, RequestDefaultsToBodylessGet)
 {
     const Request request;

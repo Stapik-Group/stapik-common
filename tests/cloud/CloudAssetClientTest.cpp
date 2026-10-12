@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 #include <tuple>
+#include <vector>
 #include <variant>
 
 namespace
@@ -162,6 +163,48 @@ TEST_F(CloudAssetClientTest, UploadSendsTheFileAsMultipartPut)
     EXPECT_EQ(file->filename, "a.jpg");
     EXPECT_EQ(file->mimeType, "image/jpeg");
     EXPECT_EQ(file->content, BINARY_CONTENT);
+}
+
+TEST_F(CloudAssetClientTest, UploadWithoutHooksInstallsNoCallbacks)
+{
+    m_http.respondWith(201, ASSET_METADATA);
+
+    std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_FALSE(m_http.requests.front().onProgress);
+    EXPECT_FALSE(m_http.requests.front().isCancelled);
+}
+
+TEST_F(CloudAssetClientTest, UploadProgressIsLimitedToTheSizeOfTheFile)
+{
+    m_http.progressReports = { { .uploadedBytes = 2, .uploadTotalBytes = 300 }, { .uploadedBytes = 300, .uploadTotalBytes = 300 } };
+    m_http.respondWith(201, ASSET_METADATA);
+    std::vector<AssetUploadProgress> reported;
+
+    std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT, { .onProgress = [&](const AssetUploadProgress& progress) { reported.push_back(progress); } });
+
+    ASSERT_EQ(reported.size(), 2U);
+    EXPECT_EQ(reported[0].sentBytes, 2U);
+    EXPECT_EQ(reported[1].sentBytes, BINARY_CONTENT.size());
+    EXPECT_EQ(reported[1].totalBytes, BINARY_CONTENT.size());
+}
+
+TEST_F(CloudAssetClientTest, CancelledUploadIsReportedAsCancelled)
+{
+    m_http.progressReports = { { .uploadedBytes = 1, .uploadTotalBytes = 4 } };
+    m_http.respondWith(201, ASSET_METADATA);
+
+    EXPECT_THROW(std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT, { .isCancelled = [] { return true; } }), AssetTransferCancelledException);
+}
+
+TEST_F(CloudAssetClientTest, UploadThatIsNotCancelledCompletes)
+{
+    m_http.progressReports = { { .uploadedBytes = 1, .uploadTotalBytes = 4 } };
+    m_http.respondWith(201, ASSET_METADATA);
+
+    const auto info = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT, { .isCancelled = [] { return false; } });
+
+    EXPECT_EQ(info.filename, "a.jpg");
 }
 
 TEST_F(CloudAssetClientTest, UploadLeavesTheContentTypeToTheMultipartEncoder)

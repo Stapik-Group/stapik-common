@@ -19,11 +19,12 @@ namespace stapik::cloud
 
         [[nodiscard]] std::vector<AssetInfo> listAssets() const override;
         [[nodiscard]] std::optional<AssetBytes> downloadAsset(const std::string& filename) const override;
-        [[nodiscard]] AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content) const override;
         [[nodiscard]] bool deleteAsset(const std::string& filename) const override;
-
+        using IAssetStorage::uploadAsset;
+        [[nodiscard]] AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const override;
     private:
-        [[nodiscard]] http::Response perform(http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel) const;
+        [[nodiscard]] http::Response perform(http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel,
+                                             http::ProgressCallback onProgress = {}, http::CancelCheck isCancelled = {}) const;
         [[nodiscard]] std::string assetsUrl() const;
         [[nodiscard]] std::string assetUrl(const std::string& filename) const;
 

@@ -3,6 +3,7 @@
 
 #include "stapik/log/Log.hpp"
 
+#include <algorithm>
 #include <format>
 #include <utility>
 
@@ -16,6 +17,20 @@ namespace stapik::cloud
         constexpr int HTTP_NO_CONTENT = 204;
         constexpr int HTTP_NOT_FOUND = 404;
         constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
+    }
+
+    namespace
+    {
+        http::ProgressCallback uploadProgressReporter(const AssetUploadHooks& hooks, const std::uint64_t totalBytes)
+        {
+            if (!hooks.onProgress)
+                return {};
+
+            return [onProgress = hooks.onProgress, totalBytes](const http::TransferProgress& progress)
+            {
+                onProgress(AssetUploadProgress{ .sentBytes = std::min(progress.uploadedBytes, totalBytes), .totalBytes = totalBytes });
+            };
+        }
     }
 
     CloudAssetClient::CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient) :
@@ -37,7 +52,8 @@ namespace stapik::cloud
         return cloud::assetUrl(m_config.normalizedApiUrl(), m_slotKey, filename);
     }
 
-    http::Response CloudAssetClient::perform(const http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel) const
+    http::Response CloudAssetClient::perform(const http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel,
+                                             http::ProgressCallback onProgress, http::CancelCheck isCancelled) const
     {
         const http::Request request{
             .method = method,
@@ -45,12 +61,19 @@ namespace stapik::cloud
             .headers = { { "x-api-key", m_config.apiKey } },
             .body = std::move(body),
             .timeout = http::NO_TIMEOUT,
-            .maxResponseBytes = MAX_RESPONSE_BYTES
+            .maxResponseBytes = MAX_RESPONSE_BYTES,
+            .onProgress = std::move(onProgress),
+            .isCancelled = std::move(isCancelled)
         };
 
         auto result = m_http.send(request);
         if (!result)
+        {
+            if (result.error().cancelled)
+                throw AssetTransferCancelledException("Asset transfer cancelled");
+
             throw CloudStorageException(std::string(failureLabel) + result.error().message);
+        }
 
         return std::move(result).value();
     }
@@ -87,13 +110,14 @@ namespace stapik::cloud
         return std::move(body);
     }
 
-    AssetInfo CloudAssetClient::uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content) const
+    AssetInfo CloudAssetClient::uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const
     {
         if (!m_config.isConfigured())
             throw CloudStorageException("Cloud sync is not configured");
 
         http::MultipartFile file{ .fieldName = "file", .filename = filename, .mimeType = mimeType, .content = content };
-        const auto [httpStatus, body] = perform(http::Method::Put, assetUrl(filename), std::move(file), "API asset upload failed: ");
+        const auto [httpStatus, body] = perform(http::Method::Put, assetUrl(filename), std::move(file), "API asset upload failed: ",
+                                                uploadProgressReporter(hooks, content.size()), hooks.isCancelled);
 
         if (httpStatus == HTTP_PAYLOAD_TOO_LARGE)
             throw AssetTooLargeException(std::format("File '{}' is too large for the cloud slot", filename));

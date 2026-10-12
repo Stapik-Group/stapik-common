@@ -4,6 +4,7 @@
 #include <curl/curl.h>
 
 #include <chrono>
+#include <cstdint>
 #include <limits>
 #include <utility>
 
@@ -94,6 +95,37 @@ namespace stapik::http
                 curl_easy_setopt(curl, CURLOPT_USERAGENT, text.c_str());
         }
 
+        int reportProgress(void *userData, const curl_off_t downloadTotal, const curl_off_t downloaded, const curl_off_t uploadTotal, const curl_off_t uploaded)
+        {
+            const auto &request = *static_cast<const Request *>(userData);
+
+            if (request.onProgress)
+            {
+                request.onProgress(TransferProgress{
+                    .uploadedBytes = static_cast<std::uint64_t>(uploaded),
+                    .uploadTotalBytes = static_cast<std::uint64_t>(uploadTotal),
+                    .downloadedBytes = static_cast<std::uint64_t>(downloaded),
+                    .downloadTotalBytes = static_cast<std::uint64_t>(downloadTotal) });
+            }
+
+            return request.isCancelled && request.isCancelled() ? 1 : 0;
+        }
+
+        void applyProgress(CURL *curl, const Request &request)
+        {
+            if (!request.onProgress && !request.isCancelled)
+                return;
+
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+            curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, reportProgress);
+            curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &request);
+        }
+
+        TransportError transportErrorOf(const CURLcode code)
+        {
+            return TransportError{ .message = curl_easy_strerror(code), .cancelled = code == CURLE_ABORTED_BY_CALLBACK };
+        }
+
         void applyMethod(CURL *curl, const Method method)
         {
             switch (method)
@@ -165,9 +197,10 @@ namespace stapik::http
         applySecurityOptions(curl);
         applyMethod(curl, request.method);
         applyBody(transfer, request.body);
+        applyProgress(curl, request);
 
         if (const auto result = curl_easy_perform(curl); result != CURLE_OK)
-            return Failure(TransportError{curl_easy_strerror(result)});
+            return Failure(transportErrorOf(result));
 
         long status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);

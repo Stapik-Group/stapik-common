@@ -13,6 +13,7 @@ namespace stapik::test
     {
     public:
         mutable std::vector<http::Request> requests;
+        std::vector<http::TransferProgress> progressReports;
 
         void respondWith(const int status, const std::string& body = {}) const
         {
@@ -32,6 +33,15 @@ namespace stapik::test
         [[nodiscard]] http::SendResult send(const http::Request& request) const override
         {
             requests.push_back(request);
+
+            for (const auto& progress : progressReports)
+            {
+                if (request.onProgress)
+                    request.onProgress(progress);
+
+                if (request.isCancelled && request.isCancelled())
+                    return Failure(http::TransportError{ .message = "Transfer cancelled", .cancelled = true });
+            }
 
             if (m_replies.empty())
                 return Failure(http::TransportError{ "no response queued" });

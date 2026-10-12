@@ -22,6 +22,8 @@ if (!response)
   a transfer that has stopped moving data, and `timeout` (30 s) for the whole request. `NO_TIMEOUT` removes the
   overall limit, which is what large transfers such as asset uploads use, so that a slow but alive connection is
   not cut off.
+- `onProgress` receives the bytes sent and received so far, and `isCancelled` is polled during the transfer; returning
+  `true` aborts it with a `TransportError` whose `cancelled` is set. Both run on the thread that called `send()`.
 - `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`.
 - `defaultHttpClient()` is libcurl restricted to `http` and `https`, TLS 1.2 or newer, without redirects.
 - It identifies itself with `User-Agent: <internalName>/<version>` taken from `AppInfo` (see `app::userAgentOf()`),
