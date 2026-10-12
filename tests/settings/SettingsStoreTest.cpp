@@ -205,3 +205,32 @@ TEST_F(SettingsStoreTest, ResetWithoutFileSucceeds)
 
     EXPECT_TRUE(store.reset());
 }
+
+TEST_F(SettingsStoreTest, SaveReportsWhyTheFileCannotBeWritten)
+{
+    writeText(m_directory / "blocker", "i am a file");
+    const SettingsStore store(m_directory / "blocker" / "settings.json");
+
+    const auto result = store.save();
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "create directory");
+    EXPECT_EQ(result.error().path, m_directory / "blocker");
+}
+
+TEST_F(SettingsStoreTest, ResetReportsWhyTheFileCannotBeMovedAside)
+{
+    writeText(m_path, R"({"version":1,"settings":{"theme":"dark"}})");
+    auto occupiedBackup = m_path;
+    occupiedBackup += ".bak";
+    writeText(occupiedBackup / "keep", "occupied");
+    SettingsStore store(m_path);
+    store.load();
+
+    const auto result = store.reset();
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "move aside");
+    EXPECT_EQ(result.error().path, m_path);
+    EXPECT_TRUE(fs::exists(m_path));
+}

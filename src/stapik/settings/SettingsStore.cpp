@@ -56,7 +56,7 @@ namespace stapik::settings
         return LoadStatus::Loaded;
     }
 
-    bool SettingsStore::save() const
+    storage::FileResult SettingsStore::save() const
     {
         const nlohmann::json root = {
             { "version", m_schemaVersion },
@@ -76,12 +76,12 @@ namespace stapik::settings
         m_values.erase(key);
     }
 
-    bool SettingsStore::reset()
+    storage::FileResult SettingsStore::reset()
     {
         m_values = nlohmann::json::object();
 
         if (std::error_code errorCode; !std::filesystem::exists(m_filePath, errorCode))
-            return true;
+            return {};
 
         auto backupPath = m_filePath;
         backupPath += ".bak";
@@ -91,11 +91,11 @@ namespace stapik::settings
         if (errorCode)
         {
             log::warning("Cannot move settings file {} aside: {}", storage::pathText(m_filePath), errorCode.message());
-            return false;
+            return Failure(storage::FileError{ .path = m_filePath, .step = "move aside", .code = errorCode });
         }
 
         log::info("Settings reset; the previous file is kept as {}", storage::pathText(backupPath));
-        return true;
+        return {};
     }
 
     int SettingsStore::schemaVersion() const

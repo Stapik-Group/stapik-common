@@ -85,7 +85,7 @@ namespace stapik::ui
         return state;
     }
 
-    bool WindowState::save(settings::SettingsStore& store, const std::string& key) const
+    storage::FileResult WindowState::save(settings::SettingsStore& store, const std::string& key) const
     {
         if (hasSize())
         {

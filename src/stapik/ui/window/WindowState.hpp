@@ -30,6 +30,6 @@ namespace stapik::ui
         [[nodiscard]] bool hasPosition() const;
         [[nodiscard]] static std::optional<WindowState> load(const settings::SettingsStore& store, const std::string& key);
 
-        bool save(settings::SettingsStore& store, const std::string& key) const;
+        storage::FileResult save(settings::SettingsStore& store, const std::string& key) const;
     };
 }

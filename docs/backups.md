@@ -25,7 +25,8 @@ showRestoreBackupDialog(*this, m_documentFile.listBackups(), [this](const stapik
     }
 
     replaceDocument(*result.document);
-    m_documentFile.save(*result.document);
+    if (const auto saved = m_documentFile.save(*result.document); !saved)
+        showMessageDialog(*this, ..., saved.error().message(), Gtk::MessageType::ERROR);
 });
 ```
 

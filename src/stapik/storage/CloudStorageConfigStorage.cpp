@@ -32,7 +32,7 @@ namespace
             stapik::log::warning("Cannot restrict permissions of {}: {}", stapik::storage::pathText(path), errorCode.message());
     }
 
-    bool writeConfigFile(const std::filesystem::path& path, const std::string& apiUrl, const std::string& plainTextApiKey)
+    stapik::storage::FileResult writeConfigFile(const std::filesystem::path& path, const std::string& apiUrl, const std::string& plainTextApiKey)
     {
         nlohmann::json json = { { "apiUrl", apiUrl } };
         if (!plainTextApiKey.empty())
@@ -57,7 +57,7 @@ namespace
     }
 }
 
-bool CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName)
+stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName)
 {
     return save(config, appName, stapik::storage::platformSecretStore());
 }
@@ -67,7 +67,7 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
     return load(appName, stapik::storage::platformSecretStore());
 }
 
-bool CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName, stapik::storage::ISecretStore& secretStore)
+stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName, stapik::storage::ISecretStore& secretStore)
 {
     std::string plainTextApiKey;
 

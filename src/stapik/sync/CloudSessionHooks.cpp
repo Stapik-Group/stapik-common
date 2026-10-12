@@ -21,7 +21,7 @@ namespace stapik::sync
 
         hooks.saveConfig = [appName](const CloudStorageConfig& config)
         {
-            return CloudStorageConfigStorage::save(config, appName);
+            return CloudStorageConfigStorage::save(config, appName).hasValue();
         };
 
         hooks.createStorage = [slotKey = std::move(slotKey)](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>

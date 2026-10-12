@@ -538,3 +538,27 @@ TEST_F(DocumentFileTest, InvalidImportIsRejectedAndNothingIsMoved)
     EXPECT_EQ(readText(m_path), before);
     EXPECT_TRUE(quarantinedFiles().empty());
 }
+
+TEST_F(DocumentFileTest, SaveReportsWhyTheFileCannotBeWritten)
+{
+    writeText(m_directory / "blocker", "i am a file");
+    DocumentFile<Note> file(m_directory / "blocker" / "note.json", 1);
+
+    const auto result = file.save(Note{ "first", 1 });
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "create directory");
+    EXPECT_EQ(result.error().path, m_directory / "blocker");
+}
+
+TEST_F(DocumentFileTest, ExportReportsWhyTheFileCannotBeWritten)
+{
+    writeText(m_directory / "blocker", "i am a file");
+    DocumentFile<Note> file(m_path, 1);
+
+    const auto result = file.exportTo(Note{ "first", 1 }, m_directory / "blocker" / "export.json");
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "create directory");
+    EXPECT_FALSE(fs::exists(m_path));
+}

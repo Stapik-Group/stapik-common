@@ -1,5 +1,7 @@
 #pragma once
 
+#include "stapik/storage/FileError.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -21,7 +23,7 @@ namespace stapik::settings
 
         LoadStatus load();
 
-        [[nodiscard]] bool save() const;
+        [[nodiscard]] storage::FileResult save() const;
         [[nodiscard]] bool contains(const std::string& key) const;
 
         template<typename ValueType>
@@ -51,7 +53,7 @@ namespace stapik::settings
         void remove(const std::string& key);
 
         // Forgets all values and moves the file aside as <file>.bak.
-        bool reset();
+        storage::FileResult reset();
 
         [[nodiscard]] int schemaVersion() const;
         [[nodiscard]] const std::filesystem::path& filePath() const;

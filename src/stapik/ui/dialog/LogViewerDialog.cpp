@@ -208,9 +208,15 @@ namespace
         }
 
         const auto path = file ? file->get_path() : std::string();
-        if (path.empty() || !stapik::storage::writeFileAtomically(stapik::storage::pathFromText(path), buildReport()))
+        if (path.empty())
         {
             showStatus(loc.translate("dialog.log.saveFailed", {{"error", path}}));
+            return;
+        }
+
+        if (const auto written = stapik::storage::writeFileAtomically(stapik::storage::pathFromText(path), buildReport()); !written)
+        {
+            showStatus(loc.translate("dialog.log.saveFailed", {{"error", written.error().message()}}));
             return;
         }
 
