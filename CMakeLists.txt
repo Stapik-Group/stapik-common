@@ -195,12 +195,17 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/dialog/FileDialogs.cpp
         src/stapik/ui/dialog/LogViewerDialog.cpp
         src/stapik/ui/dialog/RestoreBackupDialog.cpp
+        src/stapik/ui/dialog/SettingsDialog.cpp
         src/stapik/ui/dialog/StapikDialog.cpp
         src/stapik/ui/dialog/TextInputDialog.cpp
         src/stapik/ui/dialog/UpdateDialog.cpp
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
         src/stapik/ui/menu/UndoActions.cpp
+        src/stapik/ui/settings/BoolSettingRow.cpp
+        src/stapik/ui/settings/ChoiceDropDown.cpp
+        src/stapik/ui/settings/PathSettingRow.cpp
+        src/stapik/ui/settings/SettingsLayout.cpp
         src/stapik/ui/style/AppStyleProvider.cpp
         src/stapik/ui/widget/CalendarButton.cpp
         src/stapik/ui/widget/CategoryChip.cpp

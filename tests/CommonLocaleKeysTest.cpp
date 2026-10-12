@@ -90,3 +90,17 @@ TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheEmptyStateTitle)
     for (const auto& file : files)
         expectNonEmptyString(readJson(file), "emptyState.noData", file.filename().string());
 }
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheSettingsWindow)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+    {
+        const auto translations = readJson(file);
+        expectNonEmptyString(translations, "menu.settings.open", file.filename().string());
+        expectNonEmptyString(translations, "dialog.settings.title", file.filename().string());
+        expectNonEmptyString(translations, "dialog.settings.browse", file.filename().string());
+    }
+}
