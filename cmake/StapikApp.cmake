@@ -28,9 +28,26 @@ function(_stapik_append_desktop_localized output key)
     set(${output} "${result}" PARENT_SCOPE)
 endfunction()
 
+function(_stapik_xml_escape text output)
+    string(REPLACE "&" "&amp;" text "${text}")
+    string(REPLACE "<" "&lt;" text "${text}")
+    string(REPLACE ">" "&gt;" text "${text}")
+    set(${output} "${text}" PARENT_SCOPE)
+endfunction()
+
+function(_stapik_append_metainfo_localized output tag)
+    set(result "")
+    foreach(entry IN LISTS ARGN)
+        _stapik_parse_localized("${entry}" language text)
+        _stapik_xml_escape("${text}" escapedText)
+        string(APPEND result "  <${tag} xml:lang=\"${language}\">${escapedText}</${tag}>\n")
+    endforeach()
+    set(${output} "${result}" PARENT_SCOPE)
+endfunction()
+
 function(stapik_add_application)
     cmake_parse_arguments(PARSE_ARGV 0 STAPIK_APP ""
-            "NAME;DISPLAY_NAME;DESCRIPTION;VERSION;APPLICATION_ID;RESOURCES_DIRECTORY;PACKAGING_DIRECTORY;MAINTAINER;HOMEPAGE;SECTION;WM_CLASS"
+            "NAME;DISPLAY_NAME;DESCRIPTION;VERSION;APPLICATION_ID;RESOURCES_DIRECTORY;PACKAGING_DIRECTORY;MAINTAINER;HOMEPAGE;SECTION;WM_CLASS;LICENSE;LONG_DESCRIPTION;RELEASE_DATE"
             "SOURCES;DESKTOP_CATEGORIES;DEPENDS;LINK_LIBRARIES;LOCALIZED_NAMES;LOCALIZED_DESCRIPTIONS;KEYWORDS;LOCALIZED_KEYWORDS;MIME_TYPES")
 
     if(STAPIK_APP_UNPARSED_ARGUMENTS)
@@ -293,6 +310,58 @@ function(stapik_add_application)
     install(PROGRAMS "${generatedDirectory}/${STAPIK_APP_NAME}" DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/bin")
     install(FILES "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.desktop"
             DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/applications")
+
+    # --- AppStream metainfo (needs the SPDX LICENSE of the application) ---
+    if(STAPIK_APP_LICENSE)
+        set(metainfoTemplate "${STAPIK_COMMON_CMAKE_DIR}/templates/application.metainfo.xml.in")
+        if(packagingDirectory AND EXISTS "${packagingDirectory}/application.metainfo.xml.in")
+            set(metainfoTemplate "${packagingDirectory}/application.metainfo.xml.in")
+        endif()
+
+        if(NOT STAPIK_APP_LONG_DESCRIPTION)
+            set(STAPIK_APP_LONG_DESCRIPTION "${STAPIK_APP_DESCRIPTION}")
+        endif()
+        if(NOT STAPIK_APP_RELEASE_DATE)
+            string(TIMESTAMP STAPIK_APP_RELEASE_DATE "%Y-%m-%d" UTC)
+        endif()
+
+        _stapik_xml_escape("${STAPIK_APP_DISPLAY_NAME}" STAPIK_APP_METAINFO_NAME)
+        _stapik_xml_escape("${STAPIK_APP_DESCRIPTION}" STAPIK_APP_METAINFO_SUMMARY)
+        _stapik_xml_escape("${STAPIK_APP_LONG_DESCRIPTION}" STAPIK_APP_METAINFO_DESCRIPTION)
+        _stapik_append_metainfo_localized(STAPIK_APP_METAINFO_LOCALIZED_NAMES name ${STAPIK_APP_LOCALIZED_NAMES})
+        _stapik_append_metainfo_localized(STAPIK_APP_METAINFO_LOCALIZED_SUMMARIES summary ${STAPIK_APP_LOCALIZED_DESCRIPTIONS})
+
+        set(STAPIK_APP_METAINFO_EXTRA "")
+        _stapik_xml_escape("${STAPIK_APP_MAINTAINER}" escapedMaintainer)
+        if(STAPIK_APP_APPLICATION_ID MATCHES "^(.+)\\.[^.]+$")
+            string(APPEND STAPIK_APP_METAINFO_EXTRA
+                    "  <developer id=\"${CMAKE_MATCH_1}\"><name>${escapedMaintainer}</name></developer>\n")
+        else()
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  <developer_name>${escapedMaintainer}</developer_name>\n")
+        endif()
+        if(STAPIK_APP_HOMEPAGE)
+            _stapik_xml_escape("${STAPIK_APP_HOMEPAGE}" escapedHomepage)
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  <url type=\"homepage\">${escapedHomepage}</url>\n")
+        endif()
+        if(STAPIK_APP_KEYWORDS)
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  <keywords>\n")
+            foreach(keyword IN LISTS STAPIK_APP_KEYWORDS)
+                _stapik_xml_escape("${keyword}" escapedKeyword)
+                string(APPEND STAPIK_APP_METAINFO_EXTRA "    <keyword>${escapedKeyword}</keyword>\n")
+            endforeach()
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  </keywords>\n")
+        endif()
+
+        set(STAPIK_APP_METAINFO_MEDIA_TYPES "")
+        foreach(mimeType IN LISTS STAPIK_APP_MIME_TYPES)
+            _stapik_xml_escape("${mimeType}" escapedMimeType)
+            string(APPEND STAPIK_APP_METAINFO_MEDIA_TYPES "    <mediatype>${escapedMimeType}</mediatype>\n")
+        endforeach()
+
+        configure_file("${metainfoTemplate}" "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.metainfo.xml" @ONLY)
+        install(FILES "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.metainfo.xml"
+                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/metainfo")
+    endif()
 
     # --- CPack DEB (only for the top-level project) ---
     if(PROJECT_IS_TOP_LEVEL)
