@@ -40,14 +40,15 @@ namespace stapik::archive::detail
         appendLe16(buffer, static_cast<std::uint16_t>(value >> 16));
     }
 
-    [[nodiscard]] inline std::uint16_t readLe16(const std::span<const std::uint8_t> bytes, const std::size_t offset)
+    [[nodiscard]] inline std::uint16_t readLe16(const std::span<const std::byte> bytes, const std::size_t offset)
     {
-        return static_cast<std::uint16_t>(bytes[offset] | (bytes[offset + 1] << 8));
+        return static_cast<std::uint16_t>(
+            std::to_integer<std::uint16_t>(bytes[offset]) | (std::to_integer<std::uint16_t>(bytes[offset + 1]) << 8));
     }
 
-    [[nodiscard]] inline std::uint32_t readLe32(const std::span<const std::uint8_t> bytes, const std::size_t offset)
+    [[nodiscard]] inline std::uint32_t readLe32(const std::span<const std::byte> bytes, const std::size_t offset)
     {
-        return static_cast<std::uint32_t>(readLe16(bytes, offset))
-            | (static_cast<std::uint32_t>(readLe16(bytes, offset + 2)) << 16);
+        return static_cast<std::uint32_t>(readLe16(bytes, offset)) |
+            (static_cast<std::uint32_t>(readLe16(bytes, offset + 2)) << 16);
     }
 }

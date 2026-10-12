@@ -2,7 +2,6 @@
 
 #include "ArchiveError.hpp"
 
-#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -28,10 +27,10 @@ namespace stapik::archive
 
         [[nodiscard]] static ArchiveResult<ZipReader> open(std::filesystem::path source);
 
-        [[nodiscard]] const std::vector<ZipEntry>& entries() const;
-        [[nodiscard]] const ZipEntry* find(std::string_view name) const;
-        [[nodiscard]] ArchiveResult<std::vector<std::uint8_t>> read(const ZipEntry& entry) const;
-        [[nodiscard]] ArchiveResult<std::vector<std::uint8_t>> read(std::string_view name) const;
+        [[nodiscard]] const std::vector<ZipEntry> &entries() const;
+        [[nodiscard]] const ZipEntry *find(std::string_view name) const;
+        [[nodiscard]] ArchiveResult<std::vector<std::uint8_t> > read(const ZipEntry &entry) const;
+        [[nodiscard]] ArchiveResult<std::vector<std::uint8_t> > read(std::string_view name) const;
         [[nodiscard]] ArchiveResult<std::string> readText(std::string_view name) const;
 
     private:

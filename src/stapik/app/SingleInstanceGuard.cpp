@@ -36,7 +36,7 @@ namespace stapik::app
         constexpr DWORD RETRY_DELAY_MS = 100;
         constexpr char ACK = 1;
 
-        std::wstring toWide(const std::string& utf8)
+        std::wstring toWide(const std::string &utf8)
         {
             if (utf8.empty())
                 return {};
@@ -51,7 +51,7 @@ namespace stapik::app
         }
 
         // Pipe names are machine-wide, so the session id keeps the pipe in step with the session-local mutex.
-        std::wstring pipeName(const std::string& applicationId)
+        std::wstring pipeName(const std::string &applicationId)
         {
             DWORD session = 0;
             ProcessIdToSessionId(GetCurrentProcessId(), &session);
@@ -59,15 +59,16 @@ namespace stapik::app
         }
 
         // Sends the files to the first instance and waits for its acknowledgement.
-        bool forwardToRunningInstance(const std::wstring& name, const std::string& message)
+        bool forwardToRunningInstance(const std::wstring &name, const std::string &message)
         {
             // The first instance can only come to the front if this process, which the user just started, allows it.
             AllowSetForegroundWindow(ASFW_ANY);
 
             char reply = 0;
             DWORD received = 0;
-            const BOOL done = CallNamedPipeW(name.c_str(), const_cast<char*>(message.data()), static_cast<DWORD>(message.size()),
-                &reply, sizeof(reply), &received, IO_TIMEOUT_MS);
+            const BOOL done = CallNamedPipeW(name.c_str(), const_cast<char *>(message.data()),
+                                             static_cast<DWORD>(message.size()),
+                                             &reply, sizeof(reply), &received, IO_TIMEOUT_MS);
 
             if (!done)
             {
@@ -82,16 +83,19 @@ namespace stapik::app
         public:
             using Delivery = std::function<void(std::vector<std::filesystem::path>)>;
 
-            [[nodiscard]] static std::unique_ptr<PipeServer> start(const std::wstring& name, Delivery delivery)
+            [[nodiscard]] static std::unique_ptr<PipeServer> start(const std::wstring &name, Delivery delivery)
             {
                 const HANDLE pipe = CreateNamedPipeW(name.c_str(),
-                    PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
-                    PIPE_TYPE_MESSAGE | PIPE_READ_MODE_MESSAGE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-                    1, PIPE_BUFFER_BYTES, PIPE_BUFFER_BYTES, 0, nullptr);
+                                                     PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
+                                                     FILE_FLAG_FIRST_PIPE_INSTANCE,
+                                                     PIPE_TYPE_MESSAGE | PIPE_READ_MODE_MESSAGE | PIPE_WAIT |
+                                                     PIPE_REJECT_REMOTE_CLIENTS,
+                                                     1, PIPE_BUFFER_BYTES, PIPE_BUFFER_BYTES, 0, nullptr);
 
                 if (pipe == INVALID_HANDLE_VALUE)
                 {
-                    log::warning("Cannot create the instance pipe (error {}); later instances will only show a message", GetLastError());
+                    log::warning("Cannot create the instance pipe (error {}); later instances will only show a message",
+                                 GetLastError());
                     return nullptr;
                 }
 
@@ -108,19 +112,20 @@ namespace stapik::app
                 CloseHandle(m_pipe);
             }
 
-            PipeServer(const PipeServer&) = delete;
-            PipeServer& operator=(const PipeServer&) = delete;
+            PipeServer(const PipeServer &) = delete;
+
+            PipeServer &operator=(const PipeServer &) = delete;
 
         private:
             enum class Step { Done, Stopped, Failed };
 
-            PipeServer(HANDLE pipe, Delivery delivery) :
-                m_pipe(pipe),
-                m_stopEvent(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
-                m_ioEvent(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
-                m_delivery(std::move(delivery)),
-                m_thread([this] { serve(); })
-            {}
+            PipeServer(HANDLE pipe, Delivery delivery) : m_pipe(pipe),
+                                                         m_stopEvent(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
+                                                         m_ioEvent(CreateEventW(nullptr, TRUE, FALSE, nullptr)),
+                                                         m_delivery(std::move(delivery)),
+                                                         m_thread([this] { serve(); })
+            {
+            }
 
             void serve()
             {
@@ -175,10 +180,11 @@ namespace stapik::app
             }
 
             // Waits for a pending operation, cancelling it when the server is stopped or the time runs out.
-            [[nodiscard]] Step awaitIo(OVERLAPPED& overlapped, DWORD timeoutMs) const
+            [[nodiscard]] Step awaitIo(OVERLAPPED &overlapped, DWORD timeoutMs) const
             {
-                const std::array handles{ m_ioEvent, m_stopEvent };
-                const auto waited = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, timeoutMs);
+                const std::array handles{m_ioEvent, m_stopEvent};
+                const auto waited = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE,
+                                                           timeoutMs);
                 if (waited == WAIT_OBJECT_0)
                     return Step::Done;
 
@@ -196,12 +202,12 @@ namespace stapik::app
 
                 switch (GetLastError())
                 {
-                case ERROR_PIPE_CONNECTED:
-                    return Step::Done;
-                case ERROR_IO_PENDING:
-                    return awaitIo(overlapped, INFINITE);
-                default:
-                    return Step::Failed;
+                    case ERROR_PIPE_CONNECTED:
+                        return Step::Done;
+                    case ERROR_IO_PENDING:
+                        return awaitIo(overlapped, INFINITE);
+                    default:
+                        return Step::Failed;
                 }
             }
 
@@ -214,7 +220,8 @@ namespace stapik::app
                 {
                     auto overlapped = beginIo();
                     DWORD read = 0;
-                    BOOL complete = ReadFile(m_pipe, chunk.data(), static_cast<DWORD>(chunk.size()), &read, &overlapped);
+                    BOOL complete = ReadFile(m_pipe, chunk.data(), static_cast<DWORD>(chunk.size()), &read,
+                                             &overlapped);
                     DWORD error = complete ? ERROR_SUCCESS : GetLastError();
 
                     if (!complete && error == ERROR_IO_PENDING)
@@ -276,8 +283,10 @@ namespace stapik::app
         }
     };
 
-    std::unique_ptr<SingleInstanceGuard> SingleInstanceGuard::acquire(const std::string& applicationId,
-        const std::string& displayName, const std::vector<std::filesystem::path>& files, SecondInstanceHandler onSecondInstance)
+    std::unique_ptr<SingleInstanceGuard> SingleInstanceGuard::acquire(const std::string &applicationId,
+                                                                      const std::string &displayName,
+                                                                      const std::vector<std::filesystem::path> &files,
+                                                                      SecondInstanceHandler onSecondInstance)
     {
         // "Local\" scopes the name to the user's session: two users on one machine may each run a copy.
         const auto name = L"Local\\" + toWide(applicationId);
@@ -301,8 +310,9 @@ namespace stapik::app
             if (forwardToRunningInstance(pipe, encodeInstanceMessage(files)))
                 return nullptr;
 
-            const auto text = LocaleManager::instance().translate("app.alreadyRunning", { { "name", displayName } });
-            MessageBoxW(nullptr, toWide(text).c_str(), toWide(displayName).c_str(), MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
+            const auto text = LocaleManager::instance().translate("app.alreadyRunning", {{"name", displayName}});
+            MessageBoxW(nullptr, toWide(text).c_str(), toWide(displayName).c_str(),
+                        MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
             return nullptr;
         }
 
@@ -322,17 +332,20 @@ namespace stapik::app
     }
 #else
     struct SingleInstanceGuard::Impl
-    {};
+    {
+    };
 
-    std::unique_ptr<SingleInstanceGuard> SingleInstanceGuard::acquire(const std::string&, const std::string&, const std::vector<std::filesystem::path>&, SecondInstanceHandler)
+    std::unique_ptr<SingleInstanceGuard> SingleInstanceGuard::acquire(const std::string &, const std::string &,
+                                                                      const std::vector<std::filesystem::path> &,
+                                                                      SecondInstanceHandler)
     {
         return std::unique_ptr<SingleInstanceGuard>(new SingleInstanceGuard(nullptr));
     }
 #endif
 
-    SingleInstanceGuard::SingleInstanceGuard(std::unique_ptr<Impl> impl) :
-        m_impl(std::move(impl))
-    {}
+    SingleInstanceGuard::SingleInstanceGuard(std::unique_ptr<Impl> impl) : m_impl(std::move(impl))
+    {
+    }
 
     SingleInstanceGuard::~SingleInstanceGuard() = default;
 }

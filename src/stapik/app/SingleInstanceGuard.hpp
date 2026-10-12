@@ -13,17 +13,19 @@ namespace stapik::app
     class SingleInstanceGuard
     {
     public:
-        using SecondInstanceHandler = std::function<void(const std::vector<std::filesystem::path>& files)>;
+        using SecondInstanceHandler = std::function<void(const std::vector<std::filesystem::path> &files)>;
 
         // Returns nullptr when another instance is running and the caller should exit. Otherwise the handler is
         // called on the main thread each time a later instance is started.
-        [[nodiscard]] static std::unique_ptr<SingleInstanceGuard> acquire(const std::string& applicationId,
-            const std::string& displayName, const std::vector<std::filesystem::path>& files, SecondInstanceHandler onSecondInstance);
+        [[nodiscard]] static std::unique_ptr<SingleInstanceGuard> acquire(const std::string &applicationId,
+                                                                          const std::string &displayName,
+                                                                          const std::vector<std::filesystem::path> &
+                                                                          files,
+                                                                          SecondInstanceHandler onSecondInstance);
 
         ~SingleInstanceGuard();
-
-        SingleInstanceGuard(const SingleInstanceGuard&) = delete;
-        SingleInstanceGuard& operator=(const SingleInstanceGuard&) = delete;
+        SingleInstanceGuard(const SingleInstanceGuard &) = delete;
+        SingleInstanceGuard &operator=(const SingleInstanceGuard &) = delete;
 
     private:
         struct Impl;

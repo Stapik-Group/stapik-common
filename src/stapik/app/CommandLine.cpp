@@ -12,16 +12,16 @@ namespace
 {
     constexpr auto FILES_KEY = G_OPTION_REMAINING;
 
-    std::optional<std::string> lookupString(const Glib::VariantDict& values, const char* key)
+    std::optional<std::string> lookupString(const Glib::VariantDict &values, const char *key)
     {
         Glib::VariantBase value;
         if (!values.lookup_value(key, value))
             return std::nullopt;
 
-        return Glib::VariantBase::cast_dynamic<Glib::Variant<Glib::ustring>>(value).get().raw();
+        return Glib::VariantBase::cast_dynamic<Glib::Variant<Glib::ustring> >(value).get().raw();
     }
 
-    std::filesystem::path absolutePath(const std::string& text)
+    std::filesystem::path absolutePath(const std::string &text)
     {
         const auto path = stapik::storage::pathFromText(text);
 
@@ -30,14 +30,14 @@ namespace
         return errorCode ? path : result.lexically_normal();
     }
 
-    std::vector<std::filesystem::path> lookupPaths(const Glib::VariantDict& values, const char* key)
+    std::vector<std::filesystem::path> lookupPaths(const Glib::VariantDict &values, const char *key)
     {
         Glib::VariantBase value;
         if (!values.lookup_value(key, value))
             return {};
 
         std::vector<std::filesystem::path> paths;
-        for (const auto& text : Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<std::string>>>(value).get())
+        for (const auto &text: Glib::VariantBase::cast_dynamic<Glib::Variant<std::vector<std::string> > >(value).get())
         {
             if (!text.empty())
                 paths.push_back(absolutePath(text));
@@ -48,28 +48,29 @@ namespace
 
 namespace stapik::app
 {
-    void addCommandLineOptions(Gio::Application& application)
+    void addCommandLineOptions(Gio::Application &application)
     {
         using enum Gio::Application::OptionType;
 
         application.add_main_option_entry(BOOL, "version", '\0', "Print the version and exit");
         application.add_main_option_entry(STRING, "log-level", '\0',
-            "Minimum log level: debug, info, warning or error", "LEVEL");
+                                          "Minimum log level: debug, info, warning or error", "LEVEL");
         application.add_main_option_entry(STRING, "data-dir", '\0',
-            "Keep user data, settings and cache under DIR instead of the system locations", "DIR");
+                                          "Keep user data, settings and cache under DIR instead of the system locations",
+                                          "DIR");
         application.add_main_option_entry(BOOL, "portable", '\0',
-            "Keep user data, settings and cache in the 'portable' folder next to the executable");
+                                          "Keep user data, settings and cache in the 'portable' folder next to the executable");
         application.add_main_option_entry(BOOL, "reset-settings", '\0',
-            "Reset settings to defaults before starting (the old file is kept as settings.json.bak)");
+                                          "Reset settings to defaults before starting (the old file is kept as settings.json.bak)");
         application.add_main_option_entry(BOOL, "safe-mode", '\0',
-            "Start without restoring or saving the window state, for troubleshooting");
+                                          "Start without restoring or saving the window state, for troubleshooting");
         application.add_main_option_entry(FILENAME_VECTOR, FILES_KEY, '\0', "Files to open", "[FILE...]");
     }
 
-    CommandLineParseResult readCommandLineOptions(const Glib::VariantDict& values)
+    CommandLineParseResult readCommandLineOptions(const Glib::VariantDict &values)
     {
         CommandLineParseResult result;
-        auto&[showVersion, logLevel, dataDir, portable, resetSettings, safeMode, files] = result.options;
+        auto &[showVersion, logLevel, dataDir, portable, resetSettings, safeMode, files] = result.options;
 
         showVersion = values.contains("version");
         portable = values.contains("portable");
@@ -82,7 +83,8 @@ namespace stapik::app
             logLevel = log::parseLevel(*levelName);
             if (!logLevel)
             {
-                result.error = std::format("invalid --log-level '{}' (expected debug, info, warning or error)", *levelName);
+                result.error = std::format("invalid --log-level '{}' (expected debug, info, warning or error)",
+                                           *levelName);
                 return result;
             }
         }
@@ -107,13 +109,13 @@ namespace stapik::app
         return result;
     }
 
-    std::string versionLine(const AppInfo& appInfo)
+    std::string versionLine(const AppInfo &appInfo)
     {
-        const auto& name = appInfo.displayName.empty() ? appInfo.internalName : appInfo.displayName;
+        const auto &name = appInfo.displayName.empty() ? appInfo.internalName : appInfo.displayName;
         return std::format("{} {}", name, appInfo.version.empty() ? "(unknown version)" : appInfo.version);
     }
 
-    void applyCommandLineOptions(const CommandLineOptions& options, const std::string& appName)
+    void applyCommandLineOptions(const CommandLineOptions &options, const std::string &appName)
     {
         if (options.logLevel)
             log::setLevel(*options.logLevel);

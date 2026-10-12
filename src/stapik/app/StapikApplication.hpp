@@ -8,12 +8,10 @@
 #include "stapik/ui/style/AppStyleProvider.hpp"
 #include "stapik/update/UpdateChecker.hpp"
 
-#include <giomm/application.h>
 #include <glibmm/refptr.h>
 #include <glibmm/variantdict.h>
 #include <gtkmm/application.h>
 #include <gtkmm/paned.h>
-#include <gtkmm/window.h>
 #include <sigc++/connection.h>
 
 #include <filesystem>
@@ -34,39 +32,38 @@ namespace stapik::app
     class StapikApplication : public Gtk::Application
     {
     public:
-        [[nodiscard]] static Glib::RefPtr<StapikApplication> create(const AppInfo& appInfo, StapikApplicationOptions options = {});
-
-        [[nodiscard]] const AppInfo& appInfo() const;
-        [[nodiscard]] const CommandLineOptions& commandLine() const;
-        [[nodiscard]] AppStyleProvider& styleProvider();
-        [[nodiscard]] const theme::ThemeRegistry& themes() const;
+        [[nodiscard]] static Glib::RefPtr<StapikApplication> create(const AppInfo &appInfo,
+                                                                    StapikApplicationOptions options = {});
+        [[nodiscard]] const AppInfo &appInfo() const;
+        [[nodiscard]] const CommandLineOptions &commandLine() const;
+        [[nodiscard]] AppStyleProvider &styleProvider();
+        [[nodiscard]] const theme::ThemeRegistry &themes() const;
 
         void requestQuit();
+        void rememberPanedPosition(Gtk::Paned &paned, const std::string &name) const;
 
-        // Remembers the divider of the paned under the settings key window.panes.<name>, unless the window state
-        // is turned off or the application runs in safe mode.
-        void rememberPanedPosition(Gtk::Paned& paned, const std::string& name) const;
     protected:
-        explicit StapikApplication(const AppInfo& appInfo, StapikApplicationOptions options = {});
+        explicit StapikApplication(const AppInfo &appInfo, StapikApplicationOptions options = {});
         ~StapikApplication() override;
 
+        int on_handle_local_options(const Glib::RefPtr<Glib::VariantDict> &options) override;
+        [[nodiscard]] virtual std::string windowStateKey(const Gtk::Window &window);
         void on_startup() override;
-        int on_handle_local_options(const Glib::RefPtr<Glib::VariantDict>& options) override;
 
-        [[nodiscard]] virtual std::string windowStateKey(const Gtk::Window& window);
     private:
-        static const std::string& initializeContext(const AppInfo& appInfo);
+        static const std::string &initializeContext(const AppInfo &appInfo);
+        static void restoreWindowState(Gtk::Window &window, const std::string &key);
+        static void saveWindowState(Gtk::Window &window, const std::string &key);
 
         [[nodiscard]] bool acquireDataDirLock();
+        [[nodiscard]] Gtk::Window *primaryWindow();
+
         void applyTheme();
         void startUpdateCheck();
-        void announceUpdate(const update::ReleaseInfo& release);
-        void onSecondInstance(const std::vector<std::filesystem::path>& files);
-        [[nodiscard]] Gtk::Window* primaryWindow();
-        void onWindowAdded(Gtk::Window& window);
-        void installQuitAction(Gtk::Window& window);
-        static void restoreWindowState(Gtk::Window& window, const std::string& key) ;
-        static void saveWindowState(Gtk::Window& window, const std::string& key);
+        void announceUpdate(const update::ReleaseInfo &release);
+        void onSecondInstance(const std::vector<std::filesystem::path> &files);
+        void onWindowAdded(Gtk::Window &window);
+        void installQuitAction(Gtk::Window &window);
 
         AppInfo m_info;
         StapikApplicationOptions m_options;

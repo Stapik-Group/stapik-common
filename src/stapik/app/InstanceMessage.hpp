@@ -14,10 +14,10 @@ namespace stapik::app
     // (a Windows file name cannot contain a newline), after a header that lets the receiver reject stray data.
     inline constexpr std::string_view INSTANCE_MESSAGE_HEADER = "stapik-instance/1\n";
 
-    [[nodiscard]] inline std::string encodeInstanceMessage(const std::vector<std::filesystem::path>& files)
+    [[nodiscard]] inline std::string encodeInstanceMessage(const std::vector<std::filesystem::path> &files)
     {
         std::string message(INSTANCE_MESSAGE_HEADER);
-        for (const auto& file : files)
+        for (const auto &file: files)
         {
             message += storage::pathText(file);
             message += '\n';
@@ -25,7 +25,8 @@ namespace stapik::app
         return message;
     }
 
-    [[nodiscard]] inline std::optional<std::vector<std::filesystem::path>> decodeInstanceMessage(std::string_view message)
+    [[nodiscard]] inline std::optional<std::vector<std::filesystem::path> > decodeInstanceMessage(
+        std::string_view message)
     {
         if (!message.starts_with(INSTANCE_MESSAGE_HEADER))
             return std::nullopt;

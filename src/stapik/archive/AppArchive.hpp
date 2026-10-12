@@ -26,8 +26,8 @@ namespace stapik::archive
     {
         std::string appName;
         std::string appVersion;
-        settings::SettingsStore* settings = nullptr;
-        const cloud::IAssetStorage* assets = nullptr;
+        settings::SettingsStore *settings = nullptr;
+        const cloud::IAssetStorage *assets = nullptr;
     };
 
     struct ArchiveInfo
@@ -47,20 +47,24 @@ namespace stapik::archive
     };
 
     [[nodiscard]] ArchiveResult<ArchiveInfo> writeAppArchive(
-        const std::filesystem::path& target,
-        const AppArchiveContext& context,
+        const std::filesystem::path &target,
+        const AppArchiveContext &context,
         std::string_view documentText,
-        const time::IClock& clock = time::systemClock());
+        const time::IClock &clock = time::systemClock());
 
     class AppArchive
     {
     public:
-        [[nodiscard]] static ArchiveResult<AppArchive> open(std::filesystem::path source, std::string_view expectedAppName);
+        [[nodiscard]] static ArchiveResult<AppArchive> open(std::filesystem::path source,
+                                                            std::string_view expectedAppName);
 
-        [[nodiscard]] const ArchiveInfo& info() const;
-        [[nodiscard]] const std::string& documentText() const;
-        [[nodiscard]] ArchiveResult<RestoreSummary> restoreAssets(const cloud::IAssetStorage& storage) const;
-        [[nodiscard]] ArchiveResult<bool> restoreSettings(settings::SettingsStore& store) const;
+        [[nodiscard]] const ArchiveInfo &info() const;
+
+        [[nodiscard]] const std::string &documentText() const;
+
+        [[nodiscard]] ArchiveResult<RestoreSummary> restoreAssets(const cloud::IAssetStorage &storage) const;
+
+        [[nodiscard]] ArchiveResult<bool> restoreSettings(settings::SettingsStore &store) const;
 
     private:
         struct ArchivedAsset
@@ -71,7 +75,8 @@ namespace stapik::archive
             std::string checksumSha256;
         };
 
-        AppArchive(ZipReader zip, ArchiveInfo info, std::string documentText, std::optional<std::string> settingsText, std::vector<ArchivedAsset> assets);
+        AppArchive(ZipReader zip, ArchiveInfo info, std::string documentText, std::optional<std::string> settingsText,
+                   std::vector<ArchivedAsset> assets);
 
         ZipReader m_zip;
         ArchiveInfo m_info;
@@ -91,20 +96,20 @@ namespace stapik::archive
     // "Back up the whole application" in one call.
     template<document::PersistableDocument DocumentType>
     [[nodiscard]] ArchiveResult<ArchiveInfo> exportAppArchive(
-        const document::DocumentFile<DocumentType>& file,
-        const DocumentType& document,
-        const AppArchiveContext& context,
-        const std::filesystem::path& target,
-        const time::IClock& clock = time::systemClock())
+        const document::DocumentFile<DocumentType> &file,
+        const DocumentType &document,
+        const AppArchiveContext &context,
+        const std::filesystem::path &target,
+        const time::IClock &clock = time::systemClock())
     {
         return writeAppArchive(target, context, file.serialize(document), clock);
     }
 
     template<document::PersistableDocument DocumentType>
-    [[nodiscard]] ArchiveResult<RestoredApp<DocumentType>> importAppArchive(
-        const document::DocumentFile<DocumentType>& file,
-        const std::filesystem::path& source,
-        const AppArchiveContext& context)
+    [[nodiscard]] ArchiveResult<RestoredApp<DocumentType> > importAppArchive(
+        const document::DocumentFile<DocumentType> &file,
+        const std::filesystem::path &source,
+        const AppArchiveContext &context)
     {
         auto archive = AppArchive::open(source, context.appName);
         if (!archive)
@@ -117,10 +122,12 @@ namespace stapik::archive
             case Loaded:
                 break;
             case NewerVersion:
-                return archiveFailure(ArchiveErrorKind::Unsupported, "The archive was made by a newer version of the application");
+                return archiveFailure(ArchiveErrorKind::Unsupported,
+                                      "The archive was made by a newer version of the application");
             case Missing:
             case Corrupted:
             case MigrationFailed:
+            default:
                 return archiveFailure(ArchiveErrorKind::Corrupted, "The document in the archive cannot be read");
         }
 
@@ -131,8 +138,7 @@ namespace stapik::archive
             if (!restored)
                 return Failure(std::move(restored).error());
             summary = *restored;
-        }
-        else
+        } else
         {
             summary.assetsNotRestored = archive->info().assetCount;
         }
@@ -147,6 +153,6 @@ namespace stapik::archive
             summary.settingsRestored = restored && *restored;
         }
 
-        return RestoredApp<DocumentType>{ std::move(*loaded.document), archive->info(), summary };
+        return RestoredApp<DocumentType>{std::move(*loaded.document), archive->info(), summary};
     }
 }

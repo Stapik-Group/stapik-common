@@ -22,7 +22,7 @@ namespace stapik::archive
         ArchiveErrorKind kind = ArchiveErrorKind::Io;
         std::string detail;
 
-        [[nodiscard]] const std::string& message() const
+        [[nodiscard]] const std::string &message() const
         {
             return detail;
         }
@@ -33,6 +33,6 @@ namespace stapik::archive
 
     [[nodiscard]] inline Failure<ArchiveError> archiveFailure(const ArchiveErrorKind kind, std::string detail)
     {
-        return Failure(ArchiveError{ .kind = kind, .detail = std::move(detail) });
+        return Failure(ArchiveError{.kind = kind, .detail = std::move(detail)});
     }
 }

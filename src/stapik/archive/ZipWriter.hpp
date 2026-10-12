@@ -19,12 +19,12 @@ namespace stapik::archive
     public:
         static constexpr std::size_t MAX_ENTRIES = 65534;
 
-        [[nodiscard]] static ArchiveResult<std::unique_ptr<ZipWriter>> create(std::filesystem::path target, time::TimePoint modified);
+        [[nodiscard]] static ArchiveResult<std::unique_ptr<ZipWriter> > create(
+            std::filesystem::path target, time::TimePoint modified);
 
         ~ZipWriter();
-
-        ZipWriter(const ZipWriter&) = delete;
-        ZipWriter& operator=(const ZipWriter&) = delete;
+        ZipWriter(const ZipWriter &) = delete;
+        ZipWriter &operator=(const ZipWriter &) = delete;
 
         [[nodiscard]] ArchiveResult<void> add(std::string_view name, std::span<const std::uint8_t> content);
         [[nodiscard]] ArchiveResult<void> addText(std::string_view name, std::string_view text);
@@ -45,6 +45,7 @@ namespace stapik::archive
 
         [[nodiscard]] ArchiveResult<void> open();
         [[nodiscard]] ArchiveResult<void> write(std::span<const std::uint8_t> bytes);
+
         void discard();
 
         std::filesystem::path m_target;
