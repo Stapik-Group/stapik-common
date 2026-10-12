@@ -1,15 +1,20 @@
 #include "StandardMenu.hpp"
 
 #include "stapik/locale/LocaleManager.hpp"
+#include "stapik/theme/FontScale.hpp"
+#include "stapik/theme/FontSizeManager.hpp"
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/AboutDialog.hpp"
 #include "stapik/ui/dialog/LogViewerDialog.hpp"
+#include "stapik/ui/dialog/SettingsDialog.hpp"
 
 #include <algorithm>
 #include <utility>
 
 namespace
 {
+    constexpr int FONT_SCALE_STEP_PERCENT = 5;
+
     std::string actionLabel(const LocaleManager& loc, const std::string& baseKey, const std::string& description)
     {
         if (description.empty())
@@ -21,11 +26,10 @@ namespace
 
 StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOptions &options) :
     m_window(window),
-    m_options(options),
-    m_languages(LocaleManager::instance().languages())
+    m_options(options)
 {
-    initLanguageAction();
-    initThemeAction();
+    initSettingsLayout();
+    initSettingsAction();
     initAboutAction();
     initLogAction();
 
@@ -35,21 +39,7 @@ StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOpt
         m_undoConnection = m_options.undoStack->signalChanged().connect([this] { rebuild(); });
     }
 
-    m_localeConnection = LocaleManager::instance().signalLocaleChanged().connect([this]
-    {
-        if (m_languageAction)
-            m_languageAction->setValue(LocaleManager::instance().languageCode());
-
-        rebuild();
-    });
-
-    if (m_themeAction)
-    {
-        m_themeConnection = ThemeManager::instance().signalThemeChanged().connect([this]
-        {
-            m_themeAction->setValue(ThemeManager::instance().themeId());
-        });
-    }
+    m_localeConnection = LocaleManager::instance().signalLocaleChanged().connect([this] { rebuild(); });
 
     rebuild();
 }
@@ -57,8 +47,12 @@ StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOpt
 StandardMenu::~StandardMenu()
 {
     m_localeConnection.disconnect();
-    m_themeConnection.disconnect();
     m_undoConnection.disconnect();
+}
+
+stapik::ui::SettingsLayout& StandardMenu::settings()
+{
+    return m_settings;
 }
 
 void StandardMenu::addToMenu(const Target target, MenuBuilder builder)
@@ -159,25 +153,11 @@ Glib::RefPtr<Gio::Menu> StandardMenu::buildSettingsMenu() const
     const auto& loc = LocaleManager::instance();
     const auto menu = Gio::Menu::create();
 
-    if (m_languageAction && !m_languages.empty())
+    if (m_options.settingsItem)
     {
-        const auto languageMenu = Gio::Menu::create();
-        for (const auto& language : m_languages)
-            languageMenu->append(language.displayName, m_languageAction->detailedAction(language.code));
-
-        menu->append_submenu(loc.translate("menu.settings.language"), languageMenu);
-    }
-
-    if (m_themeAction)
-    {
-        const auto themeMenu = Gio::Menu::create();
-        for (const auto& theme : m_options.themes->themes())
-        {
-            const auto label = loc.translate(theme.nameKey);
-            themeMenu->append(label == theme.nameKey ? theme.id : label, m_themeAction->detailedAction(theme.id));
-        }
-
-        menu->append_submenu(loc.translate("menu.settings.theme"), themeMenu);
+        const auto settingsSection = Gio::Menu::create();
+        settingsSection->append(loc.translate("menu.settings.open"), "win.settings");
+        menu->append_section(settingsSection);
     }
 
     applyBuilders(Target::Settings, *menu);
@@ -218,38 +198,51 @@ void StandardMenu::applyBuilders(const Target target, Gio::Menu& menu) const
     }
 }
 
-void StandardMenu::initLanguageAction()
+void StandardMenu::initSettingsLayout()
 {
-    std::vector<stapik::ui::RadioOption<std::string>> options;
-    for (const auto& language : m_languages)
-        options.push_back({.value = language.code, .id = language.code});
+    using stapik::ui::ChoiceOption;
 
-    if (options.empty())
-        return;
+    if (auto& locale = LocaleManager::instance(); !locale.languages().empty())
+    {
+        m_settings.addChoice<std::string>("menu.settings.language", locale.languageSetting(), [&locale]
+        {
+            std::vector<ChoiceOption<std::string>> options;
+            for (const auto& language : locale.languages())
+                options.push_back({ .value = language.code, .label = language.displayName });
 
-    m_languageAction = std::make_unique<stapik::ui::RadioAction<std::string>>(
-        m_window,
-        "setLanguage",
-        std::move(options),
-        LocaleManager::instance().languageCode(),
-        [](const std::string& code) { LocaleManager::instance().setLanguage(code); });
+            return options;
+        });
+    }
+
+    if (m_options.themes != nullptr && !m_options.themes->themes().empty())
+    {
+        m_settings.addChoice<std::string>("menu.settings.theme", ThemeManager::instance().themeSetting(), [themes = m_options.themes]
+        {
+            const auto& loc = LocaleManager::instance();
+
+            std::vector<ChoiceOption<std::string>> options;
+            for (const auto& theme : themes->themes())
+            {
+                const auto label = loc.translate(theme.nameKey);
+                options.push_back({ .value = theme.id, .label = label == theme.nameKey ? theme.id : label });
+            }
+
+            return options;
+        });
+    }
+
+    m_settings.addNumber<int>("menu.settings.fontSize", FontSizeManager::instance().scaleSetting(), {
+        .min = stapik::theme::MIN_FONT_SCALE_PERCENT,
+        .max = stapik::theme::MAX_FONT_SCALE_PERCENT,
+        .step = FONT_SCALE_STEP_PERCENT });
 }
 
-void StandardMenu::initThemeAction()
+void StandardMenu::initSettingsAction() const
 {
-    if (m_options.themes == nullptr || m_options.themes->themes().empty())
+    if (!m_options.settingsItem)
         return;
 
-    std::vector<stapik::ui::RadioOption<std::string>> options;
-    for (const auto& theme : m_options.themes->themes())
-        options.emplace_back(theme.id, theme.id);
-
-    m_themeAction = std::make_unique<stapik::ui::RadioAction<std::string>>(
-        m_window,
-        "setTheme",
-        std::move(options),
-        ThemeManager::instance().themeId(),
-        [](const std::string& id) { ThemeManager::instance().setThemeId(id); });
+    m_window.add_action("settings", [this] { showSettingsDialog(m_window, m_settings); });
 }
 
 void StandardMenu::initAboutAction() const

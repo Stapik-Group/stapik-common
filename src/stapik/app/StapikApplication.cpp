@@ -6,6 +6,7 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/theme/FontSizeManager.hpp"
 #include "stapik/theme/ThemeManager.hpp"
 #include "stapik/ui/dialog/UpdateDialog.hpp"
 #include "stapik/ui/menu/StandardMenu.hpp"
@@ -67,6 +68,7 @@ namespace stapik::app
     {
         m_windowAddedConnection.disconnect();
         m_themeConnection.disconnect();
+        m_fontSizeConnection.disconnect();
         m_updateConnection.disconnect();
     }
 
@@ -159,6 +161,7 @@ namespace stapik::app
 
         applyTheme();
         m_themeConnection = ThemeManager::instance().signalThemeChanged().connect([this] { applyTheme(); });
+        m_fontSizeConnection = FontSizeManager::instance().signalFontSizeChanged().connect([this] { applyTheme(); });
 
         StandardMenu::installShortcuts(*this);
         add_action(QUIT_ACTION, [this] { requestQuit(); });
@@ -196,7 +199,7 @@ namespace stapik::app
 
     void StapikApplication::applyTheme()
     {
-        m_styleProvider.apply(ThemeManager::instance().themeId());
+        m_styleProvider.apply(ThemeManager::instance().themeId(), FontSizeManager::instance().scalePercent());
     }
 
     void StapikApplication::startUpdateCheck()

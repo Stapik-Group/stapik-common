@@ -75,13 +75,22 @@ LocaleManager::LocaleManager(const std::string& appName) :
     m_languageCode(localeSettingsStore(appName), "locale", systemDefaultLanguage(m_engine))
 {
     m_engine.setLanguage(m_languageCode.get());
+
+    m_languageCode.signalChanged().connect([this](const std::string& languageCode)
+    {
+        m_engine.setLanguage(languageCode);
+        m_signalLocaleChanged.emit();
+    });
 }
 
 void LocaleManager::setLanguage(const std::string& languageCode)
 {
     m_languageCode.set(languageCode);
-    m_engine.setLanguage(languageCode);
-    m_signalLocaleChanged.emit();
+}
+
+stapik::settings::ObservableSetting<std::string>& LocaleManager::languageSetting()
+{
+    return m_languageCode;
 }
 
 const std::string& LocaleManager::languageCode() const

@@ -89,6 +89,7 @@ add_executable(stapikcommon_tests
         text/CollationTest.cpp
         text/TextFoldingTest.cpp
         text/TrimTest.cpp
+        theme/FontScaleTest.cpp
         theme/ThemeRegistryTest.cpp
         theme/ThemeTest.cpp
         time/ClockTest.cpp

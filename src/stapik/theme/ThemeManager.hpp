@@ -14,6 +14,7 @@ public:
     static ThemeManager& instance(const std::string& appName);
     void setTheme(Theme theme);
     void setThemeId(const std::string& themeId);
+    [[nodiscard]] stapik::settings::ObservableSetting<std::string>& themeSetting();
     sigc::signal<void()>& signalThemeChanged();
     [[nodiscard]] Theme getTheme() const;
     [[nodiscard]] const std::string& themeId() const;
