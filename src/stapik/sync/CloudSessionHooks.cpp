@@ -1,7 +1,7 @@
 #include "CloudSessionHooks.hpp"
 
 #include "stapik/app/AppContext.hpp"
-#include "stapik/cloud/CloudStorageClient.hpp"
+#include "stapik/cloud/CloudStorageFactory.hpp"
 #include "stapik/storage/CloudStorageConfigStorage.hpp"
 
 #include <utility>
@@ -26,7 +26,7 @@ namespace stapik::sync
 
         hooks.createStorage = [slotKey = std::move(slotKey)](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>
         {
-            return std::make_unique<CloudStorageClient>(config, slotKey);
+            return cloud::createCloudStorage(config, slotKey);
         };
 
         return hooks;

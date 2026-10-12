@@ -23,6 +23,7 @@ add_executable(stapikcommon_tests
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
+        cloud/CloudStorageFactoryTest.cpp
         cloud/EncryptedCloudStorageTest.cpp
         command/UndoStackTest.cpp
         core/ResultTest.cpp

@@ -23,6 +23,9 @@ private:
     Gtk::Label m_apiUrlHintLabel;
     Gtk::Label m_apiKeyLabel;
     Gtk::Entry m_apiKeyEntry;
+    Gtk::Label m_passphraseLabel;
+    Gtk::Entry m_passphraseEntry;
+    Gtk::Label m_passphraseHintLabel;
     Gtk::CheckButton m_showKeyCheck;
 
     void initLayout();
