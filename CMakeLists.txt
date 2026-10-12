@@ -72,6 +72,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/CompressedCloudStorage.cpp
         src/stapik/cloud/ConnectionCheck.cpp
         src/stapik/cloud/EncryptedCloudStorage.cpp
+        src/stapik/cloud/SizeWarningAssetStorage.cpp
         src/stapik/cloud/TransformingCloudStorage.cpp
 )
 
