@@ -1,4 +1,5 @@
 #include "CurlHttpClient.hpp"
+#include "RetryingHttpClient.hpp"
 
 #include "stapik/app/AppContext.hpp"
 #include "stapik/app/UserAgent.hpp"
@@ -18,7 +19,8 @@ namespace stapik::http
 
     const IHttpClient &defaultHttpClient()
     {
-        static const CurlHttpClient client(applicationUserAgent);
+        static const CurlHttpClient curl(applicationUserAgent);
+        static const RetryingHttpClient client(curl);
         return client;
     }
 }

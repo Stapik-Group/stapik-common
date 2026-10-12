@@ -1,11 +1,19 @@
 #include "CurlHttpClient.hpp"
 #include "CurlSecurity.hpp"
+#include "RetryAfter.hpp"
+
+#include "stapik/time/Clock.hpp"
 
 #include <curl/curl.h>
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace stapik::http
@@ -56,6 +64,28 @@ namespace stapik::http
             Bytes body;
             std::size_t limit = std::numeric_limits<std::size_t>::max();
         };
+
+        struct ResponseHeaders
+        {
+            std::optional<std::string> retryAfter;
+        };
+
+        std::size_t collectHeader(const char *data, const std::size_t size, const std::size_t count, void *destination)
+        {
+            constexpr std::string_view STATUS_LINE_PREFIX = "HTTP/";
+            constexpr std::string_view RETRY_AFTER_PREFIX = "retry-after:";
+
+            auto &[retryAfter] = *static_cast<ResponseHeaders *>(destination);
+            const std::string_view line(data, size * count);
+
+            if (line.starts_with(STATUS_LINE_PREFIX))
+                retryAfter.reset();
+            else if (line.size() > RETRY_AFTER_PREFIX.size() && std::ranges::equal(line.substr(0, RETRY_AFTER_PREFIX.size()), RETRY_AFTER_PREFIX,
+                         [](const char actual, const char expected) { return std::tolower(static_cast<unsigned char>(actual)) == expected; }))
+                retryAfter = std::string(line.substr(RETRY_AFTER_PREFIX.size()));
+
+            return line.size();
+        }
 
         std::size_t collectBody(const char *data, const std::size_t size, const std::size_t count, void *destination)
         {
@@ -191,6 +221,9 @@ namespace stapik::http
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, transfer.headers());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, collectBody);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sink);
+        ResponseHeaders headers;
+        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, collectHeader);
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headers);
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         applyTimeouts(curl, request);
         applyUserAgent(curl, m_userAgent);
@@ -205,6 +238,10 @@ namespace stapik::http
         long status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
 
-        return Response{.status = static_cast<int>(status), .body = std::move(sink.body)};
+        std::optional<std::chrono::seconds> retryAfter;
+        if (headers.retryAfter)
+            retryAfter = parseRetryAfter(*headers.retryAfter, time::systemClock().now());
+
+        return Response{ .status = static_cast<int>(status), .body = std::move(sink.body), .retryAfter = retryAfter };
     }
 }

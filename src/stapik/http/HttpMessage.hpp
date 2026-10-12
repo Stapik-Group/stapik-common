@@ -67,6 +67,7 @@ namespace stapik::http
     {
         int status{};
         Bytes body;
+        std::optional<std::chrono::seconds> retryAfter;
     };
 
     struct TransportError

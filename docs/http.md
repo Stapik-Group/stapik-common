@@ -24,6 +24,10 @@ if (!response)
   not cut off.
 - `onProgress` receives the bytes sent and received so far, and `isCancelled` is polled during the transfer; returning
   `true` aborts it with a `TransportError` whose `cancelled` is set. Both run on the thread that called `send()`.
+- `Response::retryAfter` is the parsed `Retry-After` header (seconds, or an HTTP date turned into a delay).
+  `defaultHttpClient()` honours it: on 429 or 503 it waits for the requested time and sends the request again, at most
+  twice and only when the wait is 30 s or less, otherwise the response is returned as it is. The wait ends early with
+  a cancelled `TransportError` when `isCancelled` says so. `RetryingHttpClient` can wrap any other `IHttpClient`.
 - `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`.
 - `defaultHttpClient()` is libcurl restricted to `http` and `https`, TLS 1.2 or newer, without redirects.
 - It identifies itself with `User-Agent: <internalName>/<version>` taken from `AppInfo` (see `app::userAgentOf()`),

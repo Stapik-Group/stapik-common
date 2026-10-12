@@ -113,6 +113,8 @@ target_sources(stapikcommon PRIVATE
         src/stapik/http/CurlSecurity.cpp
         src/stapik/http/DefaultHttpClient.cpp
         src/stapik/http/HttpMessage.cpp
+        src/stapik/http/RetryAfter.cpp
+        src/stapik/http/RetryingHttpClient.cpp
 )
 
 target_sources(stapikcommon PRIVATE

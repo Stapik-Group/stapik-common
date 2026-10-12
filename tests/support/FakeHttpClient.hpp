@@ -2,6 +2,7 @@
 
 #include "stapik/http/IHttpClient.hpp"
 
+#include <chrono>
 #include <deque>
 #include <string>
 #include <utility>
@@ -23,6 +24,11 @@ namespace stapik::test
         void respondWith(const int status, http::Bytes body) const
         {
             m_replies.emplace_back(http::Response{ .status = status, .body = std::move(body) });
+        }
+
+        void respondWithRetryAfter(const int status, const std::chrono::seconds retryAfter) const
+        {
+            m_replies.emplace_back(http::Response{ .status = status, .retryAfter = retryAfter });
         }
 
         void failWith(const std::string& message) const

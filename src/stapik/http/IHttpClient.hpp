@@ -19,6 +19,7 @@ namespace stapik::http
         IHttpClient& operator=(const IHttpClient&) = default;
     };
 
-    // The client used wherever a caller does not pass one: libcurl restricted to http(s) and TLS 1.2+.
+    // The client used wherever a caller does not pass one: libcurl restricted to http(s) and TLS 1.2+, which waits and
+    // tries again when the server answers 429 or 503 with a short Retry-After.
     [[nodiscard]] const IHttpClient& defaultHttpClient();
 }

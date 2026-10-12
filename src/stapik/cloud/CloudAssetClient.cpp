@@ -83,7 +83,7 @@ namespace stapik::cloud
         if (!m_config.isConfigured())
             return {};
 
-        const auto [httpStatus, body] = perform(http::Method::Get, assetsUrl(), http::NoBody{}, "API asset list failed: ");
+        const auto [httpStatus, body, retryAfter] = perform(http::Method::Get, assetsUrl(), http::NoBody{}, "API asset list failed: ");
 
         if (httpStatus == HTTP_NOT_FOUND)
             return {};
@@ -99,7 +99,7 @@ namespace stapik::cloud
         if (!m_config.isConfigured())
             return std::nullopt;
 
-        auto [httpStatus, body] = perform(http::Method::Get, assetUrl(filename), http::NoBody{}, "API asset download failed: ");
+        auto [httpStatus, body, retryAfter] = perform(http::Method::Get, assetUrl(filename), http::NoBody{}, "API asset download failed: ");
 
         if (httpStatus == HTTP_NOT_FOUND)
             return std::nullopt;
@@ -116,7 +116,7 @@ namespace stapik::cloud
             throw CloudStorageException("Cloud sync is not configured");
 
         http::MultipartFile file{ .fieldName = "file", .filename = filename, .mimeType = mimeType, .content = content };
-        const auto [httpStatus, body] = perform(http::Method::Put, assetUrl(filename), std::move(file), "API asset upload failed: ",
+        const auto [httpStatus, body, retryAfter] = perform(http::Method::Put, assetUrl(filename), std::move(file), "API asset upload failed: ",
                                                 uploadProgressReporter(hooks, content.size()), hooks.isCancelled);
 
         if (httpStatus == HTTP_PAYLOAD_TOO_LARGE)
@@ -133,7 +133,7 @@ namespace stapik::cloud
         if (!m_config.isConfigured())
             return false;
 
-        const auto [httpStatus, body] = perform(http::Method::Delete, assetUrl(filename), http::NoBody{}, "API asset delete failed: ");
+        const auto [httpStatus, body, retryAfter] = perform(http::Method::Delete, assetUrl(filename), http::NoBody{}, "API asset delete failed: ");
 
         if (httpStatus == HTTP_NO_CONTENT)
             return true;
