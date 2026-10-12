@@ -1,8 +1,7 @@
 #pragma once
 
-#include <gtkmm/window.h>
-#include <gtkmm/messagedialog.h>
 #include <glibmm/ustring.h>
+#include <gtkmm/window.h>
 
 #include <utility>
 
@@ -16,7 +15,4 @@ DialogT* showAutoDeletingDialog(Args&&... args)
     return dialog;
 }
 
-void showMessageDialog(Gtk::Window& parent,
-                        const Glib::ustring& primaryText,
-                        const Glib::ustring& secondaryText,
-                        Gtk::MessageType type);
+void showMessageDialog(Gtk::Window& parent, const Glib::ustring& primaryText, const Glib::ustring& secondaryText);

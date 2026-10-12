@@ -1,6 +1,7 @@
 #include "LogViewerDialog.hpp"
 
 #include "DialogUtils.hpp"
+#include "FileDialogs.hpp"
 #include "StapikDialog.hpp"
 
 #include "stapik/app/AppContext.hpp"
@@ -10,14 +11,10 @@
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
 
-#include <giomm/file.h>
 #include <glib.h>
-#include <gtk/gtk.h>
-#include <glibmm/error.h>
 #include <gtkmm/box.h>
 #include <gtkmm/button.h>
 #include <gtkmm/dropdown.h>
-#include <gtkmm/filedialog.h>
 #include <gtkmm/label.h>
 #include <gtkmm/scrolledwindow.h>
 #include <gtkmm/stringlist.h>
@@ -25,6 +22,7 @@
 #include <gtkmm/textview.h>
 
 #include <array>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -81,7 +79,7 @@ namespace
         void reload();
         void copyReport();
         void saveReport();
-        void writeReport(const Glib::RefPtr<Gtk::FileDialog>& fileDialog, const Glib::RefPtr<Gio::AsyncResult>& result);
+        void writeReport(const std::filesystem::path& path);
         void showStatus(const std::string& text);
         [[nodiscard]] Level selectedLevel() const;
         [[nodiscard]] std::string buildReport() const;
@@ -179,48 +177,28 @@ namespace
 
     void LogViewerDialog::saveReport()
     {
-        const auto fileDialog = Gtk::FileDialog::create();
-        fileDialog->set_title(LocaleManager::instance().translate("dialog.log.save.title"));
-        fileDialog->set_initial_name(defaultFileName());
-        fileDialog->save(*this, [this, fileDialog](const Glib::RefPtr<Gio::AsyncResult>& result)
-        {
-            writeReport(fileDialog, result);
-        });
+        const FileDialogOptions options{
+            .title = LocaleManager::instance().translate("dialog.log.save.title"),
+            .initialName = defaultFileName()};
+
+        showSaveFileDialog(
+            *this,
+            options,
+            [this](const std::filesystem::path& path) { writeReport(path); },
+            [this](const std::string& error) { showStatus(LocaleManager::instance().translate("dialog.log.saveFailed", {{"error", error}})); });
     }
 
-    void LogViewerDialog::writeReport(const Glib::RefPtr<Gtk::FileDialog>& fileDialog, const Glib::RefPtr<Gio::AsyncResult>& result)
+    void LogViewerDialog::writeReport(const std::filesystem::path& path)
     {
         const auto& loc = LocaleManager::instance();
 
-        Glib::RefPtr<Gio::File> file;
-        try
-        {
-            file = fileDialog->save_finish(result);
-        }
-        catch (const Glib::Error& error)
-        {
-            if (g_error_matches(error.gobj(), GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED) ||
-                g_error_matches(error.gobj(), GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_CANCELLED))
-                return;
-
-            showStatus(loc.translate("dialog.log.saveFailed", {{"error", error.what()}}));
-            return;
-        }
-
-        const auto path = file ? file->get_path() : std::string();
-        if (path.empty())
-        {
-            showStatus(loc.translate("dialog.log.saveFailed", {{"error", path}}));
-            return;
-        }
-
-        if (const auto written = stapik::storage::writeFileAtomically(stapik::storage::pathFromText(path), buildReport()); !written)
+        if (const auto written = stapik::storage::writeFileAtomically(path, buildReport()); !written)
         {
             showStatus(loc.translate("dialog.log.saveFailed", {{"error", written.error().message()}}));
             return;
         }
 
-        showStatus(loc.translate("dialog.log.saved", {{"path", path}}));
+        showStatus(loc.translate("dialog.log.saved", {{"path", stapik::storage::pathText(path)}}));
     }
 
     void LogViewerDialog::showStatus(const std::string& text)

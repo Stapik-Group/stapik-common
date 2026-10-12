@@ -20,13 +20,13 @@ showRestoreBackupDialog(*this, m_documentFile.listBackups(), [this](const stapik
     const auto result = m_documentFile.loadBackup(backup);
     if (result.status != stapik::document::LoadStatus::Loaded)
     {
-        showMessageDialog(*this, ..., Gtk::MessageType::ERROR);
+        showMessageDialog(*this, ...);
         return;
     }
 
     replaceDocument(*result.document);
     if (const auto saved = m_documentFile.save(*result.document); !saved)
-        showMessageDialog(*this, ..., saved.error().message(), Gtk::MessageType::ERROR);
+        showMessageDialog(*this, ..., saved.error().message());
 });
 ```
 

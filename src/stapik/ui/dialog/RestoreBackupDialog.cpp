@@ -19,7 +19,7 @@ void showRestoreBackupDialog(
 
     if (backups.empty())
     {
-        showMessageDialog(parent, title, loc.translate("dialog.restore.none"), Gtk::MessageType::INFO);
+        showMessageDialog(parent, title, loc.translate("dialog.restore.none"));
         return;
     }
 

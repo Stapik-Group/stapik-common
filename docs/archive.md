@@ -30,7 +30,7 @@ const stapik::archive::AppArchiveContext context{
 
 const auto result = stapik::archive::exportAppArchive(m_documentFile, document, context, target);
 if (!result)
-    showMessageDialog(*this, ..., result.error().message(), Gtk::MessageType::ERROR);
+    showMessageDialog(*this, ..., result.error().message());
 ```
 
 The document is written from memory, so unsaved changes are included. The assets are downloaded one by one, which
@@ -44,7 +44,7 @@ control characters) and an unreachable cloud fail the backup instead of leaving 
 const auto result = stapik::archive::importAppArchive(m_documentFile, source, context);
 if (!result)
 {
-    showMessageDialog(*this, ..., result.error().message(), Gtk::MessageType::ERROR);
+    showMessageDialog(*this, ..., result.error().message());
     return;
 }
 
