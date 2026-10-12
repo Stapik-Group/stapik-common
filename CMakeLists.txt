@@ -65,7 +65,6 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/AssetCache.cpp
         src/stapik/cloud/CloudAssetClient.cpp
         src/stapik/cloud/CloudAssetProtocol.cpp
-        src/stapik/cloud/CloudCurl.cpp
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp
@@ -106,6 +105,12 @@ target_sources(stapikcommon PRIVATE
         src/stapik/domain/YearMonth.cpp
         src/stapik/domain/YearMonthRange.cpp
         src/stapik/domain/YearRange.cpp
+)
+
+target_sources(stapikcommon PRIVATE
+        src/stapik/http/CurlHttpClient.cpp
+        src/stapik/http/CurlSecurity.cpp
+        src/stapik/http/HttpMessage.cpp
 )
 
 target_sources(stapikcommon PRIVATE

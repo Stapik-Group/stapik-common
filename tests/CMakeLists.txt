@@ -19,9 +19,11 @@ add_executable(stapikcommon_tests
         archive/AppArchiveTest.cpp
         archive/ZipTest.cpp
         cloud/AssetCacheTest.cpp
+        cloud/CloudAssetClientTest.cpp
         cloud/CloudAssetProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
+        cloud/CloudStorageClientTest.cpp
         cloud/CloudStorageConfigTest.cpp
         cloud/CloudStorageFactoryTest.cpp
         cloud/CompressedCloudStorageTest.cpp
@@ -39,6 +41,7 @@ add_executable(stapikcommon_tests
         domain/YearMonthRangeTest.cpp
         domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
+        http/HttpMessageTest.cpp
         locale/DateFormatterTest.cpp
         locale/LanguageCodeTest.cpp
         locale/LanguageRegistryTest.cpp
