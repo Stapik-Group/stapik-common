@@ -1,7 +1,7 @@
 # Windows
 
 stapik-common builds on Windows with MSYS2 (UCRT64 or MINGW64, GCC, gtkmm-4.0). Applications are distributed as
-a self-contained folder; there is no installer.
+a self-contained folder, packed into a portable ZIP.
 
 ## What differs from Linux
 
@@ -52,6 +52,14 @@ In an MSYS2 shell:
 
 creates `build/<name>-windows/`, which runs on a PC without MSYS2. The script is `cmake/templates/windows/bundle.sh`;
 it fails when a DLL would be resolved from outside the folder.
+
+## Portable ZIP
+
+    cmake --build build --target <name>_windows_portable
+
+builds the folder first and packs it into `build/<name>-<version>-windows-portable.zip`. The archive holds the single
+top-level folder `<name>-windows`; unpacking it anywhere is the whole installation. User data still goes to
+`%APPDATA%` and `%LOCALAPPDATA%`, as described above.
 
 Required MSYS2 packages: `gcc cmake ninja pkgconf gtkmm-4.0 curl adwaita-icon-theme hicolor-icon-theme` (prefixed
 `mingw-w64-ucrt-x86_64-`). The gdk-pixbuf image loaders that are installed are bundled; an SVG loader is not required.

@@ -127,16 +127,28 @@ function(stapik_add_application)
         configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/windows/application.rc.in" "${generatedDirectory}/${STAPIK_APP_NAME}.rc" @ONLY)
         target_sources(${STAPIK_APP_NAME} PRIVATE "${generatedDirectory}/${STAPIK_APP_NAME}.rc")
 
+        set(bundleDirectoryName "${STAPIK_APP_NAME}-windows")
+        set(bundleDirectory "${CMAKE_CURRENT_BINARY_DIR}/${bundleDirectoryName}")
+
         find_program(STAPIK_BASH bash)
         if(STAPIK_BASH)
             add_custom_target(${STAPIK_APP_NAME}_windows_bundle
                     COMMAND "${STAPIK_BASH}" "${STAPIK_COMMON_CMAKE_DIR}/templates/windows/bundle.sh"
                             --exe "$<TARGET_FILE:${STAPIK_APP_NAME}>"
                             --resources "${resourcesBuildDirectory}"
-                            --output "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-windows"
+                            --output "${bundleDirectory}"
                     COMMENT "Assembling the self-contained Windows folder of ${STAPIK_APP_NAME}"
                     VERBATIM)
             add_dependencies(${STAPIK_APP_NAME}_windows_bundle ${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
+
+            set(portableArchiveName "${STAPIK_APP_NAME}-${STAPIK_APP_VERSION}-windows-portable.zip")
+            add_custom_target(${STAPIK_APP_NAME}_windows_portable
+                    COMMAND ${CMAKE_COMMAND} -E rm -f "${portableArchiveName}"
+                    COMMAND ${CMAKE_COMMAND} -E tar cf "${portableArchiveName}" --format=zip -- "${bundleDirectoryName}"
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+                    COMMENT "Packing ${portableArchiveName}"
+                    VERBATIM)
+            add_dependencies(${STAPIK_APP_NAME}_windows_portable ${STAPIK_APP_NAME}_windows_bundle)
         else()
             message(STATUS "stapik_add_application: bash not found, target ${STAPIK_APP_NAME}_windows_bundle is not available")
         endif()
