@@ -405,6 +405,20 @@ function(stapik_add_application)
         message(STATUS "stapik_add_application: flatpak-builder or the stapik-common sources not found, target ${STAPIK_APP_NAME}_flatpak is not available")
     endif()
 
+    # --- AppImage ---
+    find_program(STAPIK_LINUXDEPLOY linuxdeploy)
+    find_program(STAPIK_LINUXDEPLOY_GTK linuxdeploy-plugin-gtk.sh)
+    if(STAPIK_LINUXDEPLOY AND STAPIK_LINUXDEPLOY_GTK)
+        add_custom_target(${STAPIK_APP_NAME}_appimage
+                COMMAND bash "${STAPIK_COMMON_CMAKE_DIR}/templates/appimage/build-appimage.sh"
+                        --source "${CMAKE_CURRENT_SOURCE_DIR}"
+                        --output "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-appimage"
+                COMMENT "Building the AppImage of ${STAPIK_APP_NAME}"
+                VERBATIM)
+    else()
+        message(STATUS "stapik_add_application: linuxdeploy with its GTK plugin not found, target ${STAPIK_APP_NAME}_appimage is not available")
+    endif()
+
     # --- CPack DEB (only for the top-level project) ---
     if(PROJECT_IS_TOP_LEVEL)
         if(NOT DEFINED CPACK_GENERATOR)

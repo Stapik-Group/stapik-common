@@ -59,3 +59,22 @@ Inside the sandbox the application is installed into `/app`, which is also `STAP
 is then not installed, because it would take the place of the executable. Flatpak exports only files that start with
 the application id, so the icon is installed as `<APPLICATION_ID>.svg` (or `.png`) and the desktop entry refers to it
 by that name.
+
+## AppImage
+
+    cmake --build build --target <name>_appimage
+
+runs `cmake/templates/appimage/build-appimage.sh`, which configures the application again in its own build directory
+(`<name>-appimage/build`, prefix `/usr`), installs it into `<name>-appimage/AppDir` and packs it with
+[linuxdeploy](https://github.com/linuxdeploy/linuxdeploy) and its GTK plugin
+([linuxdeploy-plugin-gtk](https://github.com/linuxdeploy/linuxdeploy-plugin-gtk), `DEPLOY_GTK_VERSION=4`). The target
+exists when `linuxdeploy` and `linuxdeploy-plugin-gtk.sh` are on `PATH`; the AppImage plugin is needed as well. The
+script also runs on its own, with extra CMake arguments given as `--cmake-arg`.
+
+The executable finds `resources` and `share/stapik-common` next to itself, so the `/usr` layout of the AppDir needs
+no launcher; as with Flatpak it is skipped. The icon of the application is required: the script stops when
+`<name>.svg` or `<name>.png` is missing from the packaging directory.
+
+Libraries of the build machine are bundled, glibc is not: build on the oldest distribution the AppImage has to run on
+(a container with an older Ubuntu is the usual way). Set `APPIMAGE_EXTRACT_AND_RUN=1` where FUSE is not available,
+as in most containers.
