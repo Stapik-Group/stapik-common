@@ -53,6 +53,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/app/CommandLine.cpp
         src/stapik/app/SingleInstanceGuard.cpp
         src/stapik/app/StapikApplication.cpp
+        src/stapik/app/UserAgent.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -110,6 +111,7 @@ target_sources(stapikcommon PRIVATE
 target_sources(stapikcommon PRIVATE
         src/stapik/http/CurlHttpClient.cpp
         src/stapik/http/CurlSecurity.cpp
+        src/stapik/http/DefaultHttpClient.cpp
         src/stapik/http/HttpMessage.cpp
 )
 

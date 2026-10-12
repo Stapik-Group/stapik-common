@@ -2,6 +2,7 @@
 
 #include "GitHubReleaseClient.hpp"
 
+#include "stapik/app/UserAgent.hpp"
 #include "stapik/log/Log.hpp"
 #include "stapik/sync/Timestamp.hpp"
 
@@ -14,7 +15,6 @@ namespace stapik::update
     {
         constexpr auto LAST_CHECK_SETTING = "update.lastCheck";
         constexpr auto ANNOUNCED_VERSION_SETTING = "update.announcedVersion";
-        constexpr auto FALLBACK_USER_AGENT = "stapik-common";
 
         struct FetchResult
         {
@@ -33,14 +33,6 @@ namespace stapik::update
             {
                 return { .release = std::nullopt, .error = exception.what() };
             }
-        }
-
-        std::string userAgentOf(const app::AppInfo& appInfo)
-        {
-            if (appInfo.internalName.empty())
-                return FALLBACK_USER_AGENT;
-
-            return appInfo.version.empty() ? appInfo.internalName : appInfo.internalName + '/' + appInfo.version;
         }
     }
 
@@ -70,7 +62,7 @@ namespace stapik::update
 
         return std::make_unique<UpdateChecker>(
             *version,
-            [repository = *repository, userAgent = userAgentOf(appInfo)] { return fetchLatestRelease(repository, userAgent); },
+            [repository = *repository, userAgent = app::userAgentOf(appInfo)] { return fetchLatestRelease(repository, userAgent); },
             settings);
     }
 

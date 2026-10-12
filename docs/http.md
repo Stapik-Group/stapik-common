@@ -24,6 +24,8 @@ if (!response)
   not cut off.
 - `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`.
 - `defaultHttpClient()` is libcurl restricted to `http` and `https`, TLS 1.2 or newer, without redirects.
+- It identifies itself with `User-Agent: <internalName>/<version>` taken from `AppInfo` (see `app::userAgentOf()`),
+  or `stapik-common` before `AppContext` is initialized. A `User-Agent` header set on the request takes precedence.
 
 ## Where it is used
 

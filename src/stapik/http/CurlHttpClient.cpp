@@ -85,6 +85,15 @@ namespace stapik::http
             curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, seconds(request.stallTimeout));
         }
 
+        void applyUserAgent(CURL *curl, const CurlHttpClient::UserAgentProvider &userAgent)
+        {
+            if (!userAgent)
+                return;
+
+            if (const auto text = userAgent(); !text.empty())
+                curl_easy_setopt(curl, CURLOPT_USERAGENT, text.c_str());
+        }
+
         void applyMethod(CURL *curl, const Method method)
         {
             switch (method)
@@ -127,6 +136,11 @@ namespace stapik::http
         }
     }
 
+    CurlHttpClient::CurlHttpClient(UserAgentProvider userAgent) :
+        m_userAgent(std::move(userAgent))
+    {
+    }
+
     SendResult CurlHttpClient::send(const Request &request) const
     {
         CurlTransfer transfer;
@@ -147,6 +161,7 @@ namespace stapik::http
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sink);
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         applyTimeouts(curl, request);
+        applyUserAgent(curl, m_userAgent);
         applySecurityOptions(curl);
         applyMethod(curl, request.method);
         applyBody(transfer, request.body);
@@ -158,11 +173,5 @@ namespace stapik::http
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
 
         return Response{.status = static_cast<int>(status), .body = std::move(sink.body)};
-    }
-
-    const IHttpClient &defaultHttpClient()
-    {
-        static const CurlHttpClient client;
-        return client;
     }
 }

@@ -16,6 +16,7 @@ add_executable(stapikcommon_tests
         app/CommandLineTest.cpp
         app/InstanceMessageTest.cpp
         app/SingleInstanceGuardTest.cpp
+        app/UserAgentTest.cpp
         archive/AppArchiveTest.cpp
         archive/ZipTest.cpp
         cloud/AssetCacheTest.cpp
