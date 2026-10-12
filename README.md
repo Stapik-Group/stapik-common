@@ -23,6 +23,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Safe file I/O** – atomic writes, so a crash never leaves a half-written data file
 - **Results** – `Result<T, E>` and `FileError` say why a save failed instead of a bare `bool` (see [docs/results.md](docs/results.md))
 - **Document backups** – rotating copies of the data file and a dialog to restore one of them (see [docs/backups.md](docs/backups.md))
+- **Application archive** – one ZIP with the document, the settings and the cloud files: "back up the whole application" and restore it (see [docs/archive.md](docs/archive.md))
 - **Timestamps and clock** – consistent time handling and formatting, and an injectable clock so tests do not depend on the system time (see [docs/clock.md](docs/clock.md))
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)

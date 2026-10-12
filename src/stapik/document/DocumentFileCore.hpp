@@ -10,6 +10,8 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace stapik::document
@@ -40,6 +42,9 @@ namespace stapik::document
         [[nodiscard]] const std::filesystem::path& filePath() const;
         [[nodiscard]] const SchemaMigrator& migrator() const;
         [[nodiscard]] std::vector<BackupInfo> listBackups() const;
+
+        [[nodiscard]] std::string envelopeText(const nlohmann::json& document) const;
+        [[nodiscard]] RawLoad parseEnvelope(std::string_view text, std::string_view origin) const;
 
     protected:
         void quarantineFile() const;

@@ -10,6 +10,8 @@
 #include <exception>
 #include <filesystem>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace stapik::document
@@ -62,6 +64,16 @@ namespace stapik::document
         [[nodiscard]] LoadResult<DocumentType> importFrom(const std::filesystem::path& source) const
         {
             return convert(readRaw(source), false);
+        }
+
+        [[nodiscard]] std::string serialize(const DocumentType& document) const
+        {
+            return envelopeText(document.toJson());
+        }
+
+        [[nodiscard]] LoadResult<DocumentType> deserialize(const std::string_view text, const std::string_view origin) const
+        {
+            return convert(parseEnvelope(text, origin), false);
         }
 
         [[nodiscard]] LoadResult<DocumentType> loadBackup(const BackupInfo& backup) const

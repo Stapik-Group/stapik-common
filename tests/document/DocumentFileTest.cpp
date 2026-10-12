@@ -497,10 +497,10 @@ TEST_F(DocumentFileTest, CorruptedBackupIsReportedAndLeftInPlace)
 
 TEST_F(DocumentFileTest, ExportWritesAFileThatCanBeImported)
 {
-    DocumentFile<Note> file(m_path, 1);
+    const DocumentFile<Note> file(m_path, 1);
     const auto exported = m_directory / "export" / "note-export.json";
 
-    ASSERT_TRUE(file.exportTo(Note{ "shared", 5 }, exported));
+    ASSERT_TRUE(file.exportTo(Note{ .title = "shared", .revision = 5}, exported));
     const auto imported = file.importFrom(exported);
 
     ASSERT_EQ(imported.status, LoadStatus::Loaded);
@@ -510,12 +510,12 @@ TEST_F(DocumentFileTest, ExportWritesAFileThatCanBeImported)
 
 TEST_F(DocumentFileTest, ImportDoesNotTouchTheManagedFile)
 {
-    DocumentFile<Note> file(m_path, 1);
+    const DocumentFile<Note> file(m_path, 1);
     ASSERT_TRUE(file.save(Note{ "mine", 1 }));
     const auto before = readText(m_path);
 
     const auto exported = m_directory / "other.json";
-    ASSERT_TRUE(file.exportTo(Note{ "theirs", 2 }, exported));
+    ASSERT_TRUE(file.exportTo(Note{ .title = "theirs", .revision = 2}, exported));
     const auto imported = file.importFrom(exported);
 
     ASSERT_EQ(imported.status, LoadStatus::Loaded);
@@ -525,7 +525,7 @@ TEST_F(DocumentFileTest, ImportDoesNotTouchTheManagedFile)
 TEST_F(DocumentFileTest, InvalidImportIsRejectedAndNothingIsMoved)
 {
     DocumentFile<Note> file(m_path, 1);
-    ASSERT_TRUE(file.save(Note{ "mine", 1 }));
+    ASSERT_TRUE(file.save(Note{ .title = "mine", .revision = 1}));
     const auto before = readText(m_path);
 
     const auto bad = m_directory / "bad.json";
@@ -542,9 +542,9 @@ TEST_F(DocumentFileTest, InvalidImportIsRejectedAndNothingIsMoved)
 TEST_F(DocumentFileTest, SaveReportsWhyTheFileCannotBeWritten)
 {
     writeText(m_directory / "blocker", "i am a file");
-    DocumentFile<Note> file(m_directory / "blocker" / "note.json", 1);
+    const DocumentFile<Note> file(m_directory / "blocker" / "note.json", 1);
 
-    const auto result = file.save(Note{ "first", 1 });
+    const auto result = file.save(Note{ .title = "first", .revision = 1 });
 
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().step, "create directory");
@@ -554,11 +554,60 @@ TEST_F(DocumentFileTest, SaveReportsWhyTheFileCannotBeWritten)
 TEST_F(DocumentFileTest, ExportReportsWhyTheFileCannotBeWritten)
 {
     writeText(m_directory / "blocker", "i am a file");
-    DocumentFile<Note> file(m_path, 1);
+    const DocumentFile<Note> file(m_path, 1);
 
-    const auto result = file.exportTo(Note{ "first", 1 }, m_directory / "blocker" / "export.json");
+    const auto result = file.exportTo(Note{ .title = "first", .revision = 1 }, m_directory / "blocker" / "export.json");
 
     ASSERT_FALSE(result);
     EXPECT_EQ(result.error().step, "create directory");
     EXPECT_FALSE(fs::exists(m_path));
+}
+
+TEST_F(DocumentFileTest, SerializedDocumentIsTheContentOfTheSavedFile)
+{
+    const DocumentFile<Note> file(m_path, 3);
+    ASSERT_TRUE(file.save(Note{ .title = "hello", .revision = 2}));
+
+    EXPECT_EQ(file.serialize(Note{ .title = "hello", .revision = 2}), readText(m_path));
+}
+
+TEST_F(DocumentFileTest, SerializedDocumentIsDeserializedBack)
+{
+    const DocumentFile<Note> file(m_path, 1);
+
+    const auto result = file.deserialize(file.serialize(Note{ .title = "text", .revision = 9 }), "test");
+
+    ASSERT_EQ(result.status, LoadStatus::Loaded);
+    EXPECT_EQ(result.document->title, "text");
+    EXPECT_EQ(result.document->revision, 9);
+}
+
+TEST_F(DocumentFileTest, DeserializeMigratesOlderText)
+{
+    SchemaMigrator migrator(2);
+    migrator.addStep(1, [](nlohmann::json& document)
+    {
+        document["revision"] = 100;
+    });
+    const DocumentFile<Note> file(m_path, migrator);
+
+    const auto result = file.deserialize(R"({"schemaVersion": 1, "document": {"title": "old", "revision": 1}})", "test");
+
+    ASSERT_EQ(result.status, LoadStatus::Loaded);
+    EXPECT_TRUE(result.migrated);
+    EXPECT_EQ(result.document->revision, 100);
+}
+
+TEST_F(DocumentFileTest, DeserializeReportsInvalidTextWithoutTouchingTheManagedFile)
+{
+    const DocumentFile<Note> file(m_path, 1);
+    ASSERT_TRUE(file.save(Note{ .title = "mine", .revision = 1}));
+    const auto before = readText(m_path);
+
+    EXPECT_EQ(file.deserialize("definitely not json", "test").status, LoadStatus::Corrupted);
+    EXPECT_EQ(file.deserialize(R"({"schemaVersion": 1, "document": {"wrong": true}})", "test").status, LoadStatus::Corrupted);
+    EXPECT_EQ(file.deserialize(R"({"schemaVersion": 9, "document": {}})", "test").status, LoadStatus::NewerVersion);
+
+    EXPECT_EQ(readText(m_path), before);
+    EXPECT_TRUE(quarantinedFiles().empty());
 }

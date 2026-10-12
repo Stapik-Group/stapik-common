@@ -8,6 +8,7 @@
 #include <chrono>
 #include <format>
 #include <fstream>
+#include <iterator>
 #include <system_error>
 #include <utility>
 
@@ -89,14 +90,22 @@ namespace stapik::document
             return result;
         }
 
+        const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+        return parseEnvelope(text, storage::pathText(source));
+    }
+
+    RawLoad DocumentFileCore::parseEnvelope(const std::string_view text, const std::string_view origin) const
+    {
+        RawLoad result;
+
         nlohmann::json root;
         try
         {
-            root = nlohmann::json::parse(file);
+            root = nlohmann::json::parse(text);
         }
         catch (const nlohmann::json::exception& exception)
         {
-            log::warning("Document file {} is not valid JSON: {}", storage::pathText(source), exception.what());
+            log::warning("Document file {} is not valid JSON: {}", origin, exception.what());
             result.status = LoadStatus::Corrupted;
             return result;
         }
@@ -132,7 +141,7 @@ namespace stapik::document
                 result.migrated = true;
                 break;
             case FromNewerVersion:
-                log::warning("Document file {} has schema version {}, newer than supported {}", storage::pathText(source), fileVersion, m_migrator.currentVersion());
+                log::warning("Document file {} has schema version {}, newer than supported {}", origin, fileVersion, m_migrator.currentVersion());
                 result.status = NewerVersion;
                 break;
             case MissingStep:
@@ -152,12 +161,17 @@ namespace stapik::document
 
     storage::FileResult DocumentFileCore::writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const
     {
+        return storage::writeFileAtomically(target, envelopeText(document));
+    }
+
+    std::string DocumentFileCore::envelopeText(const nlohmann::json& document) const
+    {
         const nlohmann::json root = {
             { "schemaVersion", m_migrator.currentVersion() },
             { "document", document }
         };
 
-        return storage::writeFileAtomically(target, root.dump(2) + "\n");
+        return root.dump(2) + "\n";
     }
 
     void DocumentFileCore::quarantineFile() const

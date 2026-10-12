@@ -6,6 +6,8 @@
   "menu.file.connect": "Połącz z chmurą",
   "menu.file.sync": "Synchronizuj",
   "menu.file.restoreBackup": "Przywróć z kopii zapasowej…",
+  "menu.file.exportArchive": "Zrób kopię całej aplikacji…",
+  "menu.file.importArchive": "Przywróć całą aplikację z kopii…",
   "menu.file.quit": "Wyjście",
   "menu.edit": "Edycja",
   "menu.edit.undo": "Cofnij",
@@ -106,6 +108,9 @@
   "dialog.restore.message": "Wybierz kopię zapasową do przywrócenia. Bieżące dane zostaną zastąpione.",
   "dialog.restore.button": "Przywróć",
   "dialog.restore.none": "Nie ma jeszcze kopii zapasowych do przywrócenia.",
+  "dialog.archive.import.title": "Przywróć całą aplikację",
+  "dialog.archive.import.message": "Bieżący dokument i ustawienia zostaną zastąpione tymi z kopii, a pliki w chmurze o tych samych nazwach zostaną nadpisane.",
+  "dialog.archive.import.button": "Przywróć",
 
   "cloud.connected": "Połączono",
   "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",

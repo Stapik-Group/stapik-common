@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 
 namespace stapik::settings
 {
@@ -52,14 +53,16 @@ namespace stapik::settings
 
         void remove(const std::string& key);
 
-        // Forgets all values and moves the file aside as <file>.bak.
+        [[nodiscard]] std::string serialize() const;
+        [[nodiscard]] bool replaceFromText(std::string_view text);
         storage::FileResult reset();
-
         [[nodiscard]] int schemaVersion() const;
         [[nodiscard]] const std::filesystem::path& filePath() const;
 
     private:
         static void logTypeMismatch(const std::string& key, const char* reason);
+        [[nodiscard]] static bool hasSettingsStructure(const nlohmann::json& root);
+        void adopt(const nlohmann::json& root, const std::string& origin);
         LoadStatus quarantineCorruptedFile(const char* reason) const;
 
         std::filesystem::path m_filePath;
