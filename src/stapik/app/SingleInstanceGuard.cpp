@@ -88,7 +88,7 @@ namespace stapik::app
                 const HANDLE pipe = CreateNamedPipeW(name.c_str(),
                                                      PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
                                                      FILE_FLAG_FIRST_PIPE_INSTANCE,
-                                                     PIPE_TYPE_MESSAGE | PIPE_READ_MODE_MESSAGE | PIPE_WAIT |
+                                                     PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT |
                                                      PIPE_REJECT_REMOTE_CLIENTS,
                                                      1, PIPE_BUFFER_BYTES, PIPE_BUFFER_BYTES, 0, nullptr);
 
