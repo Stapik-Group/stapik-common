@@ -234,3 +234,51 @@ TEST_F(SettingsStoreTest, ResetReportsWhyTheFileCannotBeMovedAside)
     EXPECT_EQ(result.error().path, m_path);
     EXPECT_TRUE(fs::exists(m_path));
 }
+
+TEST_F(SettingsStoreTest, SerializedSettingsAreTheContentOfTheSavedFile)
+{
+    SettingsStore store(m_path);
+    store.set<std::string>("theme", "dark");
+    ASSERT_TRUE(store.save());
+
+    EXPECT_EQ(store.serialize(), readText(m_path));
+}
+
+TEST_F(SettingsStoreTest, ReplaceFromTextSwapsAllValuesWithoutWriting)
+{
+    SettingsStore store(m_path);
+    store.set<std::string>("theme", "dark");
+    store.set<int>("old", 1);
+
+    SettingsStore source(m_directory / "other" / "settings.json");
+    source.set<std::string>("theme", "modern");
+    source.set<std::string>("locale", "pl");
+
+    ASSERT_TRUE(store.replaceFromText(source.serialize()));
+
+    EXPECT_EQ(store.get<std::string>("theme", ""), "modern");
+    EXPECT_EQ(store.get<std::string>("locale", ""), "pl");
+    EXPECT_FALSE(store.contains("old"));
+    EXPECT_FALSE(fs::exists(m_path));
+}
+
+TEST_F(SettingsStoreTest, ReplaceFromTextRefusesInvalidTextAndKeepsTheValues)
+{
+    SettingsStore store(m_path);
+    store.set<std::string>("theme", "dark");
+
+    EXPECT_FALSE(store.replaceFromText("not json"));
+    EXPECT_FALSE(store.replaceFromText(R"({"version": 1})"));
+    EXPECT_FALSE(store.replaceFromText(R"({"version": 1, "settings": []})"));
+
+    EXPECT_EQ(store.get<std::string>("theme", ""), "dark");
+}
+
+TEST_F(SettingsStoreTest, ReplaceFromTextKeepsTheNewerSchemaVersionOfTheText)
+{
+    SettingsStore store(m_path, 1);
+
+    ASSERT_TRUE(store.replaceFromText(R"({"version": 4, "settings": {"theme": "dark"}})"));
+
+    EXPECT_EQ(store.schemaVersion(), 4);
+}
