@@ -20,3 +20,9 @@ if (!response)
   timeout, a body above `maxResponseBytes`) is a `TransportError`, returned as a `Result` (see [results.md](results.md)).
 - `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`.
 - `defaultHttpClient()` is libcurl restricted to `http` and `https`, TLS 1.2 or newer, without redirects.
+
+## Where it is used
+
+`CloudStorageClient` and `CloudAssetClient` take an `IHttpClient` as the last constructor argument, and so does
+`createCloudStorage()`. Tests pass `FakeHttpClient` (`tests/support/FakeHttpClient.hpp`), queue the responses with
+`respondWith()` or `failWith()` and read the sent requests from `requests`.

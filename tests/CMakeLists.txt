@@ -19,6 +19,7 @@ add_executable(stapikcommon_tests
         archive/AppArchiveTest.cpp
         archive/ZipTest.cpp
         cloud/AssetCacheTest.cpp
+        cloud/CloudAssetClientTest.cpp
         cloud/CloudAssetProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
