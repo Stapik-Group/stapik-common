@@ -149,6 +149,40 @@ function(stapik_add_application)
                     COMMENT "Packing ${portableArchiveName}"
                     VERBATIM)
             add_dependencies(${STAPIK_APP_NAME}_windows_portable ${STAPIK_APP_NAME}_windows_bundle)
+
+            find_program(STAPIK_ISCC NAMES ISCC iscc
+                    PATHS "$ENV{ProgramFiles\(x86\)}/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6" "$ENV{LOCALAPPDATA}/Programs/Inno Setup 6")
+            if(STAPIK_ISCC)
+                string(UUID STAPIK_APP_INSTALLER_GUID NAMESPACE "6f1c2b7e-4d3a-4e58-9a0b-5c7d8e9f1a23"
+                        NAME "${STAPIK_APP_APPLICATION_ID}" TYPE SHA1 UPPER)
+
+                set(STAPIK_APP_INSTALLER_PUBLISHER_URL "")
+                if(STAPIK_APP_HOMEPAGE)
+                    set(STAPIK_APP_INSTALLER_PUBLISHER_URL "AppPublisherURL=${STAPIK_APP_HOMEPAGE}")
+                endif()
+
+                set(STAPIK_APP_INSTALLER_ICON "")
+                if(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.ico")
+                    file(TO_NATIVE_PATH "${packagingDirectory}/${STAPIK_APP_NAME}.ico" nativeIcon)
+                    set(STAPIK_APP_INSTALLER_ICON "SetupIconFile=${nativeIcon}")
+                endif()
+
+                file(TO_NATIVE_PATH "${bundleDirectory}" STAPIK_APP_INSTALLER_SOURCE_DIRECTORY)
+                file(TO_NATIVE_PATH "${CMAKE_CURRENT_BINARY_DIR}" STAPIK_APP_INSTALLER_OUTPUT_DIRECTORY)
+                set(STAPIK_APP_INSTALLER_BASE_NAME "${STAPIK_APP_NAME}-${STAPIK_APP_VERSION}-setup")
+
+                set(installerScript "${generatedDirectory}/${STAPIK_APP_NAME}.iss")
+                configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/windows/installer.iss.in" "${installerScript}" @ONLY)
+
+                file(TO_NATIVE_PATH "${installerScript}" nativeInstallerScript)
+                add_custom_target(${STAPIK_APP_NAME}_windows_installer
+                        COMMAND "${STAPIK_ISCC}" /Qp "${nativeInstallerScript}"
+                        COMMENT "Building ${STAPIK_APP_INSTALLER_BASE_NAME}.exe"
+                        VERBATIM)
+                add_dependencies(${STAPIK_APP_NAME}_windows_installer ${STAPIK_APP_NAME}_windows_bundle)
+            else()
+                message(STATUS "stapik_add_application: Inno Setup (ISCC) not found, target ${STAPIK_APP_NAME}_windows_installer is not available")
+            endif()
         else()
             message(STATUS "stapik_add_application: bash not found, target ${STAPIK_APP_NAME}_windows_bundle is not available")
         endif()

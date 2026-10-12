@@ -1,0 +1,38 @@
+[Setup]
+AppId={{@STAPIK_APP_INSTALLER_GUID@}
+AppName=@STAPIK_APP_DISPLAY_NAME@
+AppVersion=@STAPIK_APP_VERSION@
+AppPublisher=@STAPIK_APP_MAINTAINER@
+@STAPIK_APP_INSTALLER_PUBLISHER_URL@
+AppMutex=Local\@STAPIK_APP_APPLICATION_ID@
+DefaultDirName={autopf}\@STAPIK_APP_DISPLAY_NAME@
+DisableProgramGroupPage=yes
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+UninstallDisplayIcon={app}\@STAPIK_APP_NAME@.exe
+OutputDir=@STAPIK_APP_INSTALLER_OUTPUT_DIRECTORY@
+OutputBaseFilename=@STAPIK_APP_INSTALLER_BASE_NAME@
+@STAPIK_APP_INSTALLER_ICON@
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"
+Name: "german"; MessagesFile: "compiler:Languages\German.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Files]
+Source: "@STAPIK_APP_INSTALLER_SOURCE_DIRECTORY@\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+Name: "{autoprograms}\@STAPIK_APP_DISPLAY_NAME@"; Filename: "{app}\@STAPIK_APP_NAME@.exe"
+Name: "{autodesktop}\@STAPIK_APP_DISPLAY_NAME@"; Filename: "{app}\@STAPIK_APP_NAME@.exe"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\@STAPIK_APP_NAME@.exe"; Description: "{cm:LaunchProgram,@STAPIK_APP_DISPLAY_NAME@}"; Flags: nowait postinstall skipifsilent

@@ -1,7 +1,7 @@
 # Windows
 
 stapik-common builds on Windows with MSYS2 (UCRT64 or MINGW64, GCC, gtkmm-4.0). Applications are distributed as
-a self-contained folder, packed into a portable ZIP.
+a self-contained folder, packed into a portable ZIP or an Inno Setup installer.
 
 ## What differs from Linux
 
@@ -60,6 +60,24 @@ it fails when a DLL would be resolved from outside the folder.
 builds the folder first and packs it into `build/<name>-<version>-windows-portable.zip`. The archive holds the single
 top-level folder `<name>-windows`; unpacking it anywhere is the whole installation. User data still goes to
 `%APPDATA%` and `%LOCALAPPDATA%`, as described above.
+
+## Installer
+
+    cmake --build build --target <name>_windows_installer
+
+builds the folder first and compiles `cmake/templates/windows/installer.iss.in` with Inno Setup 6.3 or newer
+(`ISCC.exe` is looked up in `PATH` and the usual install locations; set `STAPIK_ISCC` otherwise) into
+`build/<name>-<version>-setup.exe`. The installer
+
+* installs per user by default (`%LOCALAPPDATA%\Programs\<display name>`) and per machine when the user chooses so
+  in the privileges dialog,
+* offers English, Polish and German,
+* adds a Start menu entry, a desktop shortcut on request and a launch option on the last page,
+* asks to close a running instance (the same session-local mutex that `SingleInstanceGuard` takes),
+* uses an `AppId` derived from the `APPLICATION_ID` of the application, so every release upgrades the previous one,
+* leaves `%APPDATA%\<app>` and `%LOCALAPPDATA%\<app>` alone on uninstall: that is the user's data.
+
+Inno Setup is installed with `winget install JRSoftware.InnoSetup`.
 
 Required MSYS2 packages: `gcc cmake ninja pkgconf gtkmm-4.0 curl adwaita-icon-theme hicolor-icon-theme` (prefixed
 `mingw-w64-ucrt-x86_64-`). The gdk-pixbuf image loaders that are installed are bundled; an SVG loader is not required.
