@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <glib.h>
+#include <sstream>
 
 namespace
 {
@@ -16,7 +17,45 @@ namespace
 
     std::filesystem::path configPath(const std::string& appName)
     {
+        return AppPaths::userConfigDir(appName) / "config.json";
+    }
+
+    std::filesystem::path legacyConfigPath(const std::string& appName)
+    {
         return AppPaths::userDataDir(appName) / "config.json";
+    }
+
+    // The file used to live in the data directory. The copy in the config directory is the authoritative one,
+    // so when both exist the old file is only a leftover (possibly with a plain text API key) and is removed.
+    void migrateLegacyConfig(const std::string& appName)
+    {
+        const auto legacyPath = legacyConfigPath(appName);
+        const auto path = configPath(appName);
+
+        std::error_code errorCode;
+        if (!std::filesystem::exists(legacyPath, errorCode))
+            return;
+
+        if (!std::filesystem::exists(path, errorCode))
+        {
+            std::ifstream legacyFile(legacyPath, std::ios::binary);
+            std::stringstream content;
+            content << legacyFile.rdbuf();
+            if (!legacyFile.is_open() || legacyFile.bad())
+            {
+                stapik::log::warning("Cannot read {}, leaving it where it is", stapik::storage::pathText(legacyPath));
+                return;
+            }
+
+            if (!stapik::storage::writeFileAtomically(path, content.str(), stapik::storage::OWNER_READ_WRITE))
+                return;
+        }
+
+        std::filesystem::remove(legacyPath, errorCode);
+        if (errorCode)
+            stapik::log::warning("Cannot remove {}: {}", stapik::storage::pathText(legacyPath), errorCode.message());
+        else
+            stapik::log::info("Moved the cloud config from {} to {}", stapik::storage::pathText(legacyPath), stapik::storage::pathText(path));
     }
 
     void restrictToOwner(const std::filesystem::path& path)
@@ -69,6 +108,8 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
 
 stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName, stapik::storage::ISecretStore& secretStore)
 {
+    migrateLegacyConfig(appName);
+
     std::string plainTextApiKey;
 
     if (config.apiKey.empty())
@@ -86,6 +127,8 @@ stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageCo
 
 std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::string& appName, stapik::storage::ISecretStore& secretStore)
 {
+    migrateLegacyConfig(appName);
+
     const auto path = configPath(appName);
     if (!std::filesystem::exists(path))
         return std::nullopt;

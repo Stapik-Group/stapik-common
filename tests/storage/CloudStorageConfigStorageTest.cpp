@@ -27,7 +27,8 @@ namespace
             ASSERT_NE(mkdtemp(pattern.data()), nullptr);
             m_directory = pattern;
 
-            setenv("XDG_DATA_HOME", m_directory.c_str(), 1);
+            setenv("XDG_DATA_HOME", (m_directory / "data").c_str(), 1);
+            setenv("XDG_CONFIG_HOME", (m_directory / "config").c_str(), 1);
             fs::create_directories(configPath().parent_path());
         }
 
@@ -39,7 +40,12 @@ namespace
 
         [[nodiscard]] fs::path configPath() const
         {
-            return m_directory / APP_NAME / "config.json";
+            return m_directory / "config" / APP_NAME / "config.json";
+        }
+
+        [[nodiscard]] fs::path legacyConfigPath() const
+        {
+            return m_directory / "data" / APP_NAME / "config.json";
         }
 
         [[nodiscard]] std::string configText() const
@@ -55,7 +61,14 @@ namespace
             std::ofstream(configPath()) << text;
         }
 
+        void writeLegacyConfigText(const std::string& text) const
+        {
+            fs::create_directories(legacyConfigPath().parent_path());
+            std::ofstream(legacyConfigPath()) << text;
+        }
+
         stapik::test::ScopedEnvironment m_dataHome{ "XDG_DATA_HOME" };
+        stapik::test::ScopedEnvironment m_configHome{ "XDG_CONFIG_HOME" };
         stapik::test::FakeSecretStore m_secretStore;
         fs::path m_directory;
     };
@@ -158,4 +171,59 @@ TEST_F(CloudStorageConfigStorageTest, KeysOfDifferentApplicationsAreSeparate)
     ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key" }, APP_NAME, m_secretStore));
 
     EXPECT_EQ(m_secretStore.lookup("other-app", API_KEY_ACCOUNT), "other-key");
+}
+
+TEST_F(CloudStorageConfigStorageTest, SaveWritesToConfigDirectoryOnly)
+{
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key" }, APP_NAME, m_secretStore));
+
+    EXPECT_TRUE(fs::exists(configPath()));
+    EXPECT_FALSE(fs::exists(legacyConfigPath()));
+}
+
+TEST_F(CloudStorageConfigStorageTest, LoadMovesConfigFromDataDirectory)
+{
+    writeLegacyConfigText(R"({"apiUrl":"https://cloud.example"})");
+
+    const auto config = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(config.has_value());
+    EXPECT_EQ(config->apiUrl, "https://cloud.example");
+    EXPECT_NE(configText().find("https://cloud.example"), std::string::npos);
+    EXPECT_FALSE(fs::exists(legacyConfigPath()));
+}
+
+TEST_F(CloudStorageConfigStorageTest, MigratedPlainTextApiKeyMovesToSecretStore)
+{
+    writeLegacyConfigText(R"({"apiUrl":"https://cloud.example","apiKey":"old-key"})");
+
+    const auto config = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(config.has_value());
+    EXPECT_EQ(config->apiKey, "old-key");
+    EXPECT_EQ(m_secretStore.lookup(APP_NAME, API_KEY_ACCOUNT), "old-key");
+    EXPECT_EQ(configText().find("old-key"), std::string::npos);
+    EXPECT_FALSE(fs::exists(legacyConfigPath()));
+}
+
+TEST_F(CloudStorageConfigStorageTest, ConfigDirectoryWinsOverLegacyFile)
+{
+    writeConfigText(R"({"apiUrl":"https://new.example"})");
+    writeLegacyConfigText(R"({"apiUrl":"https://old.example","apiKey":"old-key"})");
+
+    const auto config = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(config.has_value());
+    EXPECT_EQ(config->apiUrl, "https://new.example");
+    EXPECT_FALSE(fs::exists(legacyConfigPath()));
+}
+
+TEST_F(CloudStorageConfigStorageTest, SaveRemovesLegacyFile)
+{
+    writeLegacyConfigText(R"({"apiUrl":"https://old.example","apiKey":"old-key"})");
+
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "" }, APP_NAME, m_secretStore));
+
+    EXPECT_FALSE(fs::exists(legacyConfigPath()));
+    EXPECT_NE(configText().find("https://cloud.example"), std::string::npos);
 }
