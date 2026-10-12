@@ -1,7 +1,7 @@
 #include "CloudAssetClient.hpp"
 #include "CloudAssetProtocol.hpp"
-#include "CloudCurl.hpp"
 
+#include "stapik/http/CurlSecurity.hpp"
 #include "stapik/log/Log.hpp"
 
 #include <curl/curl.h>
@@ -111,7 +111,7 @@ namespace stapik::cloud
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIMEOUT_SECONDS);
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-        applySecurityOptions(curl);
+        http::applySecurityOptions(curl);
 
         if (file != nullptr)
         {

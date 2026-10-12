@@ -1,6 +1,6 @@
 #include "GitHubReleaseClient.hpp"
 
-#include "stapik/cloud/CloudCurl.hpp"
+#include "stapik/http/CurlSecurity.hpp"
 
 #include <curl/curl.h>
 
@@ -57,7 +57,7 @@ namespace stapik::update
         curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, TIMEOUT_SECONDS);
         curl_easy_setopt(curl.get(), CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT_SECONDS);
         curl_easy_setopt(curl.get(), CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-        cloud::applySecurityOptions(curl.get());
+        http::applySecurityOptions(curl.get());
 
         if (const auto result = curl_easy_perform(curl.get()); result != CURLE_OK)
             throw UpdateCheckException(std::string("Release lookup failed: ") + curl_easy_strerror(result));

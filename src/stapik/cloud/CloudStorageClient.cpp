@@ -1,5 +1,4 @@
 #include "CloudStorageClient.hpp"
-#include "CloudCurl.hpp"
 #include "CloudPartitionProtocol.hpp"
 #include "CloudStorageException.hpp"
 
@@ -10,6 +9,8 @@
 #include <ctime>
 #include <format>
 #include <glib.h>
+
+#include "stapik/http/CurlSecurity.hpp"
 
 CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey):
     m_config(std::move(config)),
@@ -50,7 +51,7 @@ CloudStorageClient::RawResponse CloudStorageClient::perform(const std::string& u
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIMEOUT_SECONDS);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-    stapik::cloud::applySecurityOptions(curl);
+    stapik::http::applySecurityOptions(curl);
 
     const auto result = curl_easy_perform(curl);
 

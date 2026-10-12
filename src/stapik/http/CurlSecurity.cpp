@@ -1,4 +1,4 @@
-#include "CloudCurl.hpp"
+#include "CurlSecurity.hpp"
 
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/PathText.hpp"
@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <system_error>
 
-namespace stapik::cloud
+namespace stapik::http
 {
     void applySecurityOptions(CURL* curl)
     {
