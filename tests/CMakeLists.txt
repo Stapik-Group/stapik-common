@@ -28,6 +28,7 @@ add_executable(stapikcommon_tests
         cloud/CloudStorageConfigTest.cpp
         cloud/CloudStorageFactoryTest.cpp
         cloud/CompressedCloudStorageTest.cpp
+        cloud/ConnectionCheckTest.cpp
         cloud/EncryptedCloudStorageTest.cpp
         command/UndoStackTest.cpp
         compression/GzipTest.cpp
