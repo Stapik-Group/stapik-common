@@ -75,6 +75,10 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/csv/CsvWriter.cpp
+)
+
+target_sources(stapikcommon PRIVATE
         src/stapik/document/DocumentFileCore.cpp
         src/stapik/document/SchemaMigrator.cpp
 )

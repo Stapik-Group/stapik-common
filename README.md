@@ -32,6 +32,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **GTK helpers** – shared gtkmm-4 pieces for a consistent look and feel
 - **Localization** – JSON translations with `{arg}` placeholders and CLDR plural forms (see [docs/localization.md](docs/localization.md))
 - **Text search and sorting** – matching without case and diacritics (`ł` = `l`) and Polish-aware ordering (see [docs/text.md](docs/text.md))
+- **CSV export** – RFC 4180 files, optionally with a byte order mark and a `;` separator for Polish Excel (see [docs/csv.md](docs/csv.md))
 - **Window state** – size, maximization, position and paned dividers are remembered between runs (see [docs/window-state.md](docs/window-state.md))
 
 > The goal: apps contain only what makes them unique. Everything boring and repeatable lives here.
