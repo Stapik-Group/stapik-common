@@ -92,6 +92,8 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+Sanitizers (ASan, UBSan, TSan) and code coverage are CMake options, see [docs/quality.md](docs/quality.md).
+
 ## Workflow & releases
 
 ```

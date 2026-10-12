@@ -246,6 +246,8 @@ target_sources(stapikcommon PRIVATE
 )
 
 stapik_enable_warnings(stapikcommon)
+stapik_enable_sanitizers(stapikcommon)
+stapik_enable_coverage(stapikcommon)
 
 target_compile_definitions(stapikcommon PRIVATE
         STAPIK_COMMON_SOURCE_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
@@ -324,6 +326,7 @@ if(STAPIK_COMMON_INSTALL_PACKAGE)
             "${CMAKE_CURRENT_BINARY_DIR}/stapikcommon-config.cmake"
             "${CMAKE_CURRENT_BINARY_DIR}/stapikcommon-config-version.cmake"
             cmake/StapikApp.cmake
+            cmake/StapikQuality.cmake
             cmake/StapikWarnings.cmake
             DESTINATION "${STAPIK_COMMON_CMAKE_INSTALL_DIR}")
     install(DIRECTORY cmake/templates DESTINATION "${STAPIK_COMMON_CMAKE_INSTALL_DIR}")

@@ -1,6 +1,7 @@
 include_guard(GLOBAL)
 
 include("${CMAKE_CURRENT_LIST_DIR}/StapikWarnings.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/StapikQuality.cmake")
 
 set(STAPIK_COMMON_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "Directory with the stapik-common CMake modules")
 set(STAPIK_APP_SYSTEM_PREFIX "/usr" CACHE PATH "Where launcher, .desktop file and icon are installed (outside the application prefix)")
@@ -119,6 +120,8 @@ function(stapik_add_application)
             STAPIK_APP_DISPLAY_NAME="${STAPIK_APP_DISPLAY_NAME}"
             STAPIK_APP_VERSION="${STAPIK_APP_VERSION}")
     stapik_enable_warnings(${STAPIK_APP_NAME})
+    stapik_enable_sanitizers(${STAPIK_APP_NAME})
+    stapik_enable_coverage(${STAPIK_APP_NAME})
 
     # --- Resources next to the executable (build tree) ---
     if(NOT STAPIK_COMMON_RESOURCES_DIR OR NOT IS_DIRECTORY "${STAPIK_COMMON_RESOURCES_DIR}")

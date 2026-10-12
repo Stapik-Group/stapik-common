@@ -118,5 +118,7 @@ target_compile_definitions(stapikcommon_tests PRIVATE
 )
 
 target_compile_options(stapikcommon_tests PRIVATE -Wall -Wextra -Wpedantic)
+stapik_enable_sanitizers(stapikcommon_tests)
+stapik_enable_coverage(stapikcommon_tests)
 
 gtest_discover_tests(stapikcommon_tests)

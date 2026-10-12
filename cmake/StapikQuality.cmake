@@ -1,0 +1,53 @@
+include_guard(GLOBAL)
+
+option(STAPIK_ENABLE_ASAN "Build Stapik targets with AddressSanitizer (GCC/Clang)" OFF)
+option(STAPIK_ENABLE_UBSAN "Build Stapik targets with UndefinedBehaviorSanitizer; a finding aborts the program (GCC/Clang)" OFF)
+option(STAPIK_ENABLE_TSAN "Build Stapik targets with ThreadSanitizer, cannot be combined with ASan (GCC/Clang)" OFF)
+option(STAPIK_ENABLE_COVERAGE "Build Stapik targets with code coverage instrumentation, without optimization (GCC/Clang)" OFF)
+
+if(STAPIK_ENABLE_ASAN AND STAPIK_ENABLE_TSAN)
+    message(FATAL_ERROR "STAPIK_ENABLE_ASAN and STAPIK_ENABLE_TSAN cannot be enabled together: the runtimes are incompatible")
+endif()
+
+set(_stapik_sanitizers "")
+if(STAPIK_ENABLE_ASAN)
+    list(APPEND _stapik_sanitizers address)
+endif()
+if(STAPIK_ENABLE_UBSAN)
+    list(APPEND _stapik_sanitizers undefined)
+endif()
+if(STAPIK_ENABLE_TSAN)
+    list(APPEND _stapik_sanitizers thread)
+endif()
+list(JOIN _stapik_sanitizers "," _stapik_sanitizer_list)
+
+# Instruments the target with the sanitizers selected by the STAPIK_ENABLE_* options. Executables need it as well as
+# libraries: the sanitizer runtime is linked into the program.
+function(stapik_enable_sanitizers targetName)
+    if(NOT _stapik_sanitizer_list)
+        return()
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(WARNING "Sanitizers are not supported by the ${CMAKE_CXX_COMPILER_ID} compiler, ${targetName} is built without them")
+        return()
+    endif()
+
+    target_compile_options(${targetName} PRIVATE -fsanitize=${_stapik_sanitizer_list} -fno-omit-frame-pointer)
+    target_link_options(${targetName} PRIVATE -fsanitize=${_stapik_sanitizer_list})
+    if(STAPIK_ENABLE_UBSAN)
+        target_compile_options(${targetName} PRIVATE -fno-sanitize-recover=undefined)
+    endif()
+endfunction()
+
+function(stapik_enable_coverage targetName)
+    if(NOT STAPIK_ENABLE_COVERAGE)
+        return()
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(WARNING "Coverage is not supported by the ${CMAKE_CXX_COMPILER_ID} compiler, ${targetName} is built without it")
+        return()
+    endif()
+
+    target_compile_options(${targetName} PRIVATE --coverage -O0 -g)
+    target_link_options(${targetName} PRIVATE --coverage)
+endfunction()
