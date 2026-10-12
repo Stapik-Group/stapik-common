@@ -81,3 +81,12 @@ TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheMoneyEntryHint)
             << file.filename().string();
     }
 }
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheEmptyStateTitle)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+        expectNonEmptyString(readJson(file), "emptyState.noData", file.filename().string());
+}
