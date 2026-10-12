@@ -1,4 +1,8 @@
 #include "stapik/update/GitHubRelease.hpp"
+#include "stapik/update/GitHubReleaseClient.hpp"
+
+#include "support/FakeHttpClient.hpp"
+#include "support/ThrownMessage.hpp"
 
 #include <gtest/gtest.h>
 
@@ -82,4 +86,44 @@ TEST(GitHubReleaseTest, PageThatIsNotHttpsIsRejected)
         const std::string body = std::string(R"({"tag_name":"v1.0.0","html_url":")") + url + R"("})";
         EXPECT_THROW(static_cast<void>(parseLatestRelease(body)), UpdateCheckException) << url;
     }
+}
+
+TEST(GitHubReleaseClientTest, LatestReleaseIsRequestedWithTheApplicationUserAgent)
+{
+    const stapik::test::FakeHttpClient http;
+    http.respondWith(200, RELEASE_BODY);
+
+    const auto release = fetchLatestRelease("Stapik-Group/budgeting", "budgeting/1.0.0", http);
+
+    ASSERT_TRUE(release.has_value());
+    EXPECT_EQ(release->tag, "v1.4.2");
+    ASSERT_EQ(http.requests.size(), 1U);
+    EXPECT_EQ(http.requests.front().url, "https://api.github.com/repos/Stapik-Group/budgeting/releases/latest");
+    EXPECT_EQ(http.requests.front().headers.at("User-Agent"), "budgeting/1.0.0");
+}
+
+TEST(GitHubReleaseClientTest, RepositoryWithoutReleasesHasNoLatestRelease)
+{
+    const stapik::test::FakeHttpClient http;
+    http.respondWith(404);
+
+    EXPECT_FALSE(fetchLatestRelease("Stapik-Group/budgeting", "budgeting/1.0.0", http).has_value());
+}
+
+TEST(GitHubReleaseClientTest, RateLimitAndOtherStatusesAreReported)
+{
+    const stapik::test::FakeHttpClient http;
+    http.respondWith(403);
+    http.respondWith(500);
+
+    EXPECT_EQ(stapik::test::thrownMessage<UpdateCheckException>([&] { static_cast<void>(fetchLatestRelease("o/r", "ua", http)); }), "Release lookup was rate limited (status 403)");
+    EXPECT_EQ(stapik::test::thrownMessage<UpdateCheckException>([&] { static_cast<void>(fetchLatestRelease("o/r", "ua", http)); }), "Release lookup failed with status 500");
+}
+
+TEST(GitHubReleaseClientTest, TransportFailureIsReportedWithTheReason)
+{
+    const stapik::test::FakeHttpClient http;
+    http.failWith("Could not resolve host");
+
+    EXPECT_EQ(stapik::test::thrownMessage<UpdateCheckException>([&] { static_cast<void>(fetchLatestRelease("o/r", "ua", http)); }), "Release lookup failed: Could not resolve host");
 }
