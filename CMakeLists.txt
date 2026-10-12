@@ -206,6 +206,8 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/menu/RadioAction.cpp
         src/stapik/ui/menu/StandardMenu.cpp
         src/stapik/ui/menu/UndoActions.cpp
+        src/stapik/ui/print/PdfExport.cpp
+        src/stapik/ui/print/Printing.cpp
         src/stapik/ui/settings/BoolSettingRow.cpp
         src/stapik/ui/settings/ChoiceDropDown.cpp
         src/stapik/ui/settings/PathSettingRow.cpp

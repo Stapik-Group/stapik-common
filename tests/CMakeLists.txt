@@ -96,6 +96,7 @@ add_executable(stapikcommon_tests
         ui/FileDropTest.cpp
         ui/LastDirectoryTest.cpp
         ui/PanedPositionTest.cpp
+        ui/PdfExportTest.cpp
         ui/RadioOptionsTest.cpp
         ui/WindowStateTest.cpp
         update/GitHubReleaseTest.cpp
