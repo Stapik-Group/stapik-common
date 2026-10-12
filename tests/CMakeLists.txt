@@ -43,6 +43,7 @@ add_executable(stapikcommon_tests
         domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
         http/HttpMessageTest.cpp
+        http/ProxyListTest.cpp
         http/RetryAfterTest.cpp
         http/RetryingHttpClientTest.cpp
         locale/DateFormatterTest.cpp

@@ -1,4 +1,5 @@
 #include "CurlHttpClient.hpp"
+#include "CurlProxy.hpp"
 #include "CurlSecurity.hpp"
 #include "RetryAfter.hpp"
 
@@ -228,6 +229,7 @@ namespace stapik::http
         applyTimeouts(curl, request);
         applyUserAgent(curl, m_userAgent);
         applySecurityOptions(curl);
+        applyProxyOptions(curl, request.url);
         applyMethod(curl, request.method);
         applyBody(transfer, request.body);
         applyProgress(curl, request);
