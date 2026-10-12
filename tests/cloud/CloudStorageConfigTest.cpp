@@ -91,3 +91,19 @@ TEST(CloudStorageConfigTest, UrlStatusRejectsAddressesWithoutHttpScheme)
     EXPECT_EQ(urlStatus("http://"), ApiUrlStatus::Invalid);
     EXPECT_EQ(urlStatus("https:/example.com"), ApiUrlStatus::Invalid);
 }
+
+TEST(CloudStorageConfigTest, EndToEndEncryptionNeedsAPassphrase)
+{
+    const CloudStorageConfig plain{ .apiUrl = "https://example.com", .apiKey = "key" };
+    const CloudStorageConfig encrypted{ .apiUrl = "https://example.com", .apiKey = "key", .encryptionPassphrase = "passphrase" };
+
+    EXPECT_FALSE(plain.isEndToEndEncrypted());
+    EXPECT_TRUE(encrypted.isEndToEndEncrypted());
+}
+
+TEST(CloudStorageConfigTest, PassphraseDoesNotAffectWhetherTheConfigIsConfigured)
+{
+    const CloudStorageConfig withoutKey{ .apiUrl = "https://example.com", .encryptionPassphrase = "passphrase" };
+
+    EXPECT_FALSE(withoutKey.isConfigured());
+}
