@@ -22,6 +22,7 @@ add_executable(stapikcommon_tests
         cloud/CloudAssetProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
+        cloud/CloudStorageClientTest.cpp
         cloud/CloudStorageConfigTest.cpp
         cloud/CloudStorageFactoryTest.cpp
         cloud/CompressedCloudStorageTest.cpp
