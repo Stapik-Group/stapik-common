@@ -31,6 +31,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Compression** – large cloud documents are gzipped before they are sent (see [docs/compression.md](docs/compression.md))
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)
 - **Secret storage** – the cloud API key lives in the system keyring (Secret Service on Linux, Credential Manager on Windows), not in a plain file
+- **Application version** – `stapik/app/version.hpp` is generated from the `stapik_add_application()` arguments (see [docs/app-version.md](docs/app-version.md))
 - **Update checker** – a "new version available" notice based on GitHub Releases (see [docs/updates.md](docs/updates.md))
 - **GTK helpers** – shared gtkmm-4 pieces for a consistent look and feel
 - **Localization** – JSON translations with `{arg}` placeholders and CLDR plural forms (see [docs/localization.md](docs/localization.md))

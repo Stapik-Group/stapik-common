@@ -118,7 +118,7 @@ namespace stapik::storage
         const SecretSchema* secretSchema()
         {
             static const std::unique_ptr<SecretSchema, SchemaDeleter> schema{
-                secret_schema_new("org.stapik.Secret", SECRET_SCHEMA_NONE,
+                secret_schema_new("pl.stapik.Secret", SECRET_SCHEMA_NONE,
                     SERVICE_ATTRIBUTE, SECRET_SCHEMA_ATTRIBUTE_STRING,
                     ACCOUNT_ATTRIBUTE, SECRET_SCHEMA_ATTRIBUTE_STRING,
                     nullptr)

@@ -1,0 +1,10 @@
+#pragma once
+
+#include <string_view>
+
+namespace stapik::app::build
+{
+    inline constexpr std::string_view NAME = "@STAPIK_APP_CPP_NAME@";
+    inline constexpr std::string_view DISPLAY_NAME = "@STAPIK_APP_CPP_DISPLAY_NAME@";
+    inline constexpr std::string_view VERSION = "@STAPIK_APP_CPP_VERSION@";
+}

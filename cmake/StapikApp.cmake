@@ -37,6 +37,12 @@ function(_stapik_xml_escape text output)
     set(${output} "${text}" PARENT_SCOPE)
 endfunction()
 
+function(_stapik_cpp_string_escape text output)
+    string(REPLACE "\\" "\\\\" text "${text}")
+    string(REPLACE "\"" "\\\"" text "${text}")
+    set(${output} "${text}" PARENT_SCOPE)
+endfunction()
+
 function(_stapik_append_metainfo_localized output tag)
     set(result "")
     foreach(entry IN LISTS ARGN)
@@ -115,10 +121,6 @@ function(stapik_add_application)
     # --- Executable ---
     add_executable(${STAPIK_APP_NAME} ${STAPIK_APP_SOURCES})
     target_link_libraries(${STAPIK_APP_NAME} PRIVATE stapik::common ${STAPIK_APP_LINK_LIBRARIES})
-    target_compile_definitions(${STAPIK_APP_NAME} PRIVATE
-            STAPIK_APP_NAME="${STAPIK_APP_NAME}"
-            STAPIK_APP_DISPLAY_NAME="${STAPIK_APP_DISPLAY_NAME}"
-            STAPIK_APP_VERSION="${STAPIK_APP_VERSION}")
     stapik_enable_warnings(${STAPIK_APP_NAME})
     stapik_enable_sanitizers(${STAPIK_APP_NAME})
     stapik_enable_coverage(${STAPIK_APP_NAME})
@@ -142,6 +144,14 @@ function(stapik_add_application)
     add_dependencies(${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
 
     set(generatedDirectory "${CMAKE_CURRENT_BINARY_DIR}/stapik-packaging/${STAPIK_APP_NAME}")
+
+    # --- stapik/app/version.hpp ---
+    foreach(field NAME DISPLAY_NAME VERSION)
+        _stapik_cpp_string_escape("${STAPIK_APP_${field}}" STAPIK_APP_CPP_${field})
+    endforeach()
+    configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/version.hpp.in"
+            "${generatedDirectory}/include/stapik/app/version.hpp" @ONLY)
+    target_include_directories(${STAPIK_APP_NAME} PRIVATE "${generatedDirectory}/include")
 
     # --- Windows: GUI executable, version resource, self-contained bundle ---
     if(WIN32)
