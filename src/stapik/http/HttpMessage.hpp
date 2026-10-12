@@ -3,6 +3,8 @@
 #include "stapik/core/Result.hpp"
 
 #include <chrono>
+#include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -34,6 +36,19 @@ namespace stapik::http
 
     using RequestBody = std::variant<NoBody, Bytes, MultipartFile>;
 
+    inline constexpr std::chrono::seconds NO_TIMEOUT{ 0 };
+
+    struct TransferProgress
+    {
+        std::uint64_t uploadedBytes{};
+        std::uint64_t uploadTotalBytes{};
+        std::uint64_t downloadedBytes{};
+        std::uint64_t downloadTotalBytes{};
+    };
+
+    using ProgressCallback = std::function<void(const TransferProgress&)>;
+    using CancelCheck = std::function<bool()>;
+
     struct Request
     {
         Method method = Method::Get;
@@ -41,18 +56,24 @@ namespace stapik::http
         std::map<std::string, std::string> headers;
         RequestBody body;
         std::chrono::seconds timeout{ 30 };
+        std::chrono::seconds connectTimeout{ 10 };
+        std::chrono::seconds stallTimeout{ 30 };
         std::optional<std::size_t> maxResponseBytes;
+        ProgressCallback onProgress;
+        CancelCheck isCancelled;
     };
 
     struct Response
     {
         int status{};
         Bytes body;
+        std::optional<std::chrono::seconds> retryAfter;
     };
 
     struct TransportError
     {
         std::string message;
+        bool cancelled = false;
     };
 
     using SendResult = Result<Response, TransportError>;

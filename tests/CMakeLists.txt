@@ -16,6 +16,7 @@ add_executable(stapikcommon_tests
         app/CommandLineTest.cpp
         app/InstanceMessageTest.cpp
         app/SingleInstanceGuardTest.cpp
+        app/UserAgentTest.cpp
         archive/AppArchiveTest.cpp
         archive/ZipTest.cpp
         cloud/AssetCacheTest.cpp
@@ -42,6 +43,9 @@ add_executable(stapikcommon_tests
         domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
         http/HttpMessageTest.cpp
+        http/ProxyListTest.cpp
+        http/RetryAfterTest.cpp
+        http/RetryingHttpClientTest.cpp
         locale/DateFormatterTest.cpp
         locale/LanguageCodeTest.cpp
         locale/LanguageRegistryTest.cpp

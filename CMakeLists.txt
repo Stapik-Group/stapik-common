@@ -53,6 +53,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/app/CommandLine.cpp
         src/stapik/app/SingleInstanceGuard.cpp
         src/stapik/app/StapikApplication.cpp
+        src/stapik/app/UserAgent.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -109,8 +110,14 @@ target_sources(stapikcommon PRIVATE
 
 target_sources(stapikcommon PRIVATE
         src/stapik/http/CurlHttpClient.cpp
+        src/stapik/http/CurlProxy.cpp
         src/stapik/http/CurlSecurity.cpp
+        src/stapik/http/DefaultHttpClient.cpp
         src/stapik/http/HttpMessage.cpp
+        src/stapik/http/ProxyList.cpp
+        src/stapik/http/RetryAfter.cpp
+        src/stapik/http/RetryingHttpClient.cpp
+        src/stapik/http/SystemProxy.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -234,6 +241,8 @@ if(WIN32)
     target_link_libraries(stapikcommon PUBLIC user32)
     # Credential Manager of SecretStore
     target_link_libraries(stapikcommon PUBLIC advapi32)
+    # System proxy settings of the HTTP client
+    target_link_libraries(stapikcommon PUBLIC winhttp)
 endif()
 
 if(TARGET PkgConfig::X11)

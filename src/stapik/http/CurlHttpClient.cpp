@@ -1,9 +1,20 @@
 #include "CurlHttpClient.hpp"
+#include "CurlProxy.hpp"
 #include "CurlSecurity.hpp"
+#include "RetryAfter.hpp"
+
+#include "stapik/time/Clock.hpp"
 
 #include <curl/curl.h>
 
+#include <algorithm>
+#include <cctype>
+#include <chrono>
+#include <cstdint>
 #include <limits>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace stapik::http
@@ -55,17 +66,95 @@ namespace stapik::http
             std::size_t limit = std::numeric_limits<std::size_t>::max();
         };
 
+        struct ResponseHeaders
+        {
+            std::optional<std::string> retryAfter;
+        };
+
+        std::size_t collectHeader(const char *data, const std::size_t size, const std::size_t count, void *destination)
+        {
+            constexpr std::string_view STATUS_LINE_PREFIX = "HTTP/";
+            constexpr std::string_view RETRY_AFTER_PREFIX = "retry-after:";
+
+            auto &[retryAfter] = *static_cast<ResponseHeaders *>(destination);
+            const std::string_view line(data, size * count);
+
+            if (line.starts_with(STATUS_LINE_PREFIX))
+                retryAfter.reset();
+            else if (line.size() > RETRY_AFTER_PREFIX.size() && std::ranges::equal(line.substr(0, RETRY_AFTER_PREFIX.size()), RETRY_AFTER_PREFIX,
+                         [](const char actual, const char expected) { return std::tolower(static_cast<unsigned char>(actual)) == expected; }))
+                retryAfter = std::string(line.substr(RETRY_AFTER_PREFIX.size()));
+
+            return line.size();
+        }
+
         std::size_t collectBody(const char *data, const std::size_t size, const std::size_t count, void *destination)
         {
-            auto &sink = *static_cast<ResponseSink *>(destination);
+            auto &[body, limit] = *static_cast<ResponseSink *>(destination);
             const auto length = size * count;
 
-            if (length > sink.limit - sink.body.size())
+            if (length > limit - body.size())
                 return 0;
 
             const auto *bytes = reinterpret_cast<const std::uint8_t *>(data);
-            sink.body.insert(sink.body.end(), bytes, bytes + length);
+            body.insert(body.end(), bytes, bytes + length);
             return length;
+        }
+
+        long seconds(const std::chrono::seconds duration)
+        {
+            return duration.count();
+        }
+
+        void applyTimeouts(CURL *curl, const Request &request)
+        {
+            constexpr long MINIMAL_SPEED_BYTES_PER_SECOND = 1L;
+
+            curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, seconds(request.timeout));
+            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, seconds(request.connectTimeout));
+            curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, MINIMAL_SPEED_BYTES_PER_SECOND);
+            curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, seconds(request.stallTimeout));
+        }
+
+        void applyUserAgent(CURL *curl, const CurlHttpClient::UserAgentProvider &userAgent)
+        {
+            if (!userAgent)
+                return;
+
+            if (const auto text = userAgent(); !text.empty())
+                curl_easy_setopt(curl, CURLOPT_USERAGENT, text.c_str());
+        }
+
+        int reportProgress(void *userData, const curl_off_t downloadTotal, const curl_off_t downloaded, const curl_off_t uploadTotal, const curl_off_t uploaded)
+        {
+            const auto &request = *static_cast<const Request *>(userData);
+
+            if (request.onProgress)
+            {
+                request.onProgress(TransferProgress{
+                    .uploadedBytes = static_cast<std::uint64_t>(uploaded),
+                    .uploadTotalBytes = static_cast<std::uint64_t>(uploadTotal),
+                    .downloadedBytes = static_cast<std::uint64_t>(downloaded),
+                    .downloadTotalBytes = static_cast<std::uint64_t>(downloadTotal) });
+            }
+
+            return request.isCancelled && request.isCancelled() ? 1 : 0;
+        }
+
+        void applyProgress(CURL *curl, const Request &request)
+        {
+            if (!request.onProgress && !request.isCancelled)
+                return;
+
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+            curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, reportProgress);
+            curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &request);
+        }
+
+        TransportError transportErrorOf(const CURLcode code)
+        {
+            return TransportError{ .message = curl_easy_strerror(code), .cancelled = code == CURLE_ABORTED_BY_CALLBACK };
         }
 
         void applyMethod(CURL *curl, const Method method)
@@ -80,7 +169,6 @@ namespace stapik::http
                     return;
                 case Delete:
                     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-                    return;
             }
         }
 
@@ -111,6 +199,11 @@ namespace stapik::http
         }
     }
 
+    CurlHttpClient::CurlHttpClient(UserAgentProvider userAgent) :
+        m_userAgent(std::move(userAgent))
+    {
+    }
+
     SendResult CurlHttpClient::send(const Request &request) const
     {
         CurlTransfer transfer;
@@ -129,24 +222,28 @@ namespace stapik::http
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, transfer.headers());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, collectBody);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sink);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(request.timeout.count()));
+        ResponseHeaders headers;
+        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, collectHeader);
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headers);
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+        applyTimeouts(curl, request);
+        applyUserAgent(curl, m_userAgent);
         applySecurityOptions(curl);
+        applyProxyOptions(curl, request.url);
         applyMethod(curl, request.method);
         applyBody(transfer, request.body);
+        applyProgress(curl, request);
 
         if (const auto result = curl_easy_perform(curl); result != CURLE_OK)
-            return Failure(TransportError{curl_easy_strerror(result)});
+            return Failure(transportErrorOf(result));
 
         long status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
 
-        return Response{.status = static_cast<int>(status), .body = std::move(sink.body)};
-    }
+        std::optional<std::chrono::seconds> retryAfter;
+        if (headers.retryAfter)
+            retryAfter = parseRetryAfter(*headers.retryAfter, time::systemClock().now());
 
-    const IHttpClient &defaultHttpClient()
-    {
-        static const CurlHttpClient client;
-        return client;
+        return Response{ .status = static_cast<int>(status), .body = std::move(sink.body), .retryAfter = retryAfter };
     }
 }

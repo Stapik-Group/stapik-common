@@ -30,7 +30,7 @@ namespace stapik::test
 
         void put(const std::string& filename, const std::string& text, const std::string& mimeType = "text/plain") const
         {
-            files[filename] = File{ mimeType, cloud::AssetBytes(text.begin(), text.end()) };
+            files[filename] = File{ .mimeType = mimeType, .content = cloud::AssetBytes(text.begin(), text.end()) };
         }
 
         [[nodiscard]] std::string text(const std::string& filename) const
@@ -63,15 +63,24 @@ namespace stapik::test
             return found->second.content;
         }
 
-        cloud::AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const cloud::AssetBytes& content) const override
+        using IAssetStorage::uploadAsset;
+
+        cloud::AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const cloud::AssetBytes& content, const cloud::AssetUploadHooks& hooks) const override
         {
             failIfUnreachable();
+
+            if (hooks.isCancelled && hooks.isCancelled())
+                throw cloud::AssetTransferCancelledException("cancelled");
 
             if (tooLarge.contains(filename))
                 throw cloud::AssetTooLargeException("too large");
 
-            files[filename] = File{ mimeType, content };
+            files[filename] = File{ .mimeType = mimeType, .content = content };
             uploaded.push_back(filename);
+
+            if (hooks.onProgress)
+                hooks.onProgress(cloud::AssetUploadProgress{ .sentBytes = content.size(), .totalBytes = content.size() });
+
             return describe(filename, files[filename]);
         }
 
@@ -85,7 +94,7 @@ namespace stapik::test
         void failIfUnreachable() const
         {
             if (unreachable)
-                throw ::CloudStorageException("network unreachable");
+                throw CloudStorageException("network unreachable");
         }
 
         static cloud::AssetInfo describe(const std::string& filename, const File& file)

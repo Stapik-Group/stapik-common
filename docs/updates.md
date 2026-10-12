@@ -16,7 +16,7 @@ options.checkForUpdates = true;
 - `AppInfo::version` and the tag of the latest GitHub release (`v1.2.3` or `1.2.3`) are compared as
   [Semantic Versions](https://semver.org). Prereleases and drafts are not offered, because GitHub does not return
   them as the latest release. If either side is not a semantic version, the check is skipped and a warning is logged.
-- The request goes to `api.github.com` in the background, through the same TLS restrictions as the cloud client.
+- The request goes to `api.github.com` in the background, through the same HTTP client as the cloud client: TLS restrictions, timeouts, system proxy and `Retry-After`.
 - A check is made at most once every 24 hours, and a given version is announced only once. A failed lookup is not
   counted, so it is retried on the next start.
 

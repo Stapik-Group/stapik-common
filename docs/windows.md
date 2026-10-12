@@ -16,6 +16,7 @@ a self-contained folder; there is no installer.
 | Single instance               | GApplication, plus a lock on the data directory (`DirectoryLock`)              | named mutex and named pipe (`SingleInstanceGuard`)                                                                                     |
 | Cloud API key                 | Secret Service (libsecret), plain file `config.json` (0600) when it is missing | Credential Manager (encrypted with DPAPI), per user                                                                                    |
 | TLS certificates (cloud sync) | system                                                                         | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable                                                   |
+| Proxy (cloud sync)            | `http_proxy`, `https_proxy`, `all_proxy` (libcurl)                             | the same variables, otherwise the proxy of the Windows user settings (PAC, auto-detect or fixed), see [http](http.md)                  |
 
 The `XDG_*_HOME` variables are honoured on Windows too (tests and portable setups use them).
 File permissions are not applied on Windows: files inherit the access rules of the user profile.
