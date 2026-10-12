@@ -79,5 +79,24 @@ builds the folder first and compiles `cmake/templates/windows/installer.iss.in` 
 
 Inno Setup is installed with `winget install JRSoftware.InnoSetup`.
 
+## Code signing
+
+Configure with `-DSTAPIK_WINDOWS_SIGN=ON` and `<name>_windows_bundle` signs `<name>.exe` in the folder, so the portable
+ZIP and the installer carry the signed executable, and `<name>_windows_installer` signs the installer as well. Signing
+is done by `cmake/templates/windows/sign.sh` with `signtool.exe` (Windows SDK) and fails when no certificate is
+configured. The certificate comes from the environment, never from the build files:
+
+| Variable                    | Meaning                                                                                      |
+|-----------------------------|----------------------------------------------------------------------------------------------|
+| `STAPIK_SIGN_COMMAND`       | command that signs the file passed as its last argument (Azure Trusted Signing, token tools) |
+| `STAPIK_SIGN_PFX`           | path of a `.pfx` file, with its password in `STAPIK_SIGN_PFX_PASSWORD`                       |
+| `STAPIK_SIGN_THUMBPRINT`    | SHA-1 thumbprint of a certificate in the Windows certificate store                           |
+| `STAPIK_SIGN_TIMESTAMP_URL` | RFC 3161 timestamp server, `http://timestamp.digicert.com` by default                        |
+| `STAPIK_SIGNTOOL`           | path of `signtool.exe` when it is neither in `PATH` nor in the Windows SDK                   |
+
+The first of the first three that is set is used. The signatures are verified with `signtool verify /pa` (except
+for `STAPIK_SIGN_COMMAND`). Only the application executable and the installer are signed; the DLLs come from MSYS2
+as they are, and the uninstaller inside the installer stays unsigned.
+
 Required MSYS2 packages: `gcc cmake ninja pkgconf gtkmm-4.0 curl adwaita-icon-theme hicolor-icon-theme` (prefixed
 `mingw-w64-ucrt-x86_64-`). The gdk-pixbuf image loaders that are installed are bundled; an SVG loader is not required.

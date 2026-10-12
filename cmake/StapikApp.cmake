@@ -4,6 +4,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/StapikWarnings.cmake")
 
 set(STAPIK_COMMON_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "Directory with the stapik-common CMake modules")
 set(STAPIK_APP_SYSTEM_PREFIX "/usr" CACHE PATH "Where launcher, .desktop file and icon are installed (outside the application prefix)")
+option(STAPIK_WINDOWS_SIGN "Windows: sign the executable and the installer (the certificate is taken from the environment, see docs/windows.md)" OFF)
 option(STAPIK_WINDOWS_CONSOLE "Windows: build applications with a console window (for debugging) instead of as GUI programs" OFF)
 
 if(WIN32)
@@ -132,11 +133,19 @@ function(stapik_add_application)
 
         find_program(STAPIK_BASH bash)
         if(STAPIK_BASH)
+            set(signBundleCommands "")
+            set(signInstallerCommands "")
+            if(STAPIK_WINDOWS_SIGN)
+                set(signScript "${STAPIK_COMMON_CMAKE_DIR}/templates/windows/sign.sh")
+                set(signBundleCommands COMMAND "${STAPIK_BASH}" "${signScript}" "${bundleDirectory}/${STAPIK_APP_NAME}.exe")
+            endif()
+
             add_custom_target(${STAPIK_APP_NAME}_windows_bundle
                     COMMAND "${STAPIK_BASH}" "${STAPIK_COMMON_CMAKE_DIR}/templates/windows/bundle.sh"
                             --exe "$<TARGET_FILE:${STAPIK_APP_NAME}>"
                             --resources "${resourcesBuildDirectory}"
                             --output "${bundleDirectory}"
+                    ${signBundleCommands}
                     COMMENT "Assembling the self-contained Windows folder of ${STAPIK_APP_NAME}"
                     VERBATIM)
             add_dependencies(${STAPIK_APP_NAME}_windows_bundle ${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
@@ -175,8 +184,13 @@ function(stapik_add_application)
                 configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/windows/installer.iss.in" "${installerScript}" @ONLY)
 
                 file(TO_NATIVE_PATH "${installerScript}" nativeInstallerScript)
+                if(STAPIK_WINDOWS_SIGN)
+                    set(signInstallerCommands COMMAND "${STAPIK_BASH}" "${signScript}"
+                            "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_INSTALLER_BASE_NAME}.exe")
+                endif()
                 add_custom_target(${STAPIK_APP_NAME}_windows_installer
                         COMMAND "${STAPIK_ISCC}" /Qp "${nativeInstallerScript}"
+                        ${signInstallerCommands}
                         COMMENT "Building ${STAPIK_APP_INSTALLER_BASE_NAME}.exe"
                         VERBATIM)
                 add_dependencies(${STAPIK_APP_NAME}_windows_installer ${STAPIK_APP_NAME}_windows_bundle)
