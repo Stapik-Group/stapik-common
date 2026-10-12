@@ -34,7 +34,9 @@ ThemeManager& ThemeManager::instance(const std::string& appName)
 
 ThemeManager::ThemeManager(const std::string& appName) :
     m_themeId(themeSettingsStore(appName), "theme", themeToFileString(Theme::Classic))
-{}
+{
+    m_themeId.signalChanged().connect([this](const std::string&) { m_signalThemeChanged.emit(); });
+}
 
 void ThemeManager::setTheme(const Theme theme)
 {
@@ -49,7 +51,11 @@ Theme ThemeManager::getTheme() const
 void ThemeManager::setThemeId(const std::string& themeId)
 {
     m_themeId.set(themeId);
-    m_signalThemeChanged.emit();
+}
+
+stapik::settings::ObservableSetting<std::string>& ThemeManager::themeSetting()
+{
+    return m_themeId;
 }
 
 const std::string& ThemeManager::themeId() const

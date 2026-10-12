@@ -1,19 +1,62 @@
 include_guard(GLOBAL)
 
 include("${CMAKE_CURRENT_LIST_DIR}/StapikWarnings.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/StapikQuality.cmake")
 
 set(STAPIK_COMMON_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "Directory with the stapik-common CMake modules")
 set(STAPIK_APP_SYSTEM_PREFIX "/usr" CACHE PATH "Where launcher, .desktop file and icon are installed (outside the application prefix)")
+set(STAPIK_FLATPAK_RUNTIME_VERSION "50" CACHE STRING "Linux: version of the org.gnome.Platform runtime the Flatpak is built against")
+option(STAPIK_WINDOWS_SIGN "Windows: sign the executable and the installer (the certificate is taken from the environment, see docs/windows.md)" OFF)
 option(STAPIK_WINDOWS_CONSOLE "Windows: build applications with a console window (for debugging) instead of as GUI programs" OFF)
 
 if(WIN32)
     enable_language(RC)
 endif()
 
+function(_stapik_parse_localized entry languageVariable textVariable)
+    if(NOT entry MATCHES "^([A-Za-z_@.]+)=(.+)$")
+        message(FATAL_ERROR "stapik_add_application: '${entry}' must look like <language>=<text>")
+    endif()
+    set(${languageVariable} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+    set(${textVariable} "${CMAKE_MATCH_2}" PARENT_SCOPE)
+endfunction()
+
+function(_stapik_append_desktop_localized output key)
+    set(result "${${output}}")
+    foreach(entry IN LISTS ARGN)
+        _stapik_parse_localized("${entry}" language text)
+        string(APPEND result "${key}[${language}]=${text}\n")
+    endforeach()
+    set(${output} "${result}" PARENT_SCOPE)
+endfunction()
+
+function(_stapik_xml_escape text output)
+    string(REPLACE "&" "&amp;" text "${text}")
+    string(REPLACE "<" "&lt;" text "${text}")
+    string(REPLACE ">" "&gt;" text "${text}")
+    set(${output} "${text}" PARENT_SCOPE)
+endfunction()
+
+function(_stapik_cpp_string_escape text output)
+    string(REPLACE "\\" "\\\\" text "${text}")
+    string(REPLACE "\"" "\\\"" text "${text}")
+    set(${output} "${text}" PARENT_SCOPE)
+endfunction()
+
+function(_stapik_append_metainfo_localized output tag)
+    set(result "")
+    foreach(entry IN LISTS ARGN)
+        _stapik_parse_localized("${entry}" language text)
+        _stapik_xml_escape("${text}" escapedText)
+        string(APPEND result "  <${tag} xml:lang=\"${language}\">${escapedText}</${tag}>\n")
+    endforeach()
+    set(${output} "${result}" PARENT_SCOPE)
+endfunction()
+
 function(stapik_add_application)
     cmake_parse_arguments(PARSE_ARGV 0 STAPIK_APP ""
-            "NAME;DISPLAY_NAME;DESCRIPTION;VERSION;APPLICATION_ID;RESOURCES_DIRECTORY;PACKAGING_DIRECTORY;MAINTAINER;HOMEPAGE;SECTION"
-            "SOURCES;DESKTOP_CATEGORIES;DEPENDS;LINK_LIBRARIES")
+            "NAME;DISPLAY_NAME;DESCRIPTION;VERSION;APPLICATION_ID;RESOURCES_DIRECTORY;PACKAGING_DIRECTORY;MAINTAINER;HOMEPAGE;SECTION;WM_CLASS;LICENSE;LONG_DESCRIPTION;RELEASE_DATE"
+            "SOURCES;DESKTOP_CATEGORIES;DEPENDS;LINK_LIBRARIES;LOCALIZED_NAMES;LOCALIZED_DESCRIPTIONS;KEYWORDS;LOCALIZED_KEYWORDS;MIME_TYPES")
 
     if(STAPIK_APP_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "stapik_add_application: unknown arguments: ${STAPIK_APP_UNPARSED_ARGUMENTS}")
@@ -49,6 +92,9 @@ function(stapik_add_application)
     if(NOT STAPIK_APP_MAINTAINER)
         set(STAPIK_APP_MAINTAINER "Stapik Group")
     endif()
+    if(NOT STAPIK_APP_WM_CLASS)
+        set(STAPIK_APP_WM_CLASS "${STAPIK_APP_APPLICATION_ID}")
+    endif()
     if(NOT STAPIK_APP_SECTION)
         set(STAPIK_APP_SECTION "utils")
     endif()
@@ -75,11 +121,9 @@ function(stapik_add_application)
     # --- Executable ---
     add_executable(${STAPIK_APP_NAME} ${STAPIK_APP_SOURCES})
     target_link_libraries(${STAPIK_APP_NAME} PRIVATE stapik::common ${STAPIK_APP_LINK_LIBRARIES})
-    target_compile_definitions(${STAPIK_APP_NAME} PRIVATE
-            STAPIK_APP_NAME="${STAPIK_APP_NAME}"
-            STAPIK_APP_DISPLAY_NAME="${STAPIK_APP_DISPLAY_NAME}"
-            STAPIK_APP_VERSION="${STAPIK_APP_VERSION}")
     stapik_enable_warnings(${STAPIK_APP_NAME})
+    stapik_enable_sanitizers(${STAPIK_APP_NAME})
+    stapik_enable_coverage(${STAPIK_APP_NAME})
 
     # --- Resources next to the executable (build tree) ---
     if(NOT STAPIK_COMMON_RESOURCES_DIR OR NOT IS_DIRECTORY "${STAPIK_COMMON_RESOURCES_DIR}")
@@ -100,6 +144,14 @@ function(stapik_add_application)
     add_dependencies(${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
 
     set(generatedDirectory "${CMAKE_CURRENT_BINARY_DIR}/stapik-packaging/${STAPIK_APP_NAME}")
+
+    # --- stapik/app/version.hpp ---
+    foreach(field NAME DISPLAY_NAME VERSION)
+        _stapik_cpp_string_escape("${STAPIK_APP_${field}}" STAPIK_APP_CPP_${field})
+    endforeach()
+    configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/version.hpp.in"
+            "${generatedDirectory}/include/stapik/app/version.hpp" @ONLY)
+    target_include_directories(${STAPIK_APP_NAME} PRIVATE "${generatedDirectory}/include")
 
     # --- Windows: GUI executable, version resource, self-contained bundle ---
     if(WIN32)
@@ -127,16 +179,75 @@ function(stapik_add_application)
         configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/windows/application.rc.in" "${generatedDirectory}/${STAPIK_APP_NAME}.rc" @ONLY)
         target_sources(${STAPIK_APP_NAME} PRIVATE "${generatedDirectory}/${STAPIK_APP_NAME}.rc")
 
+        set(bundleDirectoryName "${STAPIK_APP_NAME}-windows")
+        set(bundleDirectory "${CMAKE_CURRENT_BINARY_DIR}/${bundleDirectoryName}")
+
         find_program(STAPIK_BASH bash)
         if(STAPIK_BASH)
+            set(signBundleCommands "")
+            set(signInstallerCommands "")
+            if(STAPIK_WINDOWS_SIGN)
+                set(signScript "${STAPIK_COMMON_CMAKE_DIR}/templates/windows/sign.sh")
+                set(signBundleCommands COMMAND "${STAPIK_BASH}" "${signScript}" "${bundleDirectory}/${STAPIK_APP_NAME}.exe")
+            endif()
+
             add_custom_target(${STAPIK_APP_NAME}_windows_bundle
                     COMMAND "${STAPIK_BASH}" "${STAPIK_COMMON_CMAKE_DIR}/templates/windows/bundle.sh"
                             --exe "$<TARGET_FILE:${STAPIK_APP_NAME}>"
                             --resources "${resourcesBuildDirectory}"
-                            --output "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-windows"
+                            --output "${bundleDirectory}"
+                    ${signBundleCommands}
                     COMMENT "Assembling the self-contained Windows folder of ${STAPIK_APP_NAME}"
                     VERBATIM)
             add_dependencies(${STAPIK_APP_NAME}_windows_bundle ${STAPIK_APP_NAME} ${STAPIK_APP_NAME}_resources)
+
+            set(portableArchiveName "${STAPIK_APP_NAME}-${STAPIK_APP_VERSION}-windows-portable.zip")
+            add_custom_target(${STAPIK_APP_NAME}_windows_portable
+                    COMMAND ${CMAKE_COMMAND} -E rm -f "${portableArchiveName}"
+                    COMMAND ${CMAKE_COMMAND} -E tar cf "${portableArchiveName}" --format=zip -- "${bundleDirectoryName}"
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+                    COMMENT "Packing ${portableArchiveName}"
+                    VERBATIM)
+            add_dependencies(${STAPIK_APP_NAME}_windows_portable ${STAPIK_APP_NAME}_windows_bundle)
+
+            find_program(STAPIK_ISCC NAMES ISCC iscc
+                    PATHS "$ENV{ProgramFiles\(x86\)}/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6" "$ENV{LOCALAPPDATA}/Programs/Inno Setup 6")
+            if(STAPIK_ISCC)
+                string(UUID STAPIK_APP_INSTALLER_GUID NAMESPACE "6f1c2b7e-4d3a-4e58-9a0b-5c7d8e9f1a23"
+                        NAME "${STAPIK_APP_APPLICATION_ID}" TYPE SHA1 UPPER)
+
+                set(STAPIK_APP_INSTALLER_PUBLISHER_URL "")
+                if(STAPIK_APP_HOMEPAGE)
+                    set(STAPIK_APP_INSTALLER_PUBLISHER_URL "AppPublisherURL=${STAPIK_APP_HOMEPAGE}")
+                endif()
+
+                set(STAPIK_APP_INSTALLER_ICON "")
+                if(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.ico")
+                    file(TO_NATIVE_PATH "${packagingDirectory}/${STAPIK_APP_NAME}.ico" nativeIcon)
+                    set(STAPIK_APP_INSTALLER_ICON "SetupIconFile=${nativeIcon}")
+                endif()
+
+                file(TO_NATIVE_PATH "${bundleDirectory}" STAPIK_APP_INSTALLER_SOURCE_DIRECTORY)
+                file(TO_NATIVE_PATH "${CMAKE_CURRENT_BINARY_DIR}" STAPIK_APP_INSTALLER_OUTPUT_DIRECTORY)
+                set(STAPIK_APP_INSTALLER_BASE_NAME "${STAPIK_APP_NAME}-${STAPIK_APP_VERSION}-setup")
+
+                set(installerScript "${generatedDirectory}/${STAPIK_APP_NAME}.iss")
+                configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/windows/installer.iss.in" "${installerScript}" @ONLY)
+
+                file(TO_NATIVE_PATH "${installerScript}" nativeInstallerScript)
+                if(STAPIK_WINDOWS_SIGN)
+                    set(signInstallerCommands COMMAND "${STAPIK_BASH}" "${signScript}"
+                            "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_INSTALLER_BASE_NAME}.exe")
+                endif()
+                add_custom_target(${STAPIK_APP_NAME}_windows_installer
+                        COMMAND "${STAPIK_ISCC}" /Qp "${nativeInstallerScript}"
+                        ${signInstallerCommands}
+                        COMMENT "Building ${STAPIK_APP_INSTALLER_BASE_NAME}.exe"
+                        VERBATIM)
+                add_dependencies(${STAPIK_APP_NAME}_windows_installer ${STAPIK_APP_NAME}_windows_bundle)
+            else()
+                message(STATUS "stapik_add_application: Inno Setup (ISCC) not found, target ${STAPIK_APP_NAME}_windows_installer is not available")
+            endif()
         else()
             message(STATUS "stapik_add_application: bash not found, target ${STAPIK_APP_NAME}_windows_bundle is not available")
         endif()
@@ -176,24 +287,150 @@ function(stapik_add_application)
 
     set(STAPIK_APP_ICON_NAME "application-x-executable")
     if(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.svg")
-        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_NAME}")
+        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_APPLICATION_ID}")
         install(FILES "${packagingDirectory}/${STAPIK_APP_NAME}.svg"
-                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/scalable/apps")
+                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/scalable/apps"
+                RENAME "${STAPIK_APP_ICON_NAME}.svg")
     elseif(packagingDirectory AND EXISTS "${packagingDirectory}/${STAPIK_APP_NAME}.png")
-        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_NAME}")
+        set(STAPIK_APP_ICON_NAME "${STAPIK_APP_APPLICATION_ID}")
         install(FILES "${packagingDirectory}/${STAPIK_APP_NAME}.png"
-                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/256x256/apps")
+                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/icons/hicolor/256x256/apps"
+                RENAME "${STAPIK_APP_ICON_NAME}.png")
     endif()
 
     list(JOIN STAPIK_APP_DESKTOP_CATEGORIES ";" desktopCategories)
     set(STAPIK_APP_CATEGORIES "${desktopCategories};")
 
+    set(STAPIK_APP_DESKTOP_EXEC "${STAPIK_APP_NAME}")
+    set(STAPIK_APP_DESKTOP_EXTRA "")
+    _stapik_append_desktop_localized(STAPIK_APP_DESKTOP_EXTRA Name ${STAPIK_APP_LOCALIZED_NAMES})
+    _stapik_append_desktop_localized(STAPIK_APP_DESKTOP_EXTRA Comment ${STAPIK_APP_LOCALIZED_DESCRIPTIONS})
+    if(STAPIK_APP_KEYWORDS)
+        list(JOIN STAPIK_APP_KEYWORDS ";" desktopKeywords)
+        string(APPEND STAPIK_APP_DESKTOP_EXTRA "Keywords=${desktopKeywords};\n")
+    endif()
+    foreach(entry IN LISTS STAPIK_APP_LOCALIZED_KEYWORDS)
+        _stapik_parse_localized("${entry}" language text)
+        string(REPLACE "," ";" localizedKeywords "${text}")
+        string(APPEND STAPIK_APP_DESKTOP_EXTRA "Keywords[${language}]=${localizedKeywords};\n")
+    endforeach()
+    if(STAPIK_APP_MIME_TYPES)
+        list(JOIN STAPIK_APP_MIME_TYPES ";" desktopMimeTypes)
+        string(APPEND STAPIK_APP_DESKTOP_EXTRA "MimeType=${desktopMimeTypes};\n")
+        set(STAPIK_APP_DESKTOP_EXEC "${STAPIK_APP_NAME} %F")
+    endif()
+
     configure_file("${launcherTemplate}" "${generatedDirectory}/${STAPIK_APP_NAME}" @ONLY)
     configure_file("${desktopTemplate}" "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.desktop" @ONLY)
 
-    install(PROGRAMS "${generatedDirectory}/${STAPIK_APP_NAME}" DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/bin")
+    cmake_path(COMPARE "${CMAKE_INSTALL_PREFIX}" EQUAL "${STAPIK_APP_SYSTEM_PREFIX}" applicationIsInSystemPrefix)
+    if(NOT applicationIsInSystemPrefix)
+        install(PROGRAMS "${generatedDirectory}/${STAPIK_APP_NAME}" DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/bin")
+    endif()
     install(FILES "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.desktop"
             DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/applications")
+
+    # --- AppStream metainfo (needs the SPDX LICENSE of the application) ---
+    if(STAPIK_APP_LICENSE)
+        set(metainfoTemplate "${STAPIK_COMMON_CMAKE_DIR}/templates/application.metainfo.xml.in")
+        if(packagingDirectory AND EXISTS "${packagingDirectory}/application.metainfo.xml.in")
+            set(metainfoTemplate "${packagingDirectory}/application.metainfo.xml.in")
+        endif()
+
+        if(NOT STAPIK_APP_LONG_DESCRIPTION)
+            set(STAPIK_APP_LONG_DESCRIPTION "${STAPIK_APP_DESCRIPTION}")
+        endif()
+        if(NOT STAPIK_APP_RELEASE_DATE)
+            string(TIMESTAMP STAPIK_APP_RELEASE_DATE "%Y-%m-%d" UTC)
+        endif()
+
+        _stapik_xml_escape("${STAPIK_APP_DISPLAY_NAME}" STAPIK_APP_METAINFO_NAME)
+        _stapik_xml_escape("${STAPIK_APP_DESCRIPTION}" STAPIK_APP_METAINFO_SUMMARY)
+        _stapik_xml_escape("${STAPIK_APP_LONG_DESCRIPTION}" STAPIK_APP_METAINFO_DESCRIPTION)
+        _stapik_append_metainfo_localized(STAPIK_APP_METAINFO_LOCALIZED_NAMES name ${STAPIK_APP_LOCALIZED_NAMES})
+        _stapik_append_metainfo_localized(STAPIK_APP_METAINFO_LOCALIZED_SUMMARIES summary ${STAPIK_APP_LOCALIZED_DESCRIPTIONS})
+
+        set(STAPIK_APP_METAINFO_EXTRA "")
+        _stapik_xml_escape("${STAPIK_APP_MAINTAINER}" escapedMaintainer)
+        if(STAPIK_APP_APPLICATION_ID MATCHES "^(.+)\\.[^.]+$")
+            string(APPEND STAPIK_APP_METAINFO_EXTRA
+                    "  <developer id=\"${CMAKE_MATCH_1}\"><name>${escapedMaintainer}</name></developer>\n")
+        else()
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  <developer_name>${escapedMaintainer}</developer_name>\n")
+        endif()
+        if(STAPIK_APP_HOMEPAGE)
+            _stapik_xml_escape("${STAPIK_APP_HOMEPAGE}" escapedHomepage)
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  <url type=\"homepage\">${escapedHomepage}</url>\n")
+        endif()
+        if(STAPIK_APP_KEYWORDS)
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  <keywords>\n")
+            foreach(keyword IN LISTS STAPIK_APP_KEYWORDS)
+                _stapik_xml_escape("${keyword}" escapedKeyword)
+                string(APPEND STAPIK_APP_METAINFO_EXTRA "    <keyword>${escapedKeyword}</keyword>\n")
+            endforeach()
+            string(APPEND STAPIK_APP_METAINFO_EXTRA "  </keywords>\n")
+        endif()
+
+        set(STAPIK_APP_METAINFO_MEDIA_TYPES "")
+        foreach(mimeType IN LISTS STAPIK_APP_MIME_TYPES)
+            _stapik_xml_escape("${mimeType}" escapedMimeType)
+            string(APPEND STAPIK_APP_METAINFO_MEDIA_TYPES "    <mediatype>${escapedMimeType}</mediatype>\n")
+        endforeach()
+
+        configure_file("${metainfoTemplate}" "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.metainfo.xml" @ONLY)
+        install(FILES "${generatedDirectory}/${STAPIK_APP_APPLICATION_ID}.metainfo.xml"
+                DESTINATION "${STAPIK_APP_SYSTEM_PREFIX}/share/metainfo")
+    endif()
+
+    # --- Flatpak ---
+    find_program(STAPIK_FLATPAK_BUILDER flatpak-builder)
+    find_program(STAPIK_FLATPAK flatpak)
+    set(commonSourceDirectory "${STAPIK_COMMON_CMAKE_DIR}/..")
+    if(STAPIK_FLATPAK_BUILDER AND STAPIK_FLATPAK AND EXISTS "${commonSourceDirectory}/CMakeLists.txt")
+        cmake_path(NORMAL_PATH commonSourceDirectory)
+        set(STAPIK_FLATPAK_COMMON_SOURCE_DIRECTORY "${commonSourceDirectory}")
+        set(STAPIK_FLATPAK_SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+        set(STAPIK_FLATPAK_SKIPPED "[\".git\", \".flatpak-builder\"")
+        cmake_path(IS_PREFIX CMAKE_CURRENT_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE buildIsInSource)
+        if(buildIsInSource)
+            file(RELATIVE_PATH buildRelativePath "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+            string(REGEX REPLACE "/.*$" "" buildTopDirectory "${buildRelativePath}")
+            string(APPEND STAPIK_FLATPAK_SKIPPED ", \"${buildTopDirectory}\"")
+        endif()
+        string(APPEND STAPIK_FLATPAK_SKIPPED "]")
+
+        set(flatpakDirectory "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-flatpak")
+        set(flatpakManifest "${flatpakDirectory}/${STAPIK_APP_APPLICATION_ID}.yml")
+        configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/flatpak/manifest.yml.in" "${flatpakManifest}" @ONLY)
+        configure_file("${STAPIK_COMMON_CMAKE_DIR}/templates/flatpak/stapik-dependencies.yml"
+                "${flatpakDirectory}/stapik-dependencies.yml" COPYONLY)
+
+        set(flatpakBundleName "${STAPIK_APP_NAME}-${STAPIK_APP_VERSION}.flatpak")
+        add_custom_target(${STAPIK_APP_NAME}_flatpak
+                COMMAND "${STAPIK_FLATPAK_BUILDER}" --force-clean --user --install-deps-from=flathub
+                        --repo=repo build "${flatpakManifest}"
+                COMMAND "${STAPIK_FLATPAK}" build-bundle repo "${flatpakBundleName}" "${STAPIK_APP_APPLICATION_ID}"
+                WORKING_DIRECTORY "${flatpakDirectory}"
+                COMMENT "Building ${flatpakBundleName}"
+                VERBATIM)
+    else()
+        message(STATUS "stapik_add_application: flatpak-builder or the stapik-common sources not found, target ${STAPIK_APP_NAME}_flatpak is not available")
+    endif()
+
+    # --- AppImage ---
+    find_program(STAPIK_LINUXDEPLOY linuxdeploy)
+    find_program(STAPIK_LINUXDEPLOY_GTK linuxdeploy-plugin-gtk.sh)
+    if(STAPIK_LINUXDEPLOY AND STAPIK_LINUXDEPLOY_GTK)
+        add_custom_target(${STAPIK_APP_NAME}_appimage
+                COMMAND bash "${STAPIK_COMMON_CMAKE_DIR}/templates/appimage/build-appimage.sh"
+                        --source "${CMAKE_CURRENT_SOURCE_DIR}"
+                        --output "${CMAKE_CURRENT_BINARY_DIR}/${STAPIK_APP_NAME}-appimage"
+                COMMENT "Building the AppImage of ${STAPIK_APP_NAME}"
+                VERBATIM)
+    else()
+        message(STATUS "stapik_add_application: linuxdeploy with its GTK plugin not found, target ${STAPIK_APP_NAME}_appimage is not available")
+    endif()
 
     # --- CPack DEB (only for the top-level project) ---
     if(PROJECT_IS_TOP_LEVEL)

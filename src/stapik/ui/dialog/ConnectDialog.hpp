@@ -3,7 +3,10 @@
 #include "StapikDialog.hpp"
 
 #include "stapik/cloud/CloudStorageConfig.hpp"
+#include "stapik/cloud/ConnectionCheck.hpp"
+#include "stapik/task/BackgroundTaskRunner.hpp"
 
+#include <gtkmm/button.h>
 #include <gtkmm/checkbutton.h>
 #include <gtkmm/entry.h>
 #include <gtkmm/label.h>
@@ -23,11 +26,22 @@ private:
     Gtk::Label m_apiUrlHintLabel;
     Gtk::Label m_apiKeyLabel;
     Gtk::Entry m_apiKeyEntry;
+    Gtk::Label m_passphraseLabel;
+    Gtk::Entry m_passphraseEntry;
+    Gtk::Label m_passphraseHintLabel;
     Gtk::CheckButton m_showKeyCheck;
+    Gtk::Button m_checkButton;
+    Gtk::Label m_checkResultLabel;
+    stapik::task::BackgroundTaskRunner m_checkRunner;
+    unsigned m_checkGeneration = 0;
 
     void initLayout();
     [[nodiscard]] CloudStorageConfig currentConfig() const;
     void updateValidation();
+    void startConnectionCheck();
+    void showCheckResult(const std::optional<stapik::cloud::ConnectionCheckResult>& result);
+    void clearCheckResult();
+    [[nodiscard]] bool isConfigUsable() const;
 };
 
 void showConnectDialog(

@@ -106,8 +106,12 @@ TEST_F(AtomicFileTest, FailsWhenParentIsNotADirectory)
     const auto blocker = m_directory / "blocker";
     ASSERT_TRUE(writeFileAtomically(blocker, "i am a file"));
 
-    EXPECT_FALSE(writeFileAtomically(blocker / "file.txt", "data"));
+    const auto result = writeFileAtomically(blocker / "file.txt", "data");
 
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "create directory");
+    EXPECT_EQ(result.error().path, blocker);
+    EXPECT_TRUE(result.error().code);
     EXPECT_EQ(readAll(blocker), "i am a file");
 }
 
@@ -116,8 +120,11 @@ TEST_F(AtomicFileTest, FailedRenameKeepsTargetAndRemovesTemporaryFile)
     const auto targetDirectory = m_directory / "target";
     fs::create_directory(targetDirectory);
 
-    EXPECT_FALSE(writeFileAtomically(targetDirectory, "data"));
+    const auto result = writeFileAtomically(targetDirectory, "data");
 
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().path, targetDirectory);
+    EXPECT_TRUE(result.error().code);
     EXPECT_TRUE(fs::is_directory(targetDirectory));
     EXPECT_EQ(countEntries(m_directory), 1u);
 }

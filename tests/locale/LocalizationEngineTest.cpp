@@ -127,24 +127,13 @@ TEST_F(LocalizationEngineTest, PlaceholdersAreAlsoReplacedInTheEnglishFallback)
     EXPECT_EQ(engine.translate("greeting", { { "name", "Ola" } }), "Hello, Ola!");
 }
 
-TEST_F(LocalizationEngineTest, SetLocaleSelectsTheMatchingLanguage)
-{
-    LocalizationEngine engine(m_directory);
-
-    engine.setLocale(Locale::PL);
-
-    EXPECT_EQ(engine.languageCode(), "pl");
-    EXPECT_EQ(engine.getLocale(), Locale::PL);
-    EXPECT_EQ(engine.translate("dialog.cancel"), "Anuluj");
-}
-
-TEST_F(LocalizationEngineTest, GetLocaleOfLanguageOutsideTheEnumIsEnglish)
+TEST_F(LocalizationEngineTest, LanguageCodeReflectsTheSelection)
 {
     LocalizationEngine engine(m_directory);
 
     engine.setLanguage("fr");
 
-    EXPECT_EQ(engine.getLocale(), Locale::EN);
+    EXPECT_EQ(engine.languageCode(), "fr");
 }
 
 TEST_F(LocalizationEngineTest, NonStringEntriesAreIgnoredAndTheRestIsLoaded)
@@ -171,7 +160,7 @@ TEST_F(LocalizationEngineTest, BrokenFileDoesNotAffectOtherLanguages)
 
 TEST_F(LocalizationEngineTest, MissingDirectoryTranslatesToKeys)
 {
-    LocalizationEngine engine(m_directory / "nope");
+    const LocalizationEngine engine(m_directory / "nope");
 
     EXPECT_EQ(engine.translate("dialog.ok"), "dialog.ok");
     EXPECT_TRUE(engine.languages().empty());
@@ -202,4 +191,63 @@ TEST_F(LocalizationEngineTest, AcceptsStdStringKeys)
     const std::string key = "dialog.cancel";
 
     EXPECT_EQ(engine.translate(key), "Anuluj");
+}
+
+TEST_F(LocalizationEngineTest, PluralFormIsChosenByTheLanguageRules)
+{
+    writeText(m_directory / "pl.json", R"({
+        "transaction.one": "{count} transakcja",
+        "transaction.few": "{count} transakcje",
+        "transaction.many": "{count} transakcji"
+    })");
+    LocalizationEngine engine(m_directory);
+    engine.setLanguage("pl");
+
+    EXPECT_EQ(engine.translatePlural("transaction", 1), "1 transakcja");
+    EXPECT_EQ(engine.translatePlural("transaction", 2), "2 transakcje");
+    EXPECT_EQ(engine.translatePlural("transaction", 5), "5 transakcji");
+    EXPECT_EQ(engine.translatePlural("transaction", 12), "12 transakcji");
+    EXPECT_EQ(engine.translatePlural("transaction", 22), "22 transakcje");
+    EXPECT_EQ(engine.translatePlural("transaction", 0), "0 transakcji");
+}
+
+TEST_F(LocalizationEngineTest, PluralFormFallsBackToOtherWhenTheCategoryIsMissing)
+{
+    writeText(m_directory / "pl.json", R"({"file.one": "{count} plik", "file.other": "{count} pliki"})");
+    LocalizationEngine engine(m_directory);
+    engine.setLanguage("pl");
+
+    EXPECT_EQ(engine.translatePlural("file", 1), "1 plik");
+    EXPECT_EQ(engine.translatePlural("file", 3), "3 pliki");
+}
+
+TEST_F(LocalizationEngineTest, PluralFormFallsBackToEnglishWithEnglishRules)
+{
+    writeText(m_directory / "en.json", R"({"item.one": "{count} item", "item.other": "{count} items"})");
+    writeText(m_directory / "pl.json", R"({"language.name": "Polski"})");
+    LocalizationEngine engine(m_directory);
+    engine.setLanguage("pl");
+
+    EXPECT_EQ(engine.translatePlural("item", 1), "1 item");
+    EXPECT_EQ(engine.translatePlural("item", 2), "2 items");
+}
+
+TEST_F(LocalizationEngineTest, PluralCountCanBeOverriddenAndCombinedWithOtherArguments)
+{
+    writeText(m_directory / "en.json", R"({
+        "deleted.one": "{name} deleted {count} entry",
+        "deleted.other": "{name} deleted {count} entries"
+    })");
+    LocalizationEngine engine(m_directory);
+    engine.setLanguage("en");
+
+    EXPECT_EQ(engine.translatePlural("deleted", 3, { { "name", "Ola" } }), "Ola deleted 3 entries");
+    EXPECT_EQ(engine.translatePlural("deleted", 1000, { { "name", "Ola" }, { "count", "1,000" } }), "Ola deleted 1,000 entries");
+}
+
+TEST_F(LocalizationEngineTest, UnknownPluralKeyReturnsTheKey)
+{
+    const LocalizationEngine engine(m_directory);
+
+    EXPECT_EQ(engine.translatePlural("no.such.key", 2), "no.such.key");
 }

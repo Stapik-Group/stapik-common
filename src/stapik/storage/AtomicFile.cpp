@@ -1,11 +1,11 @@
 #include "AtomicFile.hpp"
 
 #include <cerrno>
-#include <cstring>
 #include <string>
+#include <system_error>
+#include <utility>
 
 #include "stapik/log/Log.hpp"
-#include "stapik/storage/PathText.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -19,13 +19,22 @@
 #include <algorithm>
 #include <atomic>
 #include <format>
-#include <system_error>
 #else
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
+
+namespace
+{
+    stapik::Failure<stapik::storage::FileError> logAndFail(const std::filesystem::path& path, const char* step, const std::error_code& errorCode)
+    {
+        stapik::storage::FileError error{ .path = path, .step = step, .code = errorCode };
+        stapik::log::warning("Atomic write: {}", error.message());
+        return stapik::Failure(std::move(error));
+    }
+}
 
 #ifdef _WIN32
 namespace
@@ -35,10 +44,9 @@ namespace
     constexpr DWORD REPLACE_RETRY_DELAY_MILLISECONDS = 50;
     constexpr std::size_t MAX_WRITE_CHUNK = std::size_t{ 1 } << 30;
 
-    void logFailure(const std::filesystem::path& path, const char* step, const DWORD errorCode)
+    stapik::Failure<stapik::storage::FileError> logAndFail(const std::filesystem::path& path, const char* step, const DWORD errorCode)
     {
-        stapik::log::warning("Atomic write of {} failed at {}: {}",
-            stapik::storage::pathText(path), step, std::system_category().message(static_cast<int>(errorCode)));
+        return logAndFail(path, step, std::error_code(static_cast<int>(errorCode), std::system_category()));
     }
 
     // CREATE_NEW makes the creation exclusive, so a name that is already taken is simply skipped.
@@ -128,26 +136,23 @@ namespace
         close(directoryDescriptor);
     }
 
-    void logFailure(const std::filesystem::path& path, const char* step, const int errorNumber)
+    stapik::Failure<stapik::storage::FileError> logAndFail(const std::filesystem::path& path, const char* step, const int errorNumber)
     {
-        stapik::log::warning("Atomic write of {} failed at {}: {}", stapik::storage::pathText(path), step, std::strerror(errorNumber));
+        return logAndFail(path, step, std::error_code(errorNumber, std::generic_category()));
     }
 }
 #endif
 
 namespace stapik::storage
 {
-    bool writeFileAtomically(const std::filesystem::path &path, const std::string_view content, std::filesystem::perms permissions)
+    FileResult writeFileAtomically(const std::filesystem::path &path, const std::string_view content, std::filesystem::perms permissions)
     {
         const auto directory = path.has_parent_path() ? path.parent_path() : std::filesystem::path(".");
 
         std::error_code errorCode;
         std::filesystem::create_directories(directory, errorCode);
         if (errorCode)
-        {
-            log::warning("Cannot create directory {}: {}", pathText(directory), errorCode.message());
-            return false;
-        }
+            return logAndFail(directory, "create directory", errorCode);
 
 #ifdef _WIN32
         // Windows has no POSIX permission bits: the file inherits the access rules of the user's profile folder,
@@ -158,10 +163,7 @@ namespace stapik::storage
         DWORD windowsError = 0;
         const HANDLE handle = createTemporaryFile(directory, path.filename(), temporaryPath, windowsError);
         if (handle == INVALID_HANDLE_VALUE)
-        {
-            logFailure(path, "create temporary file", windowsError);
-            return false;
-        }
+            return logAndFail(path, "create temporary file", windowsError);
 
         const auto failAndCleanUp = [&](const char* step, const DWORD failure, const bool handleStillOpen)
         {
@@ -169,8 +171,7 @@ namespace stapik::storage
                 CloseHandle(handle);
 
             DeleteFileW(temporaryPath.c_str());
-            logFailure(path, step, failure);
-            return false;
+            return logAndFail(path, step, failure);
         };
 
         if (!writeAll(handle, content, windowsError))
@@ -185,24 +186,20 @@ namespace stapik::storage
         if (!replaceFile(temporaryPath, path, windowsError))
             return failAndCleanUp("replace", windowsError, false);
 
-        return true;
+        return {};
 #else
         auto temporaryPath = (directory / (path.filename().string() + ".tmp.XXXXXX")).string();
 
         const int fileDescriptor = mkstemp(temporaryPath.data());
         if (fileDescriptor < 0)
-        {
-            logFailure(path, "mkstemp", errno);
-            return false;
-        }
+            return logAndFail(path, "mkstemp", errno);
 
         const auto fail = [&](const char* step)
         {
             const int savedErrno = errno;
             close(fileDescriptor);
             unlink(temporaryPath.c_str());
-            logFailure(path, step, savedErrno);
-            return false;
+            return logAndFail(path, step, savedErrno);
         };
 
         if (fchmod(fileDescriptor, static_cast<mode_t>(permissions)) != 0)
@@ -218,20 +215,18 @@ namespace stapik::storage
         {
             const int savedErrno = errno;
             unlink(temporaryPath.c_str());
-            logFailure(path, "close", savedErrno);
-            return false;
+            return logAndFail(path, "close", savedErrno);
         }
 
         if (rename(temporaryPath.c_str(), path.c_str()) != 0)
         {
             const int savedErrno = errno;
             unlink(temporaryPath.c_str());
-            logFailure(path, "rename", savedErrno);
-            return false;
+            return logAndFail(path, "rename", savedErrno);
         }
 
         syncDirectory(directory);
-        return true;
+        return {};
 #endif
     }
 }

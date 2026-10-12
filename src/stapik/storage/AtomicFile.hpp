@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FileError.hpp"
+
 #include <filesystem>
 #include <string_view>
 
@@ -10,5 +12,6 @@ namespace stapik::storage
         std::filesystem::perms::group_read |
         std::filesystem::perms::others_read;
 
-    [[nodiscard]] bool writeFileAtomically(const std::filesystem::path &path, std::string_view content, std::filesystem::perms permissions = DEFAULT_FILE_PERMISSIONS);
+    // The failure is also logged. Either the target is replaced completely or it is left as it was.
+    [[nodiscard]] FileResult writeFileAtomically(const std::filesystem::path &path, std::string_view content, std::filesystem::perms permissions = DEFAULT_FILE_PERMISSIONS);
 }

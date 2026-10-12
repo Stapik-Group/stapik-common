@@ -17,10 +17,16 @@ struct CloudStorageConfig
 {
     std::string apiUrl;
     std::string apiKey;
+    std::string encryptionPassphrase{};
 
     [[nodiscard]] bool isConfigured() const
     {
         return !apiUrl.empty() && !apiKey.empty();
+    }
+
+    [[nodiscard]] bool isEndToEndEncrypted() const
+    {
+        return !encryptionPassphrase.empty();
     }
 
     [[nodiscard]] std::string normalizedApiUrl() const

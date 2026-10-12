@@ -1,10 +1,18 @@
 #pragma once
 
+#include "BackupInfo.hpp"
 #include "SchemaMigrator.hpp"
+
+#include "stapik/time/Clock.hpp"
+
+#include "stapik/storage/FileError.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace stapik::document
 {
@@ -28,16 +36,21 @@ namespace stapik::document
     class DocumentFileCore
     {
     public:
-        DocumentFileCore(std::filesystem::path filePath, SchemaMigrator migrator);
+        DocumentFileCore(std::filesystem::path filePath, SchemaMigrator migrator,
+                         const time::IClock& clock = time::systemClock());
         void setBackupCount(int backupCount);
         [[nodiscard]] const std::filesystem::path& filePath() const;
         [[nodiscard]] const SchemaMigrator& migrator() const;
+        [[nodiscard]] std::vector<BackupInfo> listBackups() const;
+
+        [[nodiscard]] std::string envelopeText(const nlohmann::json& document) const;
+        [[nodiscard]] RawLoad parseEnvelope(std::string_view text, std::string_view origin) const;
 
     protected:
         void quarantineFile() const;
         [[nodiscard]] RawLoad readRaw(const std::filesystem::path& source) const;
-        [[nodiscard]] bool writeRaw(const nlohmann::json& document) const;
-        [[nodiscard]] bool writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const;
+        [[nodiscard]] storage::FileResult writeRaw(const nlohmann::json& document) const;
+        [[nodiscard]] storage::FileResult writeRawTo(const std::filesystem::path& target, const nlohmann::json& document) const;
     private:
         [[nodiscard]] std::filesystem::path backupPath(int index) const;
         void rotateBackups() const;
@@ -45,5 +58,6 @@ namespace stapik::document
         std::filesystem::path m_filePath;
         SchemaMigrator m_migrator;
         int m_backupCount = 1;
+        const time::IClock* m_clock;
     };
 }

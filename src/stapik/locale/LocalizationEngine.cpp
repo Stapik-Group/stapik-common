@@ -1,5 +1,7 @@
 #include "LocalizationEngine.hpp"
 
+#include "PluralRules.hpp"
+
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/PathText.hpp"
 
@@ -106,16 +108,6 @@ void LocalizationEngine::loadFile(const std::string &code, const std::filesystem
     }
 }
 
-void LocalizationEngine::setLocale(const Locale locale)
-{
-    setLanguage(toFileString(locale));
-}
-
-Locale LocalizationEngine::getLocale() const
-{
-    return fromFileString(m_languageCode);
-}
-
 void LocalizationEngine::setLanguage(const std::string_view code)
 {
     m_languageCode = std::string(code);
@@ -141,6 +133,18 @@ const std::string *LocalizationEngine::find(const std::string_view code, const s
     return translation == language->second.end() ? nullptr : &translation->second;
 }
 
+const std::string *LocalizationEngine::findPlural(const std::string_view code, const std::string_view key, const long long count) const
+{
+    for (const auto category = stapik::locale::pluralCategory(code, count); const auto candidate: {category, stapik::locale::PluralCategory::Other})
+    {
+        const auto formKey = std::string(key) + '.' + std::string(stapik::locale::pluralCategoryName(candidate));
+        if (const auto *text = find(code, formKey))
+            return text;
+    }
+
+    return nullptr;
+}
+
 std::string LocalizationEngine::translate(const std::string_view key) const
 {
     return translate(key, Arguments{});
@@ -153,6 +157,25 @@ std::string LocalizationEngine::translate(const std::string_view key, const Argu
 
     if (const auto *text = find(FALLBACK_LANGUAGE, key))
         return substitute(*text, arguments);
+
+    return std::string(key);
+}
+
+std::string LocalizationEngine::translatePlural(const std::string_view key, const long long count) const
+{
+    return translatePlural(key, count, Arguments{});
+}
+
+std::string LocalizationEngine::translatePlural(const std::string_view key, const long long count, const Arguments &arguments) const
+{
+    auto withCount = arguments;
+    withCount.try_emplace("count", std::to_string(count));
+
+    if (const auto *text = findPlural(m_languageCode, key, count))
+        return substitute(*text, withCount);
+
+    if (const auto *text = findPlural(FALLBACK_LANGUAGE, key, count))
+        return substitute(*text, withCount);
 
     return std::string(key);
 }

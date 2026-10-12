@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -21,12 +22,31 @@ namespace stapik::cloud
         std::chrono::system_clock::time_point updatedAt;
     };
 
-    // The server refuses a file bigger than the maximum file size of the slot (HTTP 413).
-    // Uploading the same file again can never succeed, so callers should not retry it.
-    class AssetTooLargeException : public ::CloudStorageException
+    struct AssetUploadProgress
+    {
+        std::uint64_t sentBytes{};
+        std::uint64_t totalBytes{};
+    };
+
+    // Both callbacks run on the thread that called uploadAsset(). Returning true from isCancelled aborts the upload.
+    struct AssetUploadHooks
+    {
+        std::function<void(const AssetUploadProgress&)> onProgress;
+        std::function<bool()> isCancelled;
+    };
+
+    class AssetTransferCancelledException : public CloudStorageException
     {
     public:
-        using ::CloudStorageException::CloudStorageException;
+        using CloudStorageException::CloudStorageException;
+    };
+
+    // The server refuses a file bigger than the maximum file size of the slot (HTTP 413).
+    // Uploading the same file again can never succeed, so callers should not retry it.
+    class AssetTooLargeException : public CloudStorageException
+    {
+    public:
+        using CloudStorageException::CloudStorageException;
     };
 
     // Abstraction of a remote collection of binary files (a BINARY_COLLECTION slot). It allows the
@@ -38,6 +58,8 @@ namespace stapik::cloud
     //    configured; downloadAsset() returns std::nullopt when the file does not exist or the storage
     //    is not configured; deleteAsset() returns false when there was nothing to delete.
     //  - uploadAsset() throws AssetTooLargeException when the file exceeds the size limit of the slot.
+    //  - uploadAsset() throws AssetTransferCancelledException when the hooks cancel the upload; the file is then not
+    //    guaranteed to be stored.
     //  - Network and protocol failures (including a key without write permission) are reported
     //    as CloudStorageException.
     class IAssetStorage
@@ -49,7 +71,12 @@ namespace stapik::cloud
 
         [[nodiscard]] virtual std::optional<AssetBytes> downloadAsset(const std::string& filename) const = 0;
 
-        virtual AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content) const = 0;
+        [[nodiscard]] virtual AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const = 0;
+
+        [[nodiscard]] AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content) const
+        {
+            return uploadAsset(filename, mimeType, content, AssetUploadHooks{});
+        }
 
         [[nodiscard]] virtual bool deleteAsset(const std::string& filename) const = 0;
 

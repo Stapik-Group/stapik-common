@@ -10,6 +10,8 @@
 #include <exception>
 #include <filesystem>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace stapik::document
@@ -34,12 +36,14 @@ namespace stapik::document
     class DocumentFile : public DocumentFileCore
     {
     public:
-        DocumentFile(std::filesystem::path filePath, const int currentSchemaVersion) :
-            DocumentFileCore(std::move(filePath), SchemaMigrator(currentSchemaVersion))
+        DocumentFile(std::filesystem::path filePath, const int currentSchemaVersion,
+                     const time::IClock& clock = time::systemClock()) :
+            DocumentFileCore(std::move(filePath), SchemaMigrator(currentSchemaVersion), clock)
         {}
 
-        DocumentFile(std::filesystem::path filePath, SchemaMigrator migrator) :
-            DocumentFileCore(std::move(filePath), std::move(migrator))
+        DocumentFile(std::filesystem::path filePath, SchemaMigrator migrator,
+                     const time::IClock& clock = time::systemClock()) :
+            DocumentFileCore(std::move(filePath), std::move(migrator), clock)
         {}
 
         [[nodiscard]] LoadResult<DocumentType> load() const
@@ -47,12 +51,12 @@ namespace stapik::document
             return convert(readRaw(filePath()), true);
         }
 
-        [[nodiscard]] bool save(const DocumentType& document) const
+        [[nodiscard]] storage::FileResult save(const DocumentType& document) const
         {
             return writeRaw(document.toJson());
         }
 
-        [[nodiscard]] bool exportTo(const DocumentType& document, const std::filesystem::path& target) const
+        [[nodiscard]] storage::FileResult exportTo(const DocumentType& document, const std::filesystem::path& target) const
         {
             return writeRawTo(target, document.toJson());
         }
@@ -60,6 +64,21 @@ namespace stapik::document
         [[nodiscard]] LoadResult<DocumentType> importFrom(const std::filesystem::path& source) const
         {
             return convert(readRaw(source), false);
+        }
+
+        [[nodiscard]] std::string serialize(const DocumentType& document) const
+        {
+            return envelopeText(document.toJson());
+        }
+
+        [[nodiscard]] LoadResult<DocumentType> deserialize(const std::string_view text, const std::string_view origin) const
+        {
+            return convert(parseEnvelope(text, origin), false);
+        }
+
+        [[nodiscard]] LoadResult<DocumentType> loadBackup(const BackupInfo& backup) const
+        {
+            return importFrom(backup.path);
         }
 
     private:

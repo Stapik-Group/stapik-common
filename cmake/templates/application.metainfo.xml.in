@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>@STAPIK_APP_APPLICATION_ID@</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>@STAPIK_APP_LICENSE@</project_license>
+  <name>@STAPIK_APP_METAINFO_NAME@</name>
+@STAPIK_APP_METAINFO_LOCALIZED_NAMES@
+  <summary>@STAPIK_APP_METAINFO_SUMMARY@</summary>
+@STAPIK_APP_METAINFO_LOCALIZED_SUMMARIES@
+  <description>
+    <p>@STAPIK_APP_METAINFO_DESCRIPTION@</p>
+  </description>
+  <launchable type="desktop-id">@STAPIK_APP_APPLICATION_ID@.desktop</launchable>
+@STAPIK_APP_METAINFO_EXTRA@
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>@STAPIK_APP_NAME@</binary>
+@STAPIK_APP_METAINFO_MEDIA_TYPES@
+  </provides>
+  <releases>
+    <release version="@STAPIK_APP_VERSION@" date="@STAPIK_APP_RELEASE_DATE@"/>
+  </releases>
+</component>

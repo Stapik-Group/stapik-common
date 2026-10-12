@@ -1,0 +1,283 @@
+#include "stapik/cloud/CloudStorageClient.hpp"
+
+#include "stapik/sync/Timestamp.hpp"
+
+#include "support/FakeHttpClient.hpp"
+#include "support/ThrownMessage.hpp"
+
+#include <gtest/gtest.h>
+
+#include <nlohmann/json.hpp>
+
+#include <chrono>
+#include <string>
+#include <tuple>
+
+namespace
+{
+    using namespace std::chrono_literals;
+    using stapik::http::Method;
+    using stapik::test::bodyText;
+    using stapik::test::FakeHttpClient;
+    using stapik::test::thrownMessage;
+
+    const CloudStorageConfig CONFIG{ .apiUrl = "https://cloud.example", .apiKey = "secret-key" };
+    const std::string DOCUMENT_URL = "https://cloud.example/api/v1/documents/budget";
+    const std::string PARTITIONS_URL = DOCUMENT_URL + "/partitions";
+    const std::string SERVER_TIME_TEXT = "2026-01-15T10:30:00Z";
+    const std::chrono::system_clock::time_point SERVER_TIME = std::chrono::sys_days{ std::chrono::year{ 2026 } / std::chrono::January / 15 } + 10h + 30min;
+
+    std::string documentResponse(const nlohmann::json& content)
+    {
+        return nlohmann::json{ { "content", content.dump() }, { "updatedAt", SERVER_TIME_TEXT } }.dump();
+    }
+
+    class CloudStorageClientTest : public testing::Test
+    {
+    protected:
+        FakeHttpClient m_http;
+        CloudStorageClient m_client{ CONFIG, "budget", m_http };
+    };
+}
+
+TEST_F(CloudStorageClientTest, UnconfiguredClientNeverSendsARequest)
+{
+    const CloudStorageClient unconfigured(CloudStorageConfig{ .apiUrl = "https://cloud.example", .apiKey = {} }, "budget", m_http);
+
+    EXPECT_FALSE(unconfigured.loadDocument().has_value());
+    EXPECT_TRUE(unconfigured.listPartitions().empty());
+    EXPECT_FALSE(unconfigured.loadPartition("2025").has_value());
+    EXPECT_FALSE(unconfigured.deletePartition("2025"));
+    EXPECT_THROW(std::ignore = unconfigured.saveDocument(nlohmann::json::object(), {}), CloudStorageException);
+    EXPECT_THROW(std::ignore = unconfigured.savePartition("2025", nlohmann::json::object(), {}), CloudStorageException);
+    EXPECT_TRUE(m_http.requests.empty());
+}
+
+TEST_F(CloudStorageClientTest, LoadSendsAuthenticatedGetToTheSlotUrl)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+
+    std::ignore = m_client.loadDocument();
+
+    ASSERT_EQ(m_http.requests.size(), 1U);
+    const auto& request = m_http.requests.front();
+    EXPECT_EQ(request.method, Method::Get);
+    EXPECT_EQ(request.url, DOCUMENT_URL);
+    EXPECT_EQ(request.headers.at("x-api-key"), "secret-key");
+    EXPECT_EQ(request.headers.at("Content-Type"), "application/json");
+    EXPECT_TRUE(std::holds_alternative<stapik::http::NoBody>(request.body));
+}
+
+TEST_F(CloudStorageClientTest, ApiUrlIsNormalizedBeforeBuildingTheUrl)
+{
+    const CloudStorageClient client(CloudStorageConfig{ .apiUrl = "  https://cloud.example/ ", .apiKey = "secret-key" }, "budget", m_http);
+    m_http.respondWith(404);
+
+    std::ignore = client.loadDocument();
+
+    EXPECT_EQ(m_http.requests.front().url, DOCUMENT_URL);
+}
+
+TEST_F(CloudStorageClientTest, LoadParsesContentAndServerTime)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
+
+    const auto document = m_client.loadDocument();
+
+    ASSERT_TRUE(document.has_value());
+    EXPECT_EQ(document->content, (nlohmann::json{ { "a", 1 } }));
+    EXPECT_EQ(document->updatedAt, SERVER_TIME);
+}
+
+TEST_F(CloudStorageClientTest, EmptyContentLoadsAsEmptyObject)
+{
+    m_http.respondWith(200, nlohmann::json{ { "content", "" }, { "updatedAt", SERVER_TIME_TEXT } }.dump());
+
+    const auto document = m_client.loadDocument();
+
+    ASSERT_TRUE(document.has_value());
+    EXPECT_EQ(document->content, nlohmann::json::object());
+}
+
+TEST_F(CloudStorageClientTest, MissingDocumentLoadsAsNullopt)
+{
+    m_http.respondWith(404);
+
+    EXPECT_FALSE(m_client.loadDocument().has_value());
+}
+
+TEST_F(CloudStorageClientTest, UnexpectedStatusOnLoadIsReported)
+{
+    m_http.respondWith(500);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.loadDocument(); }), "API read failed with status 500");
+}
+
+TEST_F(CloudStorageClientTest, TransportFailureOnLoadIsReportedWithTheReason)
+{
+    m_http.failWith("Timeout was reached");
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.loadDocument(); }), "API read failed: Timeout was reached");
+}
+
+TEST_F(CloudStorageClientTest, MalformedResponseOnLoadIsReportedAsCloudError)
+{
+    m_http.respondWith(200, "not json");
+
+    EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudStorageException);
+}
+
+TEST_F(CloudStorageClientTest, ResponseWithInvalidTimestampIsReportedAsCloudError)
+{
+    m_http.respondWith(200, nlohmann::json{ { "content", "{}" }, { "updatedAt", "yesterday" } }.dump());
+
+    EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudStorageException);
+}
+
+TEST_F(CloudStorageClientTest, SendsContentAndBaselineInAPut)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
+
+    std::ignore = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
+
+    const auto& request = m_http.requests.front();
+    EXPECT_EQ(request.method, Method::Put);
+    EXPECT_EQ(request.url, DOCUMENT_URL);
+    EXPECT_EQ(request.headers.at("x-api-key"), "secret-key");
+
+    const auto payload = nlohmann::json::parse(bodyText(request));
+    EXPECT_EQ(nlohmann::json::parse(payload.at("content").get<std::string>()), (nlohmann::json{ { "a", 1 } }));
+    EXPECT_EQ(stapik::sync::parseIso8601(payload.at("clientLastKnownUpdate").get<std::string>()), SERVER_TIME);
+}
+
+TEST_F(CloudStorageClientTest, AcceptedSaveReturnsTheStoredDocument)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
+
+    const auto result = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
+
+    EXPECT_FALSE(result.conflict);
+    EXPECT_EQ(result.document.content, (nlohmann::json{ { "a", 1 } }));
+    EXPECT_EQ(result.document.updatedAt, SERVER_TIME);
+}
+
+TEST_F(CloudStorageClientTest, ConflictingSaveReturnsTheServerVersion)
+{
+    m_http.respondWith(409, documentResponse(nlohmann::json{ { "server", true } }));
+
+    const auto result = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME - 1h);
+
+    EXPECT_TRUE(result.conflict);
+    EXPECT_EQ(result.document.content, (nlohmann::json{ { "server", true } }));
+}
+
+TEST_F(CloudStorageClientTest, UnexpectedStatusOnSaveIsReported)
+{
+    m_http.respondWith(401);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), {}); }), "API write failed with status 401");
+}
+
+TEST_F(CloudStorageClientTest, TransportFailureOnSaveIsReportedWithTheReason)
+{
+    m_http.failWith("Could not resolve host");
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), {}); }), "API write failed: Could not resolve host");
+}
+
+TEST_F(CloudStorageClientTest, PartitionListIsReadFromThePartitionsUrl)
+{
+    m_http.respondWith(200, R"({"partitions":[{"partition":"2025","sizeBytes":120,"contentHash":"abc","updatedAt":"2026-01-15T10:30:00Z"}]})");
+
+    const auto partitions = m_client.listPartitions();
+
+    EXPECT_EQ(m_http.requests.front().method, Method::Get);
+    EXPECT_EQ(m_http.requests.front().url, PARTITIONS_URL);
+    ASSERT_EQ(partitions.size(), 1U);
+    EXPECT_EQ(partitions.front().partition, "2025");
+    EXPECT_EQ(partitions.front().sizeBytes, 120);
+    EXPECT_EQ(partitions.front().contentHash, "abc");
+    EXPECT_EQ(partitions.front().updatedAt, SERVER_TIME);
+}
+
+TEST_F(CloudStorageClientTest, MissingPartitionListIsEmpty)
+{
+    m_http.respondWith(404);
+
+    EXPECT_TRUE(m_client.listPartitions().empty());
+}
+
+TEST_F(CloudStorageClientTest, UnexpectedStatusOnPartitionListIsReported)
+{
+    m_http.respondWith(503);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.listPartitions(); }), "API partition list failed with status 503");
+}
+
+TEST_F(CloudStorageClientTest, PartitionIsLoadedFromItsPercentEncodedUrl)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "year", 2025 } }));
+
+    const auto document = m_client.loadPartition("2025 q1");
+
+    EXPECT_EQ(m_http.requests.front().url, PARTITIONS_URL + "/2025%20q1");
+    ASSERT_TRUE(document.has_value());
+    EXPECT_EQ(document->content, (nlohmann::json{ { "year", 2025 } }));
+}
+
+TEST_F(CloudStorageClientTest, MissingPartitionLoadsAsNullopt)
+{
+    m_http.respondWith(404);
+
+    EXPECT_FALSE(m_client.loadPartition("2025").has_value());
+}
+
+TEST_F(CloudStorageClientTest, PartitionIsSavedWithAPutToItsUrl)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "year", 2025 } }));
+
+    const auto result = m_client.savePartition("2025", nlohmann::json{ { "year", 2025 } }, SERVER_TIME);
+
+    EXPECT_EQ(m_http.requests.front().method, Method::Put);
+    EXPECT_EQ(m_http.requests.front().url, PARTITIONS_URL + "/2025");
+    EXPECT_FALSE(result.conflict);
+}
+
+TEST_F(CloudStorageClientTest, ConflictingPartitionSaveReturnsTheServerVersion)
+{
+    m_http.respondWith(409, documentResponse(nlohmann::json{ { "server", true } }));
+
+    const auto result = m_client.savePartition("2025", nlohmann::json::object(), SERVER_TIME - 1h);
+
+    EXPECT_TRUE(result.conflict);
+}
+
+TEST_F(CloudStorageClientTest, DeletedPartitionIsReportedAsDeleted)
+{
+    m_http.respondWith(204);
+
+    EXPECT_TRUE(m_client.deletePartition("2025"));
+    EXPECT_EQ(m_http.requests.front().method, Method::Delete);
+    EXPECT_EQ(m_http.requests.front().url, PARTITIONS_URL + "/2025");
+}
+
+TEST_F(CloudStorageClientTest, MissingPartitionIsNotDeleted)
+{
+    m_http.respondWith(404);
+
+    EXPECT_FALSE(m_client.deletePartition("2025"));
+}
+
+TEST_F(CloudStorageClientTest, UnexpectedStatusOnPartitionDeleteIsReported)
+{
+    m_http.respondWith(500);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.deletePartition("2025"); }), "API partition delete failed with status 500");
+}
+
+TEST_F(CloudStorageClientTest, TransportFailureOnPartitionDeleteIsReportedWithTheReason)
+{
+    m_http.failWith("Connection refused");
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.deletePartition("2025"); }), "API delete failed: Connection refused");
+}

@@ -220,6 +220,7 @@ button.stapik-color-swatch { padding: 0; }
 .stapik-sync-offline { color: @stapik_text_muted; }
 .stapik-sync-conflict { color: #b86e00; }
 .stapik-sync-error { color: #c8321e; font-weight: bold; }
+entry.stapik-amount-invalid { color: #c8321e; }
 
 .stapik-about-banner {
     background-image: linear-gradient(to bottom, @stapik_title_end, @stapik_title_start);
@@ -257,3 +258,12 @@ button.stapik-about-link label {
     color: @stapik_accent;
     text-decoration: underline;
 }
+
+.stapik-empty-state-title { font-weight: bold; }
+.stapik-empty-state-icon,
+.stapik-empty-state-description { opacity: 0.6; }
+
+.stapik-section-header { padding: 4px 0; }
+.stapik-section-header label { font-weight: bold; }
+
+.stapik-busy-overlay { background-color: alpha(currentColor, 0.15); }

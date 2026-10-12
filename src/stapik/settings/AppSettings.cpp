@@ -9,6 +9,11 @@
 #include <memory>
 #include <mutex>
 
+namespace
+{
+    constexpr const char* LEGACY_SETTING_FILES[] = { "locale.txt", "theme.txt" };
+}
+
 namespace stapik::settings
 {
     SettingsStore& appSettingsStore(const std::string& appName)
@@ -26,6 +31,32 @@ namespace stapik::settings
         }
 
         return *store;
+    }
+
+    storage::FileResult resetAppSettings(const std::string& appName)
+    {
+        auto result = appSettingsStore(appName).reset();
+
+        for (const auto* name : LEGACY_SETTING_FILES)
+        {
+            const auto legacyFile = AppPaths::userDataDir(appName) / name;
+
+            std::error_code errorCode;
+            if (!std::filesystem::exists(legacyFile, errorCode))
+                continue;
+
+            auto backupFile = legacyFile;
+            backupFile += ".bak";
+            std::filesystem::rename(legacyFile, backupFile, errorCode);
+            if (errorCode)
+            {
+                log::warning("Cannot move legacy setting file {} aside: {}", storage::pathText(legacyFile), errorCode.message());
+                if (result)
+                    result = Failure(storage::FileError{ .path = legacyFile, .step = "move aside", .code = errorCode });
+            }
+        }
+
+        return result;
     }
 
     bool importLegacyTextSetting(

@@ -5,8 +5,20 @@
 #include "stapik/settings/AppSettings.hpp"
 #include "stapik/storage/AppPaths.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 namespace
 {
+    std::string lowercase(std::string text)
+    {
+        std::ranges::transform(text, text.begin(), [](const unsigned char character)
+        {
+            return static_cast<char>(std::tolower(character));
+        });
+        return text;
+    }
+
     stapik::settings::SettingsStore& localeSettingsStore(const std::string& appName)
     {
         auto& store = stapik::settings::appSettingsStore(appName);
@@ -15,7 +27,7 @@ namespace
             store,
             "locale",
             AppPaths::userDataDir(appName) / "locale.txt",
-            [](const std::string& value) { return std::string(toFileString(fromFileString(value))); });
+            lowercase);
 
         return store;
     }
@@ -63,23 +75,22 @@ LocaleManager::LocaleManager(const std::string& appName) :
     m_languageCode(localeSettingsStore(appName), "locale", systemDefaultLanguage(m_engine))
 {
     m_engine.setLanguage(m_languageCode.get());
-}
 
-void LocaleManager::setLocale(const Locale locale)
-{
-    setLanguage(toFileString(locale));
-}
-
-Locale LocaleManager::getLocale() const
-{
-    return fromFileString(m_engine.languageCode());
+    m_languageCode.signalChanged().connect([this](const std::string& languageCode)
+    {
+        m_engine.setLanguage(languageCode);
+        m_signalLocaleChanged.emit();
+    });
 }
 
 void LocaleManager::setLanguage(const std::string& languageCode)
 {
     m_languageCode.set(languageCode);
-    m_engine.setLanguage(languageCode);
-    m_signalLocaleChanged.emit();
+}
+
+stapik::settings::ObservableSetting<std::string>& LocaleManager::languageSetting()
+{
+    return m_languageCode;
 }
 
 const std::string& LocaleManager::languageCode() const
@@ -95,6 +106,16 @@ std::string LocaleManager::translate(const std::string_view key) const
 std::string LocaleManager::translate(const std::string_view key, const LocalizationEngine::Arguments& arguments) const
 {
     return m_engine.translate(key, arguments);
+}
+
+std::string LocaleManager::translatePlural(const std::string_view key, const long long count) const
+{
+    return m_engine.translatePlural(key, count);
+}
+
+std::string LocaleManager::translatePlural(const std::string_view key, const long long count, const LocalizationEngine::Arguments& arguments) const
+{
+    return m_engine.translatePlural(key, count, arguments);
 }
 
 const std::vector<stapik::locale::LanguageInfo>& LocaleManager::languages() const

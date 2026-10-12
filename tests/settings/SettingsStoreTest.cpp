@@ -185,3 +185,100 @@ TEST_F(SettingsStoreTest, OlderSchemaVersionKeepsCurrentVersion)
     ASSERT_EQ(store.load(), LoadStatus::Loaded);
     EXPECT_EQ(store.schemaVersion(), 3);
 }
+
+TEST_F(SettingsStoreTest, ResetClearsValuesAndKeepsBackupOfTheFile)
+{
+    writeText(m_path, R"({"version":1,"settings":{"theme":"dark"}})");
+    SettingsStore store(m_path);
+    store.load();
+
+    EXPECT_TRUE(store.reset());
+
+    EXPECT_FALSE(store.contains("theme"));
+    EXPECT_FALSE(fs::exists(m_path));
+    EXPECT_TRUE(fs::exists(fs::path(m_path) += ".bak"));
+}
+
+TEST_F(SettingsStoreTest, ResetWithoutFileSucceeds)
+{
+    SettingsStore store(m_path);
+
+    EXPECT_TRUE(store.reset());
+}
+
+TEST_F(SettingsStoreTest, SaveReportsWhyTheFileCannotBeWritten)
+{
+    writeText(m_directory / "blocker", "i am a file");
+    const SettingsStore store(m_directory / "blocker" / "settings.json");
+
+    const auto result = store.save();
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "create directory");
+    EXPECT_EQ(result.error().path, m_directory / "blocker");
+}
+
+TEST_F(SettingsStoreTest, ResetReportsWhyTheFileCannotBeMovedAside)
+{
+    writeText(m_path, R"({"version":1,"settings":{"theme":"dark"}})");
+    auto occupiedBackup = m_path;
+    occupiedBackup += ".bak";
+    writeText(occupiedBackup / "keep", "occupied");
+    SettingsStore store(m_path);
+    store.load();
+
+    const auto result = store.reset();
+
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().step, "move aside");
+    EXPECT_EQ(result.error().path, m_path);
+    EXPECT_TRUE(fs::exists(m_path));
+}
+
+TEST_F(SettingsStoreTest, SerializedSettingsAreTheContentOfTheSavedFile)
+{
+    SettingsStore store(m_path);
+    store.set<std::string>("theme", "dark");
+    ASSERT_TRUE(store.save());
+
+    EXPECT_EQ(store.serialize(), readText(m_path));
+}
+
+TEST_F(SettingsStoreTest, ReplaceFromTextSwapsAllValuesWithoutWriting)
+{
+    SettingsStore store(m_path);
+    store.set<std::string>("theme", "dark");
+    store.set<int>("old", 1);
+
+    SettingsStore source(m_directory / "other" / "settings.json");
+    source.set<std::string>("theme", "modern");
+    source.set<std::string>("locale", "pl");
+
+    ASSERT_TRUE(store.replaceFromText(source.serialize()));
+
+    EXPECT_EQ(store.get<std::string>("theme", ""), "modern");
+    EXPECT_EQ(store.get<std::string>("locale", ""), "pl");
+    EXPECT_FALSE(store.contains("old"));
+    EXPECT_FALSE(fs::exists(m_path));
+}
+
+TEST_F(SettingsStoreTest, ReplaceFromTextRefusesInvalidTextAndKeepsTheValues)
+{
+    SettingsStore store(m_path);
+    store.set<std::string>("theme", "dark");
+
+    EXPECT_FALSE(store.replaceFromText("not json"));
+    EXPECT_FALSE(store.replaceFromText(R"({"version": 1})"));
+    EXPECT_FALSE(store.replaceFromText(R"({"version": 1, "settings": []})"));
+
+    EXPECT_EQ(store.get<std::string>("theme", ""), "dark");
+}
+
+TEST_F(SettingsStoreTest, ReplaceFromTextKeepsTheNewerSchemaVersionOfTheText)
+{
+    SettingsStore store(m_path, 1);
+
+    ASSERT_TRUE(store.replaceFromText(R"({"version": 4, "settings": {"theme": "dark"}})"));
+
+    EXPECT_EQ(store.schemaVersion(), 4);
+}

@@ -1,6 +1,7 @@
 #include "stapik/domain/CurrencyCatalog.hpp"
 #include "stapik/locale/LanguageRegistry.hpp"
 #include "stapik/locale/LocalizationEngine.hpp"
+#include "stapik/locale/PluralRules.hpp"
 #include "stapik/sync/SyncStatus.hpp"
 #include "stapik/theme/ThemeRegistry.hpp"
 
@@ -53,6 +54,34 @@ namespace
             keys.insert(key);
         return keys;
     }
+
+    // Plural messages have one entry per category of the language (see docs/localization.md), so the entries
+    // differ between languages while the message itself is the same.
+    const std::vector<std::string> PLURAL_SUFFIXES = { ".zero", ".one", ".two", ".few", ".many", ".other" };
+
+    bool hasPluralSuffix(const std::string& key)
+    {
+        return std::ranges::any_of(PLURAL_SUFFIXES, [&key](const std::string& suffix)
+        {
+            return key.size() > suffix.size() && key.ends_with(suffix);
+        });
+    }
+
+    std::string withoutPluralSuffix(const std::string& key)
+    {
+        if (!hasPluralSuffix(key))
+            return key;
+
+        return key.substr(0, key.rfind('.'));
+    }
+
+    std::set<std::string> messageKeysOf(const std::string& code)
+    {
+        std::set<std::string> messages;
+        for (const auto& key : keysOf(code))
+            messages.insert(withoutPluralSuffix(key));
+        return messages;
+    }
 }
 
 TEST(CommonResourcesTest, LocalesAreDiscoveredWithNativeDisplayNames)
@@ -67,11 +96,11 @@ TEST(CommonResourcesTest, LocalesAreDiscoveredWithNativeDisplayNames)
 
 TEST(CommonResourcesTest, AllLanguagesHaveTheSameKeys)
 {
-    const auto english = keysOf("en");
+    const auto english = messageKeysOf("en");
 
     for (const auto& language : LANGUAGES)
     {
-        const auto keys = keysOf(language);
+        const auto keys = messageKeysOf(language);
 
         std::vector<std::string> missing;
         std::ranges::set_difference(english, keys, std::back_inserter(missing));
@@ -87,15 +116,50 @@ TEST(CommonResourcesTest, AllTranslationsAreNonEmptyStrings)
 {
     for (const auto& language : LANGUAGES)
     {
-        const auto locale = readLocale(language);
-
-        for (const auto& [key, value] : locale.items())
+        for (const auto locale = readLocale(language); const auto& [key, value] : locale.items())
         {
             EXPECT_TRUE(value.is_string()) << language << ": " << key;
 
             if (value.is_string())
             {
                 EXPECT_FALSE(value.get<std::string>().empty()) << language << ": " << key;
+            }
+        }
+    }
+}
+
+TEST(CommonResourcesTest, PluralMessagesCoverEveryCategoryOfTheirLanguage)
+{
+    for (const auto& language : LANGUAGES)
+    {
+        const auto keys = keysOf(language);
+
+        for (const auto& message : messageKeysOf(language))
+        {
+            if (!std::ranges::any_of(PLURAL_SUFFIXES, [&](const std::string& suffix) { return keys.contains(message + suffix); }))
+                continue;
+
+            std::set<std::string> missing;
+            for (long long count = 0; count <= 200; ++count)
+            {
+                if (const std::string category(stapik::locale::pluralCategoryName(stapik::locale::pluralCategory(language, count))); !keys.contains(message + "." + category) && !keys.contains(message + ".other"))
+                    missing.insert(category);
+            }
+
+            EXPECT_TRUE(missing.empty()) << language << ": " << message << " lacks the form for " << (missing.empty() ? "" : *missing.begin());
+        }
+    }
+}
+
+TEST(CommonResourcesTest, PluralFormsShowTheCount)
+{
+    for (const auto& language : LANGUAGES)
+    {
+        for (const auto locale = readLocale(language); const auto& [key, value] : locale.items())
+        {
+            if (hasPluralSuffix(key) && value.is_string())
+            {
+                EXPECT_NE(value.get<std::string>().find("{count}"), std::string::npos) << language << ": " << key;
             }
         }
     }
@@ -229,4 +293,39 @@ TEST(CommonResourcesTest, CurrencyCatalogLoadsAndEveryCurrencyHasAName)
         for (const auto& currency : catalog.currencies())
             EXPECT_TRUE(keys.contains(currency.nameKey())) << language << " lacks " << currency.nameKey();
     }
+}
+
+TEST(CommonResourcesTest, CurrencyFileHoldsUniqueThreeLetterCodes)
+{
+    const auto currencies = nlohmann::json::parse(readFile(RESOURCES_DIR / "currencies.json"));
+    const std::regex isoCode("[A-Z]{3}");
+    std::set<std::string> codes;
+
+    for (const auto& entry : currencies)
+    {
+        const auto code = entry.at("code").get<std::string>();
+        EXPECT_TRUE(std::regex_match(code, isoCode)) << code;
+        EXPECT_TRUE(codes.insert(code).second) << "duplicate " << code;
+    }
+
+    EXPECT_GE(codes.size(), 150u);
+}
+
+TEST(CommonResourcesTest, CurrencyCatalogFollowsIsoMinorUnits)
+{
+    stapik::domain::CurrencyCatalog catalog;
+    ASSERT_TRUE(catalog.addFromFile(RESOURCES_DIR / "currencies.json"));
+
+    const auto decimalPlaces = [&catalog](const std::string& code)
+    {
+        const auto* currency = catalog.find(code);
+        return currency == nullptr ? -1 : currency->decimalPlaces;
+    };
+
+    EXPECT_EQ(decimalPlaces("PLN"), 2);
+    EXPECT_EQ(decimalPlaces("CHF"), 2);
+    EXPECT_EQ(decimalPlaces("JPY"), 0);
+    EXPECT_EQ(decimalPlaces("ISK"), 0);
+    EXPECT_EQ(decimalPlaces("KWD"), 3);
+    EXPECT_EQ(decimalPlaces("TND"), 3);
 }

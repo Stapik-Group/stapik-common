@@ -1,20 +1,22 @@
 # Windows
 
 stapik-common builds on Windows with MSYS2 (UCRT64 or MINGW64, GCC, gtkmm-4.0). Applications are distributed as
-a self-contained folder; there is no installer.
+a self-contained folder, packed into a portable ZIP or an Inno Setup installer.
 
 ## What differs from Linux
 
-| Area | Linux | Windows |
-| --- | --- | --- |
-| Data directory | `$XDG_DATA_HOME/<app>` | `%APPDATA%\<app>\data` |
-| Config directory | `$XDG_CONFIG_HOME/<app>` | `%APPDATA%\<app>\config` |
-| Cache directory | `$XDG_CACHE_HOME/<app>` | `%LOCALAPPDATA%\<app>\cache` |
-| Executable directory | `/proc/self/exe` | `GetModuleFileNameW` |
-| Atomic file write | temp file, `fsync`, `rename`, directory `fsync` | temp file, `FlushFileBuffers`, `MoveFileExW(REPLACE_EXISTING \| WRITE_THROUGH)` with a short retry when a virus scanner holds the file |
-| Console output | stderr | stderr is written to `%LOCALAPPDATA%\<app>\cache\stapik.log` (GUI programs have no console) |
-| Single instance | GApplication | named mutex (`SingleInstanceGuard`) |
-| TLS certificates (cloud sync) | system | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable |
+| Area                          | Linux                                                                          | Windows                                                                                                                                |
+|-------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Data directory                | `$XDG_DATA_HOME/<app>`                                                         | `%APPDATA%\<app>\data`                                                                                                                 |
+| Config directory              | `$XDG_CONFIG_HOME/<app>`                                                       | `%APPDATA%\<app>\config`                                                                                                               |
+| Cache directory               | `$XDG_CACHE_HOME/<app>`                                                        | `%LOCALAPPDATA%\<app>\cache`                                                                                                           |
+| Executable directory          | `/proc/self/exe`                                                               | `GetModuleFileNameW`                                                                                                                   |
+| Atomic file write             | temp file, `fsync`, `rename`, directory `fsync`                                | temp file, `FlushFileBuffers`, `MoveFileExW(REPLACE_EXISTING \| WRITE_THROUGH)` with a short retry when a virus scanner holds the file |
+| Console output                | stderr, plus the log file when stderr is not a terminal                        | stderr, plus the log file always (GUI programs have no console), see [logging](logging.md)                                             |
+| Single instance               | GApplication, plus a lock on the data directory (`DirectoryLock`)              | named mutex and named pipe (`SingleInstanceGuard`)                                                                                     |
+| Cloud API key                 | Secret Service (libsecret), plain file `config.json` (0600) when it is missing | Credential Manager (encrypted with DPAPI), per user                                                                                    |
+| TLS certificates (cloud sync) | system                                                                         | Windows certificate store, plus `etc/ssl/certs/ca-bundle.crt` next to the executable                                                   |
+| Proxy (cloud sync)            | `http_proxy`, `https_proxy`, `all_proxy` (libcurl)                             | the same variables, otherwise the proxy of the Windows user settings (PAC, auto-detect or fixed), see [http](http.md)                  |
 
 The `XDG_*_HOME` variables are honoured on Windows too (tests and portable setups use them).
 File permissions are not applied on Windows: files inherit the access rules of the user profile.
@@ -26,14 +28,17 @@ used for that: on Windows it converts to the ANSI code page and breaks on user n
 
 `AppContext::initialize()` calls `prepareWindowsRuntime()` first thing, which
 
-* redirects stderr to the log file,
 * points GLib and GTK at the data in the application folder (`GSETTINGS_SCHEMA_DIR`, `XDG_DATA_DIRS`,
   `FONTCONFIG_PATH`) and writes a copy of the gdk-pixbuf `loaders.cache` with the loader paths of that folder
   (`GDK_PIXBUF_MODULE_FILE`),
 * selects the Cairo renderer unless `GSK_RENDERER` is set. GTK 4 would otherwise use OpenGL, which fails or shows a
   blank window on virtual machines and old graphics drivers; a list and forms do not need a GPU.
 
-Applications should also acquire a `SingleInstanceGuard` right after `AppContext::initialize()`.
+`StapikApplication` acquires a `SingleInstanceGuard` itself. A second instance sends the files from its command line
+through a named pipe (`\\.\pipe\<applicationId>.<session>`) to the first one and exits. The first instance then
+behaves as GApplication does on Linux for a remote instance: it emits `open` when the application sets
+`Gio::Application::Flags::HANDLES_OPEN` and there are files, `activate` otherwise, and brings its window to the front.
+When the first instance does not answer, the second one shows a message box instead.
 
 ## Building the folder
 
@@ -47,6 +52,51 @@ In an MSYS2 shell:
 
 creates `build/<name>-windows/`, which runs on a PC without MSYS2. The script is `cmake/templates/windows/bundle.sh`;
 it fails when a DLL would be resolved from outside the folder.
+
+## Portable ZIP
+
+    cmake --build build --target <name>_windows_portable
+
+builds the folder first and packs it into `build/<name>-<version>-windows-portable.zip`. The archive holds the single
+top-level folder `<name>-windows`; unpacking it anywhere is the whole installation. User data still goes to
+`%APPDATA%` and `%LOCALAPPDATA%`, as described above.
+
+## Installer
+
+    cmake --build build --target <name>_windows_installer
+
+builds the folder first and compiles `cmake/templates/windows/installer.iss.in` with Inno Setup 6.3 or newer
+(`ISCC.exe` is looked up in `PATH` and the usual install locations; set `STAPIK_ISCC` otherwise) into
+`build/<name>-<version>-setup.exe`. The installer
+
+* installs per user by default (`%LOCALAPPDATA%\Programs\<display name>`) and per machine when the user chooses so
+  in the privileges dialog,
+* offers English, Polish and German,
+* adds a Start menu entry, a desktop shortcut on request and a launch option on the last page,
+* asks to close a running instance (the same session-local mutex that `SingleInstanceGuard` takes),
+* uses an `AppId` derived from the `APPLICATION_ID` of the application, so every release upgrades the previous one,
+* leaves `%APPDATA%\<app>` and `%LOCALAPPDATA%\<app>` alone on uninstall: that is the user's data.
+
+Inno Setup is installed with `winget install JRSoftware.InnoSetup`.
+
+## Code signing
+
+Configure with `-DSTAPIK_WINDOWS_SIGN=ON` and `<name>_windows_bundle` signs `<name>.exe` in the folder, so the portable
+ZIP and the installer carry the signed executable, and `<name>_windows_installer` signs the installer as well. Signing
+is done by `cmake/templates/windows/sign.sh` with `signtool.exe` (Windows SDK) and fails when no certificate is
+configured. The certificate comes from the environment, never from the build files:
+
+| Variable                    | Meaning                                                                                      |
+|-----------------------------|----------------------------------------------------------------------------------------------|
+| `STAPIK_SIGN_COMMAND`       | command that signs the file passed as its last argument (Azure Trusted Signing, token tools) |
+| `STAPIK_SIGN_PFX`           | path of a `.pfx` file, with its password in `STAPIK_SIGN_PFX_PASSWORD`                       |
+| `STAPIK_SIGN_THUMBPRINT`    | SHA-1 thumbprint of a certificate in the Windows certificate store                           |
+| `STAPIK_SIGN_TIMESTAMP_URL` | RFC 3161 timestamp server, `http://timestamp.digicert.com` by default                        |
+| `STAPIK_SIGNTOOL`           | path of `signtool.exe` when it is neither in `PATH` nor in the Windows SDK                   |
+
+The first of the first three that is set is used. The signatures are verified with `signtool verify /pa` (except
+for `STAPIK_SIGN_COMMAND`). Only the application executable and the installer are signed; the DLLs come from MSYS2
+as they are, and the uninstaller inside the installer stays unsigned.
 
 Required MSYS2 packages: `gcc cmake ninja pkgconf gtkmm-4.0 curl adwaita-icon-theme hicolor-icon-theme` (prefixed
 `mingw-w64-ucrt-x86_64-`). The gdk-pixbuf image loaders that are installed are bundled; an SVG loader is not required.

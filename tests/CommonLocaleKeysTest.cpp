@@ -67,3 +67,60 @@ TEST(CommonLocaleKeysTest, EveryLanguageTranslatesEveryCategoryColor)
             expectNonEmptyString(translations, categoryColorNameKey(color), file.filename().string());
     }
 }
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheMoneyEntryHint)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+    {
+        const auto translations = readJson(file);
+        expectNonEmptyString(translations, "money.entry.invalid", file.filename().string());
+        EXPECT_NE(translations.at("money.entry.invalid").get<std::string>().find("{example}"), std::string::npos)
+            << file.filename().string();
+    }
+}
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheEmptyStateTitle)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+        expectNonEmptyString(readJson(file), "emptyState.noData", file.filename().string());
+}
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheSettingsWindow)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+    {
+        const auto translations = readJson(file);
+        expectNonEmptyString(translations, "menu.settings.open", file.filename().string());
+        expectNonEmptyString(translations, "menu.settings.fontSize", file.filename().string());
+        expectNonEmptyString(translations, "dialog.settings.title", file.filename().string());
+        expectNonEmptyString(translations, "dialog.settings.browse", file.filename().string());
+    }
+}
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheTutorialWindow)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+    {
+        const auto translations = readJson(file);
+        expectNonEmptyString(translations, "menu.help.tutorial", file.filename().string());
+        expectNonEmptyString(translations, "dialog.tutorial.title", file.filename().string());
+        expectNonEmptyString(translations, "dialog.tutorial.contents", file.filename().string());
+        expectNonEmptyString(translations, "dialog.tutorial.previous", file.filename().string());
+        expectNonEmptyString(translations, "dialog.tutorial.next", file.filename().string());
+        expectNonEmptyString(translations, "dialog.tutorial.empty", file.filename().string());
+        EXPECT_NE(translations.at("dialog.tutorial.title").get<std::string>().find("{name}"), std::string::npos)
+            << file.filename().string();
+    }
+}

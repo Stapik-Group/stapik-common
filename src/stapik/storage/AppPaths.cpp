@@ -4,6 +4,8 @@
 #include "stapik/storage/PathText.hpp"
 
 #include <climits>
+#include <mutex>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -24,6 +26,31 @@ namespace
         Config,
         Cache
     };
+
+    std::mutex& overrideMutex()
+    {
+        static std::mutex mutex;
+        return mutex;
+    }
+
+    std::optional<std::filesystem::path>& overrideSlot()
+    {
+        static std::optional<std::filesystem::path> slot;
+        return slot;
+    }
+
+    const char* subdirectoryName(const UserDirectory kind)
+    {
+        switch (kind)
+        {
+            using enum UserDirectory;
+            case Data: return "data";
+            case Config: return "config";
+            case Cache: return "cache";
+        }
+
+        return "";
+    }
 
     const char* xdgVariable(const UserDirectory kind)
     {
@@ -92,6 +119,9 @@ namespace
     // The XDG variables are honoured on every platform: they let tests and portable setups redirect the data.
     std::filesystem::path userDir(const UserDirectory kind, const std::string& appName)
     {
+        if (const auto root = AppPaths::rootOverride())
+            return *root / subdirectoryName(kind);
+
         if (const auto* xdgValue = std::getenv(xdgVariable(kind)); xdgValue != nullptr && *xdgValue != '\0')
             return std::filesystem::path(xdgValue) / appName;
 
@@ -164,6 +194,29 @@ std::filesystem::path AppPaths::ensureUserDataDir(const std::string& appName)
         stapik::log::warning("Cannot create user data directory {}: {}", stapik::storage::pathText(directory), errorCode.message());
 
     return directory;
+}
+
+void AppPaths::setRootOverride(std::filesystem::path root)
+{
+    const std::lock_guard lock(overrideMutex());
+    overrideSlot() = std::move(root);
+}
+
+void AppPaths::clearRootOverride()
+{
+    const std::lock_guard lock(overrideMutex());
+    overrideSlot().reset();
+}
+
+std::optional<std::filesystem::path> AppPaths::rootOverride()
+{
+    const std::lock_guard lock(overrideMutex());
+    return overrideSlot();
+}
+
+std::filesystem::path AppPaths::portableRoot()
+{
+    return executableDir() / "portable";
 }
 
 #ifdef _WIN32

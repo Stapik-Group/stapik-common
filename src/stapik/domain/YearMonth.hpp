@@ -1,5 +1,7 @@
 #pragma once
 
+#include "stapik/time/Clock.hpp"
+
 #include <chrono>
 #include <compare>
 #include <optional>
@@ -24,7 +26,7 @@ namespace stapik::domain
         [[nodiscard]] static std::optional<YearMonth> tryCreate(int year, int month);
         [[nodiscard]] static std::optional<YearMonth> fromKey(std::string_view key);
         [[nodiscard]] static YearMonth fromDate(const std::chrono::year_month_day& date);
-        [[nodiscard]] static YearMonth current();
+        [[nodiscard]] static YearMonth current(const time::IClock& clock = time::systemClock());
 
         [[nodiscard]] int year() const;
         [[nodiscard]] int month() const;

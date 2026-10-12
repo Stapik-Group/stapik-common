@@ -1,5 +1,6 @@
 #pragma once
 
+#include "stapik/theme/FontScale.hpp"
 #include "stapik/theme/Theme.hpp"
 #include "stapik/theme/ThemeRegistry.hpp"
 
@@ -15,7 +16,7 @@ public:
     explicit AppStyleProvider(const std::vector<std::filesystem::path>& resourcesDirs);
     [[nodiscard]] static AppStyleProvider withCommonThemes(std::filesystem::path appResourcesDir);
     void apply(Theme theme);
-    void apply(const std::string& themeId);
+    void apply(const std::string& themeId, int fontScalePercent = stapik::theme::DEFAULT_FONT_SCALE_PERCENT);
     [[nodiscard]] const stapik::theme::ThemeRegistry& themes() const;
 private:
     void removeCurrentProviders();

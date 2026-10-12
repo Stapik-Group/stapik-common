@@ -1,0 +1,33 @@
+app-id: @STAPIK_APP_APPLICATION_ID@
+runtime: org.gnome.Platform
+runtime-version: '@STAPIK_FLATPAK_RUNTIME_VERSION@'
+sdk: org.gnome.Sdk
+command: @STAPIK_APP_NAME@
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+modules:
+  - stapik-dependencies.yml
+  - name: stapik-common
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSTAPIK_COMMON_INSTALL_PACKAGE=ON
+    sources:
+      - type: dir
+        path: "@STAPIK_FLATPAK_COMMON_SOURCE_DIRECTORY@"
+  - name: @STAPIK_APP_NAME@
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSTAPIK_APP_SYSTEM_PREFIX=/app
+      - -DFETCHCONTENT_TRY_FIND_PACKAGE_MODE=ALWAYS
+    sources:
+      - type: dir
+        path: "@STAPIK_FLATPAK_SOURCE_DIRECTORY@"
+        skip: @STAPIK_FLATPAK_SKIPPED@

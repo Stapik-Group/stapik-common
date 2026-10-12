@@ -3,6 +3,8 @@
 #include "CloudStorageConfig.hpp"
 #include "IAssetStorage.hpp"
 
+#include "stapik/http/IHttpClient.hpp"
+
 #include <string>
 #include <vector>
 
@@ -13,32 +15,21 @@ namespace stapik::cloud
     class CloudAssetClient final : public IAssetStorage
     {
     public:
-        CloudAssetClient(CloudStorageConfig config, std::string slotKey);
+        CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient = http::defaultHttpClient());
 
         [[nodiscard]] std::vector<AssetInfo> listAssets() const override;
         [[nodiscard]] std::optional<AssetBytes> downloadAsset(const std::string& filename) const override;
-        AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content) const override;
         [[nodiscard]] bool deleteAsset(const std::string& filename) const override;
-
+        using IAssetStorage::uploadAsset;
+        [[nodiscard]] AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const override;
     private:
-        struct RawResponse
-        {
-            long httpStatus;
-            AssetBytes body;
-        };
-
-        struct FilePart
-        {
-            const std::string& filename;
-            const std::string& mimeType;
-            const AssetBytes& content;
-        };
-
-        [[nodiscard]] RawResponse perform(const std::string& url, const char* method, const FilePart* file, const char* failureLabel) const;
+        [[nodiscard]] http::Response perform(http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel,
+                                             http::ProgressCallback onProgress = {}, http::CancelCheck isCancelled = {}) const;
         [[nodiscard]] std::string assetsUrl() const;
         [[nodiscard]] std::string assetUrl(const std::string& filename) const;
 
         CloudStorageConfig m_config;
         std::string m_slotKey;
+        const http::IHttpClient& m_http;
     };
 }

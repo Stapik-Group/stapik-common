@@ -1,32 +1,40 @@
 #include "Log.hpp"
 
-#include <glib.h>
+#include "ConsoleSink.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <mutex>
 
 namespace
 {
-    constexpr auto LOG_DOMAIN = "stapik";
-
     stapik::log::Level levelFromEnvironment()
     {
-        using stapik::log::Level;
         const auto* value = std::getenv("STAPIK_LOG_LEVEL");
         if (value == nullptr)
-            return Level::Info;
+            return stapik::log::Level::Info;
 
-        std::string name(value);
-        std::ranges::transform(name, name.begin(), [](const unsigned char character)
-        {
-            return static_cast<char>(std::tolower(character));
-        });
+        return stapik::log::parseLevel(value).value_or(stapik::log::Level::Info);
+    }
 
-        if (name == "debug") return Level::Debug;
-        if (name == "warning" || name == "warn") return Level::Warning;
-        if (name == "error" || name == "err") return Level::Error;
+    std::mutex& sinksMutex()
+    {
+        static std::mutex mutex;
+        return mutex;
+    }
 
-        return Level::Info;
+    std::vector<std::shared_ptr<stapik::log::ILogSink>>& sinkList()
+    {
+        static std::vector<std::shared_ptr<stapik::log::ILogSink>> list {std::make_shared<stapik::log::ConsoleSink>()};
+        return list;
+    }
+
+    // Guarded by sinksMutex().
+    std::shared_ptr<const stapik::time::IClock>& clockOverride()
+    {
+        static std::shared_ptr<const stapik::time::IClock> clock;
+        return clock;
     }
 
     std::atomic<stapik::log::Level>& currentLevel()
@@ -34,26 +42,26 @@ namespace
         static std::atomic level {levelFromEnvironment()};
         return level;
     }
-
-    GLogLevelFlags toGLibLevel(const stapik::log::Level level)
-    {
-        using stapik::log::Level;
-
-        switch (level)
-        {
-            using enum Level;
-            case Debug: return G_LOG_LEVEL_DEBUG;
-            case Info: return G_LOG_LEVEL_INFO;
-            case Warning: return G_LOG_LEVEL_WARNING;
-            case Error: return G_LOG_LEVEL_CRITICAL;
-        }
-
-        return G_LOG_LEVEL_MESSAGE;
-    }
 }
 
 namespace stapik::log
 {
+    std::optional<Level> parseLevel(const std::string_view name)
+    {
+        std::string lowered(name);
+        std::ranges::transform(lowered, lowered.begin(), [](const unsigned char character)
+        {
+            return static_cast<char>(std::tolower(character));
+        });
+
+        if (lowered == "debug") return Level::Debug;
+        if (lowered == "info") return Level::Info;
+        if (lowered == "warning" || lowered == "warn") return Level::Warning;
+        if (lowered == "error" || lowered == "err") return Level::Error;
+
+        return std::nullopt;
+    }
+
     Level level()
     {
         return currentLevel().load();
@@ -62,6 +70,30 @@ namespace stapik::log
     void setLevel(const Level newLevel)
     {
         currentLevel().store(newLevel);
+    }
+
+    void addSink(std::shared_ptr<ILogSink> sink)
+    {
+        const std::lock_guard lock(sinksMutex());
+        sinkList().push_back(std::move(sink));
+    }
+
+    std::vector<std::shared_ptr<ILogSink>> sinks()
+    {
+        const std::lock_guard lock(sinksMutex());
+        return sinkList();
+    }
+
+    void setSinks(std::vector<std::shared_ptr<ILogSink>> newSinks)
+    {
+        const std::lock_guard lock(sinksMutex());
+        sinkList() = std::move(newSinks);
+    }
+
+    void setClock(std::shared_ptr<const time::IClock> clock)
+    {
+        const std::lock_guard lock(sinksMutex());
+        clockOverride() = std::move(clock);
     }
 
     std::string redact(const std::string_view secret)
@@ -80,7 +112,13 @@ namespace stapik::log
             if (messageLevel < level())
                 return;
 
-            g_log(LOG_DOMAIN, toGLibLevel(messageLevel), "%s", message.c_str());
+            const std::lock_guard lock(sinksMutex());
+
+            const auto& clock = clockOverride() ? *clockOverride() : time::systemClock();
+            const LogRecord record {messageLevel, message, clock.now()};
+
+            for (const auto& sink : sinkList())
+                sink->write(record);
         }
     }
 }

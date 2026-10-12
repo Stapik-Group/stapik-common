@@ -1,7 +1,8 @@
 #include "MoneyFormatter.hpp"
 
+#include "stapik/locale/LanguageCode.hpp"
+
 #include <algorithm>
-#include <cctype>
 #include <format>
 #include <limits>
 #include <vector>
@@ -12,16 +13,6 @@ namespace stapik::domain
     {
         constexpr std::string_view NO_BREAK_SPACE = "\xC2\xA0";
         constexpr std::string_view NARROW_NO_BREAK_SPACE = "\xE2\x80\xAF";
-
-        std::string languageOf(const std::string_view languageCode)
-        {
-            std::string language(languageCode.substr(0, languageCode.find_first_of("_-.@")));
-            std::ranges::transform(language, language.begin(), [](const unsigned char character)
-            {
-                return static_cast<char>(std::tolower(character));
-            });
-            return language;
-        }
 
         std::uint64_t magnitudeOf(const std::int64_t value)
         {
@@ -200,7 +191,7 @@ namespace stapik::domain
 
     NumberFormat numberFormatFor(const std::string_view languageCode)
     {
-        const auto language = languageOf(languageCode);
+        const auto language = locale::primaryLanguage(languageCode);
 
         if (language == "pl")
             return {.decimalSeparator = ",", .groupSeparator = std::string(NO_BREAK_SPACE)};
