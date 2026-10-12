@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: Stapik-Group/stapik-common/.github/workflows/build.yml@v1.6.0
+    with:
+      application-name: my-app
+      images: '["ubuntu:22.04", "ubuntu:24.04", "debian:12", "debian:13"]'
+      cmake-args: -DBUILD_TESTING=ON
+      package: true
+    secrets:
+      sign-pfx-base64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
+      sign-pfx-password: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
+
+  publish:
+    needs: build
+    permissions:
+      contents: write
+    uses: Stapik-Group/stapik-common/.github/workflows/publish.yml@v1.6.0

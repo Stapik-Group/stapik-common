@@ -101,7 +101,7 @@ features/xyz  ──►  develop  ──►  main  ──►  tag vX.Y.Z
 - New work lives on `features/*` branches
 - `develop` is the integration branch
 - `main` receives pull requests only; a release is a tag like `v1.2.0`
-- CI runs on every branch except `develop`, on PRs to `main`, and builds the release artifact on `v*` tags
+- CI runs only on pull requests from `develop` to `main` and on published releases (`.deb` packages and the Windows installer); pushes and merges trigger nothing, see [docs/ci.md](docs/ci.md)
 
 ## Repository layout
 

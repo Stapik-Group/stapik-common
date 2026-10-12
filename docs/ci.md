@@ -39,3 +39,21 @@ of `build.yml`:
 The Linux job installs gtkmm 4, libcurl, libsodium, zlib, libsecret and libx11 with apt, and CMake and Ninja with
 pip, so the CMake version does not depend on the distribution. The Windows job installs the MSYS2 packages listed in
 [windows](windows.md).
+
+### Release: `release.yml`
+
+Runs when a release is published, which creates its tag as well. `build` calls `build.yml` with `package: true`:
+
+* one `.deb` per image of `images`, built by `cpack` inside that image, so that the dependencies found by
+  `dpkg-shlibdeps` match the distribution. The image is appended to the file name:
+  `my-app-1.2.0-Linux-ubuntu-24.04.deb`,
+* `<name>-<version>-setup.exe` (Inno Setup installer) and `<name>-<version>-windows-portable.zip` on Windows, see
+  [windows](windows.md). Both are signed when the repository has the secrets `WINDOWS_SIGN_PFX_BASE64` (the `.pfx`
+  file in Base64) and `WINDOWS_SIGN_PFX_PASSWORD`; without them the files stay unsigned.
+
+`publish` then calls `publish.yml`, which collects the artifacts of all packages and attaches them to the release
+(`gh release upload --clobber`, so a rerun replaces the files). Only that job has write access to the repository;
+the builds run with read access.
+
+The tests run before packaging; a failing test stops the release assets from being published. The version of the
+packages is the `VERSION` in the application's `CMakeLists.txt`, so bump it before the tag is created.
