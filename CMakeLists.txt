@@ -69,12 +69,18 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp
+        src/stapik/cloud/CompressedCloudStorage.cpp
         src/stapik/cloud/EncryptedCloudStorage.cpp
+        src/stapik/cloud/TransformingCloudStorage.cpp
 )
 
 target_sources(stapikcommon PRIVATE
         src/stapik/command/CompositeCommand.cpp
         src/stapik/command/UndoStack.cpp
+)
+
+target_sources(stapikcommon PRIVATE
+        src/stapik/compression/Gzip.cpp
 )
 
 target_sources(stapikcommon PRIVATE
@@ -151,6 +157,7 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/text/Base64.cpp
         src/stapik/text/Collation.cpp
         src/stapik/text/TextFolding.cpp
 )

@@ -24,8 +24,10 @@ add_executable(stapikcommon_tests
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageConfigTest.cpp
         cloud/CloudStorageFactoryTest.cpp
+        cloud/CompressedCloudStorageTest.cpp
         cloud/EncryptedCloudStorageTest.cpp
         command/UndoStackTest.cpp
+        compression/GzipTest.cpp
         core/ResultTest.cpp
         crypto/PayloadCipherTest.cpp
         csv/CsvWriterTest.cpp
@@ -74,6 +76,7 @@ add_executable(stapikcommon_tests
         sync/TimestampTest.cpp
         task/BackgroundTaskRunnerTest.cpp
         task/DebouncedActionTest.cpp
+        text/Base64Test.cpp
         text/CollationTest.cpp
         text/TextFoldingTest.cpp
         text/TrimTest.cpp

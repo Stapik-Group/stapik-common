@@ -27,6 +27,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Timestamps and clock** – consistent time handling and formatting, and an injectable clock so tests do not depend on the system time (see [docs/clock.md](docs/clock.md))
 - **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
 - **End-to-end encryption** – documents are encrypted before they leave the device; the cloud only stores a blob (see [docs/encryption.md](docs/encryption.md))
+- **Compression** – large cloud documents are gzipped before they are sent (see [docs/compression.md](docs/compression.md))
 - **Security helpers** – URL normalization and safe defaults (plain HTTP is allowed, but loudly logged as insecure)
 - **Secret storage** – the cloud API key lives in the system keyring (Secret Service on Linux, Credential Manager on Windows), not in a plain file
 - **Update checker** – a "new version available" notice based on GitHub Releases (see [docs/updates.md](docs/updates.md))

@@ -8,24 +8,19 @@
 namespace stapik::cloud
 {
     EncryptedCloudStorage::EncryptedCloudStorage(std::unique_ptr<ICloudStorage> inner, std::string passphrase, std::string scope) :
-        m_inner(std::move(inner)),
+        TransformingCloudStorage(std::move(inner)),
         m_cipher(std::move(passphrase)),
         m_scope(std::move(scope))
     {}
 
-    std::string EncryptedCloudStorage::documentContext() const
+    std::string EncryptedCloudStorage::scoped(const std::string& context) const
     {
-        return m_scope + "/document";
-    }
-
-    std::string EncryptedCloudStorage::partitionContext(const std::string& partition) const
-    {
-        return m_scope + "/partition/" + partition;
+        return m_scope + "/" + context;
     }
 
     nlohmann::json EncryptedCloudStorage::seal(const nlohmann::json& data, const std::string& context) const
     {
-        return m_cipher.encrypt(data.dump(), context);
+        return m_cipher.encrypt(data.dump(), scoped(context));
     }
 
     CloudDocument EncryptedCloudStorage::open(CloudDocument document, const std::string& context) const
@@ -35,11 +30,11 @@ namespace stapik::cloud
 
         if (!crypto::PayloadCipher::isEncrypted(document.content))
         {
-            log::warning("The cloud data of {} is not encrypted; it was saved before end-to-end encryption was turned on", context);
+            log::warning("The cloud data of {} is not encrypted; it was saved before end-to-end encryption was turned on", scoped(context));
             return document;
         }
 
-        const auto plaintext = m_cipher.decrypt(document.content, context);
+        const auto plaintext = m_cipher.decrypt(document.content, scoped(context));
         if (!plaintext)
             throw CloudDecryptionException(std::format("Cannot decrypt the cloud data: {}", crypto::describe(plaintext.error())));
 
@@ -53,54 +48,5 @@ namespace stapik::cloud
         }
 
         return document;
-    }
-
-    std::optional<CloudDocument> EncryptedCloudStorage::openIfPresent(std::optional<CloudDocument> document, const std::string& context) const
-    {
-        if (!document)
-            return std::nullopt;
-
-        return open(std::move(*document), context);
-    }
-
-    CloudWriteResult EncryptedCloudStorage::write(CloudWriteResult result, const nlohmann::json& sentData, const std::string& context) const
-    {
-        if (result.conflict)
-            return { .document = open(std::move(result.document), context), .conflict = true };
-
-        result.document.content = sentData;
-        return result;
-    }
-
-    std::optional<CloudDocument> EncryptedCloudStorage::loadDocument() const
-    {
-        return openIfPresent(m_inner->loadDocument(), documentContext());
-    }
-
-    CloudWriteResult EncryptedCloudStorage::saveDocument(const nlohmann::json& data, const std::chrono::system_clock::time_point clientLastKnownUpdate) const
-    {
-        const auto context = documentContext();
-        return write(m_inner->saveDocument(seal(data, context), clientLastKnownUpdate), data, context);
-    }
-
-    std::vector<CloudPartitionInfo> EncryptedCloudStorage::listPartitions() const
-    {
-        return m_inner->listPartitions();
-    }
-
-    std::optional<CloudDocument> EncryptedCloudStorage::loadPartition(const std::string& partition) const
-    {
-        return openIfPresent(m_inner->loadPartition(partition), partitionContext(partition));
-    }
-
-    CloudWriteResult EncryptedCloudStorage::savePartition(const std::string& partition, const nlohmann::json& data, const std::chrono::system_clock::time_point clientLastKnownUpdate) const
-    {
-        const auto context = partitionContext(partition);
-        return write(m_inner->savePartition(partition, seal(data, context), clientLastKnownUpdate), data, context);
-    }
-
-    bool EncryptedCloudStorage::deletePartition(const std::string& partition) const
-    {
-        return m_inner->deletePartition(partition);
     }
 }
