@@ -33,7 +33,7 @@ ThemeManager& ThemeManager::instance(const std::string& appName)
 }
 
 ThemeManager::ThemeManager(const std::string& appName) :
-    m_themeId(themeSettingsStore(appName), "theme", themeToFileString(Theme::Classic))
+    m_themeId(themeSettingsStore(appName), "theme", themeToFileString(Theme::Modern))
 {
     m_themeId.signalChanged().connect([this](const std::string&) { m_signalThemeChanged.emit(); });
 }

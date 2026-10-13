@@ -15,6 +15,7 @@ namespace stapik::ui
         explicit BoolSettingRow(settings::ObservableSetting<bool>& setting);
 
         [[nodiscard]] Gtk::Widget& widget() override;
+        [[nodiscard]] SettingRowLayout layout() const override;
 
     private:
         settings::ObservableSetting<bool>& m_setting;

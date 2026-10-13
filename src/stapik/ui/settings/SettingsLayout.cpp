@@ -7,6 +7,11 @@ namespace stapik::ui
         return add(std::move(labelKey), [&setting] { return std::make_unique<BoolSettingRow>(setting); });
     }
 
+    SettingsLayout& SettingsLayout::addFont(std::string labelKey, settings::ObservableSetting<std::string>& setting)
+    {
+        return add(std::move(labelKey), [&setting] { return std::make_unique<FontSettingRow>(setting); });
+    }
+
     SettingsLayout& SettingsLayout::addPath(
         std::string labelKey,
         settings::ObservableSetting<std::filesystem::path>& setting,

@@ -2,6 +2,7 @@
 
 #include "BoolSettingRow.hpp"
 #include "ChoiceSettingRow.hpp"
+#include "FontSettingRow.hpp"
 #include "NumberSettingRow.hpp"
 #include "PathSettingRow.hpp"
 
@@ -27,6 +28,8 @@ namespace stapik::ui
         };
 
         SettingsLayout& addBool(std::string labelKey, settings::ObservableSetting<bool>& setting);
+        // The setting holds the text of a stapik::theme::FontChoice ("Inter 11"); empty means the font of the theme.
+        SettingsLayout& addFont(std::string labelKey, settings::ObservableSetting<std::string>& setting);
         SettingsLayout& addPath(std::string labelKey, settings::ObservableSetting<std::filesystem::path>& setting, PathKind kind);
 
         template<typename ValueType>

@@ -54,6 +54,11 @@ namespace stapik::ui
             return m_spin;
         }
 
+        [[nodiscard]] SettingRowLayout layout() const override
+        {
+            return SettingRowLayout::Compact;
+        }
+
     private:
         static constexpr double PAGE_STEP_MULTIPLIER = 10.0;
 

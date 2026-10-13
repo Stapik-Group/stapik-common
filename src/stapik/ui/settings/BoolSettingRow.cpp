@@ -17,4 +17,9 @@ namespace stapik::ui
     {
         return m_switch;
     }
+
+    SettingRowLayout BoolSettingRow::layout() const
+    {
+        return SettingRowLayout::Toggle;
+    }
 }

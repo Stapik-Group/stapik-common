@@ -18,9 +18,13 @@
     font-size: 13px;
 }
 
+/* The text color is set here too: labels inherit it, and without it they take the (dark) color of the system theme. */
 window,
 dialog,
-dialog .dialog-vbox { background-color: @stapik_bg; }
+dialog .dialog-vbox {
+    background-color: @stapik_bg;
+    color: @stapik_text;
+}
 
 /* --- Title bars and navigation --- */
 headerbar {
@@ -148,6 +152,12 @@ entry {
 }
 
 entry:focus { border-color: @stapik_accent; }
+
+spinbutton,
+spinbutton text {
+    background-color: @stapik_surface;
+    color: @stapik_text;
+}
 
 /* --- Color Swatches --- */
 button.stapik-color-swatch {
