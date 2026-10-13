@@ -13,6 +13,8 @@ struct CloudDocument
 {
     nlohmann::json content;
     std::chrono::system_clock::time_point updatedAt;
+    // Quoted ETag header of the response the document came from, empty when the server sent none.
+    std::string etag;
 };
 
 struct CloudWriteResult

@@ -89,6 +89,26 @@ TEST_F(CloudStorageClientTest, LoadParsesContentAndServerTime)
     EXPECT_EQ(document->updatedAt, SERVER_TIME);
 }
 
+TEST_F(CloudStorageClientTest, LoadReadsTheEtagHeader)
+{
+    m_http.respondWithHeaders(200, documentResponse(nlohmann::json::object()), { { "etag", "\"hash-1\"" } });
+
+    const auto document = m_client.loadDocument();
+
+    ASSERT_TRUE(document.has_value());
+    EXPECT_EQ(document->etag, "\"hash-1\"");
+}
+
+TEST_F(CloudStorageClientTest, LoadWithoutEtagHeaderGivesEmptyEtag)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+
+    const auto document = m_client.loadDocument();
+
+    ASSERT_TRUE(document.has_value());
+    EXPECT_TRUE(document->etag.empty());
+}
+
 TEST_F(CloudStorageClientTest, EmptyContentLoadsAsEmptyObject)
 {
     m_http.respondWith(200, nlohmann::json{ { "content", "" }, { "updatedAt", SERVER_TIME_TEXT } }.dump());
@@ -159,6 +179,25 @@ TEST_F(CloudStorageClientTest, AcceptedSaveReturnsTheStoredDocument)
     EXPECT_FALSE(result.conflict);
     EXPECT_EQ(result.document.content, (nlohmann::json{ { "a", 1 } }));
     EXPECT_EQ(result.document.updatedAt, SERVER_TIME);
+}
+
+TEST_F(CloudStorageClientTest, AcceptedSaveReturnsTheNewEtag)
+{
+    m_http.respondWithHeaders(200, documentResponse(nlohmann::json{ { "a", 1 } }), { { "etag", "\"hash-2\"" } });
+
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
+
+    EXPECT_EQ(document.etag, "\"hash-2\"");
+}
+
+TEST_F(CloudStorageClientTest, ConflictingSaveReturnsTheServerEtag)
+{
+    m_http.respondWithHeaders(409, documentResponse(nlohmann::json{ { "server", true } }), { { "etag", "\"hash-3\"" } });
+
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME - 1h);
+
+    EXPECT_TRUE(conflict);
+    EXPECT_EQ(document.etag, "\"hash-3\"");
 }
 
 TEST_F(CloudStorageClientTest, ConflictingSaveReturnsTheServerVersion)

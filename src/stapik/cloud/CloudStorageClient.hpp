@@ -40,6 +40,6 @@ private:
     [[nodiscard]] std::optional<CloudDocument> readDocument(const std::string& url) const;
     [[nodiscard]] CloudWriteResult writeDocument(const std::string& url, const nlohmann::json& data, std::chrono::system_clock::time_point clientLastKnownUpdate) const;
 
-    static CloudDocument parseDocumentResponse(const stapik::http::Bytes& body);
+    static CloudDocument parseDocumentResponse(const stapik::http::Response& response);
     static std::chrono::system_clock::time_point parseTimestamp(const std::string& text);
 };

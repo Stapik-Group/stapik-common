@@ -54,9 +54,9 @@ stapik::http::Response CloudStorageClient::performDelete(const std::string& url)
     return perform(stapik::http::Method::Delete, url, stapik::http::NoBody{}, "API delete failed: ");
 }
 
-CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Bytes& body)
+CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Response& response)
 {
-    const auto json = nlohmann::json::parse(body.begin(), body.end());
+    const auto json = nlohmann::json::parse(response.body.begin(), response.body.end());
     const auto contentString = json.at("content").get<std::string>();
     const auto updatedAtString = json.at("updatedAt").get<std::string>();
 
@@ -64,21 +64,21 @@ CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Byte
     if (!contentString.empty())
         content = nlohmann::json::parse(contentString);
 
-    return CloudDocument{ .content = content, .updatedAt = parseTimestamp(updatedAtString) };
+    return CloudDocument{ .content = content, .updatedAt = parseTimestamp(updatedAtString), .etag = response.header("etag").value_or("") };
 }
 
 std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string& url) const
 {
-    const auto [httpStatus, body, retryAfter, headers] = performGet(url);
+    const auto response = performGet(url);
 
-    if (httpStatus == 404)
+    if (response.status == 404)
         return std::nullopt;
 
-    if (httpStatus != 200)
-        throw CloudStorageException(std::format("API read failed with status {}", httpStatus));
+    if (response.status != 200)
+        throw CloudStorageException(std::format("API read failed with status {}", response.status));
     try
     {
-        return parseDocumentResponse(body);
+        return parseDocumentResponse(response);
     }
     catch (const nlohmann::json::exception& e)
     {
@@ -93,16 +93,16 @@ CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const
         { "clientLastKnownUpdate", stapik::sync::toIso8601(clientLastKnownUpdate, stapik::sync::TimestampPrecision::Microseconds) }
     };
 
-    const auto [httpStatus, body, retryAfter, headers] = performPut(url, payload.dump());
+    const auto response = performPut(url, payload.dump());
 
-    if (httpStatus != 200 && httpStatus != 409)
-        throw CloudStorageException(std::format("API write failed with status {}", httpStatus));
+    if (response.status != 200 && response.status != 409)
+        throw CloudStorageException(std::format("API write failed with status {}", response.status));
 
     try
     {
         return CloudWriteResult{
-            .document = parseDocumentResponse(body),
-            .conflict = httpStatus == 409
+            .document = parseDocumentResponse(response),
+            .conflict = response.status == 409
         };
     }
     catch (const nlohmann::json::exception& e)
