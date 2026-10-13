@@ -67,6 +67,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/AssetCache.cpp
         src/stapik/cloud/CloudAssetClient.cpp
         src/stapik/cloud/CloudAssetProtocol.cpp
+        src/stapik/cloud/CloudChangesProtocol.cpp
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp

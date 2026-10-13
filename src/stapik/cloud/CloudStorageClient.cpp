@@ -1,4 +1,5 @@
 #include "CloudStorageClient.hpp"
+#include "CloudChangesProtocol.hpp"
 #include "CloudPartitionProtocol.hpp"
 #include "CloudStorageException.hpp"
 
@@ -241,6 +242,19 @@ bool CloudStorageClient::deletePartition(const std::string& partition) const
         return false;
 
     throw CloudStorageException(std::format("API partition delete failed with status {}", httpStatus));
+}
+
+CloudChangeList CloudStorageClient::listChanges(const std::chrono::system_clock::time_point since) const
+{
+    if (!m_config.isConfigured())
+        return CloudChangeList{ .serverTime = since };
+
+    const auto [httpStatus, body, retryAfter, headers] = performGet(stapik::cloud::changesUrl(m_config.normalizedApiUrl(), since));
+
+    if (httpStatus != 200)
+        throw CloudStorageException(std::format("API change list failed with status {}", httpStatus));
+
+    return stapik::cloud::parseChangeList(stapik::http::toText(body));
 }
 
 std::chrono::system_clock::time_point CloudStorageClient::parseTimestamp(const std::string& text)

@@ -534,3 +534,35 @@ TEST_F(CloudStorageClientTest, ExpiryOfTheApiKeyIsPassedToTheMonitor)
 
     EXPECT_EQ(monitor->expiresAt(), std::optional{ std::chrono::sys_days{ std::chrono::year{ 2026 } / std::chrono::November / 1 } + 8h });
 }
+
+TEST_F(CloudStorageClientTest, ChangeFeedIsReadFromTheApiRoot)
+{
+    m_http.respondWith(200, R"({"serverTime":"2026-01-15T10:31:00Z","changes":[{"slotKey":"budget","sizeBytes":3,"contentHash":"h","updatedAt":"2026-01-15T10:30:30Z","deleted":false}]})");
+
+    const auto list = m_client.listChanges(SERVER_TIME);
+
+    ASSERT_EQ(m_http.requests.size(), 1U);
+    EXPECT_EQ(m_http.requests.front().method, Method::Get);
+    EXPECT_EQ(m_http.requests.front().url, "https://cloud.example/api/v1/changes?since=2026-01-15T10%3A30%3A00.000000Z");
+    EXPECT_EQ(m_http.requests.front().headers.at("x-api-key"), "secret-key");
+    ASSERT_EQ(list.changes.size(), 1U);
+    EXPECT_EQ(list.changes.front().slotKey, "budget");
+}
+
+TEST_F(CloudStorageClientTest, UnexpectedStatusOnChangeFeedIsReported)
+{
+    m_http.respondWith(400);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.listChanges(SERVER_TIME); }), "API change list failed with status 400");
+}
+
+TEST_F(CloudStorageClientTest, UnconfiguredClientHasNoChanges)
+{
+    const CloudStorageClient unconfigured(CloudStorageConfig{ .apiUrl = "https://cloud.example", .apiKey = {} }, "budget", m_http);
+
+    const auto list = unconfigured.listChanges(SERVER_TIME);
+
+    EXPECT_TRUE(list.changes.empty());
+    EXPECT_EQ(list.serverTime, SERVER_TIME);
+    EXPECT_TRUE(m_http.requests.empty());
+}

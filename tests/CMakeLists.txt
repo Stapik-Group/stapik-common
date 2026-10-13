@@ -23,6 +23,7 @@ add_executable(stapikcommon_tests
         cloud/AssetCacheTest.cpp
         cloud/CloudAssetClientTest.cpp
         cloud/CloudAssetProtocolTest.cpp
+        cloud/CloudChangesProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageClientTest.cpp
