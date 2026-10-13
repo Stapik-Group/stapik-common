@@ -50,6 +50,11 @@ namespace stapik::ui
             return m_dropDown;
         }
 
+        [[nodiscard]] SettingRowLayout layout() const override
+        {
+            return SettingRowLayout::Compact;
+        }
+
         void retranslate() override
         {
             loadOptions();

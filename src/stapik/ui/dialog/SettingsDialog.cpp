@@ -3,10 +3,6 @@
 #include "DialogUtils.hpp"
 
 #include "stapik/locale/LocaleManager.hpp"
-#include "stapik/ui/settings/ChoiceDropDown.hpp"
-
-#include <gtkmm/spinbutton.h>
-#include <gtkmm/switch.h>
 
 namespace
 {
@@ -15,12 +11,6 @@ namespace
     constexpr int DIALOG_WIDTH = 520;
     constexpr int ROW_MIN_HEIGHT = 40;
     constexpr int CONTROL_MIN_WIDTH = 168;
-
-    bool isCompactControl(Gtk::Widget& widget)
-    {
-        return dynamic_cast<stapik::ui::ChoiceDropDown*>(&widget) != nullptr
-            || dynamic_cast<Gtk::SpinButton*>(&widget) != nullptr;
-    }
 }
 
 SettingsDialog::SettingsDialog(Window& parent, const stapik::ui::SettingsLayout& layout) :
@@ -45,22 +35,24 @@ SettingsDialog::SettingsDialog(Window& parent, const stapik::ui::SettingsLayout&
         line->label.set_size_request(-1, ROW_MIN_HEIGHT);
 
         auto& control = line->row->widget();
-        if (isCompactControl(control))
+        switch (line->row->layout())
         {
-            control.set_halign(Gtk::Align::END);
-            control.set_valign(Gtk::Align::CENTER);
-            control.set_size_request(CONTROL_MIN_WIDTH, -1);
-            m_controlSizes->add_widget(control);
-        }
-        else if (dynamic_cast<Gtk::Switch*>(&control) != nullptr)
-        {
-            control.set_halign(Gtk::Align::END);
-            control.set_valign(Gtk::Align::CENTER);
-        }
-        else
-        {
-            // Wide rows, such as a path with its entry and a browse button, take the room that is left.
-            control.set_hexpand(true);
+            using enum stapik::ui::SettingRowLayout;
+            case Compact:
+                control.set_halign(Gtk::Align::END);
+                control.set_valign(Gtk::Align::CENTER);
+                control.set_size_request(CONTROL_MIN_WIDTH, -1);
+                m_controlSizes->add_widget(control);
+                break;
+            case Toggle:
+                control.set_halign(Gtk::Align::END);
+                control.set_valign(Gtk::Align::CENTER);
+                break;
+            case Wide:
+            default:
+                // Wide rows, such as a path with its entry and a browse button, take the room that is left.
+                control.set_hexpand(true);
+                break;
         }
 
         m_grid.attach(line->label, 0, gridRow);

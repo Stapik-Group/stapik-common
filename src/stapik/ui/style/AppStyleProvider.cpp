@@ -1,6 +1,7 @@
 #include "AppStyleProvider.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/theme/FontChoice.hpp"
 #include "stapik/theme/FontScale.hpp"
 #include "stapik/storage/AppPaths.hpp"
 #include "stapik/storage/PathText.hpp"
@@ -15,6 +16,7 @@
 namespace
 {
     constexpr auto FALLBACK_THEME_ID = "classic";
+    constexpr double DEFAULT_BASE_FONT_PIXELS = 13.0;
 
     std::optional<std::string> readText(const std::filesystem::path& file)
     {
@@ -67,7 +69,7 @@ void AppStyleProvider::apply(const Theme theme)
     apply(themeToFileString(theme));
 }
 
-void AppStyleProvider::apply(const std::string& themeId, const int fontScalePercent)
+void AppStyleProvider::apply(const std::string& themeId, const std::string& font)
 {
     removeCurrentProviders();
 
@@ -82,6 +84,16 @@ void AppStyleProvider::apply(const std::string& themeId, const int fontScalePerc
     {
         stapik::log::warning("No theme CSS available, the default GTK style is used");
         return;
+    }
+
+    // The chosen size becomes the base size of the theme; the other sizes keep their proportions to it.
+    const auto choice = stapik::theme::parseFontChoice(font);
+    double fontFactor = 1.0;
+    if (choice && !theme->files.empty())
+    {
+        const auto baseCss = readText(theme->files.front());
+        const auto basePixels = baseCss ? stapik::theme::baseFontSizePixels(*baseCss) : std::nullopt;
+        fontFactor = choice->sizePoints * stapik::theme::CSS_PIXELS_PER_POINT / basePixels.value_or(DEFAULT_BASE_FONT_PIXELS);
     }
 
     guint priority = GTK_STYLE_PROVIDER_PRIORITY_APPLICATION;
@@ -101,12 +113,21 @@ void AppStyleProvider::apply(const std::string& themeId, const int fontScalePerc
             continue;
         }
 
-        loadCss(provider, stapik::theme::scaleFontSizes(*css, fontScalePercent));
+        loadCss(provider, stapik::theme::scaleFontSizes(*css, fontFactor));
 
         Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), provider, priority);
         m_currentProviders.push_back(provider);
         ++priority;
     }
+
+    if (!choice)
+        return;
+
+    // Above every theme file, so that it wins over the font family of the theme.
+    auto familyProvider = Gtk::CssProvider::create();
+    loadCss(familyProvider, "* { font-family: " + stapik::theme::fontFamilyCss(choice->family) + "; }");
+    Gtk::StyleContext::add_provider_for_display(Gdk::Display::get_default(), familyProvider, priority);
+    m_currentProviders.push_back(familyProvider);
 }
 
 const stapik::theme::ThemeRegistry& AppStyleProvider::themes() const

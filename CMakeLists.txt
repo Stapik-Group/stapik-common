@@ -184,8 +184,9 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/theme/FontChoice.cpp
+        src/stapik/theme/FontManager.cpp
         src/stapik/theme/FontScale.cpp
-        src/stapik/theme/FontSizeManager.cpp
         src/stapik/theme/Theme.cpp
         src/stapik/theme/ThemeManager.cpp
         src/stapik/theme/ThemeRegistry.cpp
@@ -223,6 +224,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/ui/print/Printing.cpp
         src/stapik/ui/settings/BoolSettingRow.cpp
         src/stapik/ui/settings/ChoiceDropDown.cpp
+        src/stapik/ui/settings/FontSettingRow.cpp
         src/stapik/ui/settings/PathSettingRow.cpp
         src/stapik/ui/settings/SettingsLayout.cpp
         src/stapik/ui/style/AppStyleProvider.cpp

@@ -73,7 +73,7 @@ namespace stapik::app
         std::unique_ptr<storage::DirectoryLock> m_dataDirLock;
         sigc::connection m_windowAddedConnection;
         sigc::connection m_themeConnection;
-        sigc::connection m_fontSizeConnection;
+        sigc::connection m_fontConnection;
         std::unique_ptr<update::UpdateChecker> m_updateChecker;
         sigc::connection m_updateConnection;
     };
