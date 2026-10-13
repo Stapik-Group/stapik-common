@@ -168,7 +168,8 @@ namespace
 
     TutorialWindow::~TutorialWindow()
     {
-        g_openWindow = nullptr;
+        if (g_openWindow == this)
+            g_openWindow = nullptr;
     }
 
     void TutorialWindow::open(const std::string& chapterId)
@@ -371,13 +372,24 @@ namespace
 
 void showTutorialWindow(Gtk::Window& parent, const std::filesystem::path& tutorialDirectory, const std::string& chapterId)
 {
-    if (g_openWindow != nullptr)
+    // A window that GTK has already destroyed (without the C++ object being deleted) has no widget to present.
+    if (g_openWindow != nullptr && g_openWindow->gobj() != nullptr)
     {
         g_openWindow->open(chapterId);
         return;
     }
 
+    g_openWindow = nullptr;
+
     auto* window = new TutorialWindow(parent, tutorialDirectory, chapterId);
+
+    // Closing only hides the window, which deletes it. GTK would destroy the widget instead and leave the C++ object
+    // behind, so the next call would find a window that cannot be presented.
+    window->signal_close_request().connect([window]
+    {
+        window->hide();
+        return true;
+    }, false);
     window->signal_hide().connect([window] { delete window; });
     window->present();
 }
