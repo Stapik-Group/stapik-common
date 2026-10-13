@@ -69,7 +69,7 @@ CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Byte
 
 std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string& url) const
 {
-    const auto [httpStatus, body, retryAfter] = performGet(url);
+    const auto [httpStatus, body, retryAfter, headers] = performGet(url);
 
     if (httpStatus == 404)
         return std::nullopt;
@@ -93,7 +93,7 @@ CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const
         { "clientLastKnownUpdate", stapik::sync::toIso8601(clientLastKnownUpdate, stapik::sync::TimestampPrecision::Microseconds) }
     };
 
-    const auto [httpStatus, body, retryAfter] = performPut(url, payload.dump());
+    const auto [httpStatus, body, retryAfter, headers] = performPut(url, payload.dump());
 
     if (httpStatus != 200 && httpStatus != 409)
         throw CloudStorageException(std::format("API write failed with status {}", httpStatus));
@@ -135,7 +135,7 @@ std::vector<CloudPartitionInfo> CloudStorageClient::listPartitions() const
     if (!m_config.isConfigured())
         return {};
 
-    const auto [httpStatus, body, retryAfter] = performGet(stapik::cloud::partitionsUrl(documentUrl()));
+    const auto [httpStatus, body, retryAfter, headers] = performGet(stapik::cloud::partitionsUrl(documentUrl()));
 
     if (httpStatus == 404)
         return {};
@@ -167,7 +167,7 @@ bool CloudStorageClient::deletePartition(const std::string& partition) const
     if (!m_config.isConfigured())
         return false;
 
-    const auto [httpStatus, body, retryAfter] = performDelete(stapik::cloud::partitionUrl(documentUrl(), partition));
+    const auto [httpStatus, body, retryAfter, headers] = performDelete(stapik::cloud::partitionUrl(documentUrl(), partition));
 
     if (httpStatus == 204)
         return true;

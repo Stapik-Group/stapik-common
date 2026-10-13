@@ -68,6 +68,16 @@ namespace stapik::http
         int status{};
         Bytes body;
         std::optional<std::chrono::seconds> retryAfter;
+        // Headers of the final response, names in lower case. A repeated header keeps its last value.
+        std::map<std::string, std::string> headers;
+
+        [[nodiscard]] std::optional<std::string> header(const std::string_view lowerCaseName) const
+        {
+            if (const auto found = headers.find(std::string(lowerCaseName)); found != headers.end())
+                return found->second;
+
+            return std::nullopt;
+        }
     };
 
     struct TransportError
