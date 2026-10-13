@@ -4,7 +4,9 @@
 #include "stapik/log/Log.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <format>
+#include <tuple>
 #include <utility>
 
 namespace stapik::cloud
@@ -19,6 +21,9 @@ namespace stapik::cloud
         constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
         constexpr int HTTP_UNSUPPORTED_MEDIA_TYPE = 415;
         constexpr int HTTP_UNPROCESSABLE_CONTENT = 422;
+        constexpr int HTTP_CONFLICT = 409;
+        // Interruptions of a chunked upload in a row, without a chunk getting through in between, that are still worked around.
+        constexpr int MAX_UPLOAD_INTERRUPTIONS = 3;
     }
 
     namespace
@@ -165,10 +170,10 @@ namespace stapik::cloud
 
     AssetInfo CloudAssetClient::uploadInChunks(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const
     {
-        const auto totalBytes = content.size();
+        const auto checksum = sha256Hex(content);
 
         const auto start = perform(http::Method::Post, cloud::assetUploadsUrl(m_config.normalizedApiUrl()),
-                                   http::toBytes(buildAssetUploadRequest(m_slotKey, filename, static_cast<std::int64_t>(totalBytes), mimeType, sha256Hex(content))),
+                                   http::toBytes(buildAssetUploadRequest(m_slotKey, filename, static_cast<std::int64_t>(content.size()), mimeType, checksum)),
                                    "API asset upload failed: ", {}, hooks.isCancelled, { { "Content-Type", "application/json" } });
 
         if (start.status == HTTP_PAYLOAD_TOO_LARGE)
@@ -179,6 +184,23 @@ namespace stapik::cloud
 
         const auto uploadUrl = cloud::assetUploadUrl(m_config.normalizedApiUrl(), parseAssetUploadState(http::toText(start.body)).uploadId);
 
+        try
+        {
+            return sendChunks(uploadUrl, filename, content, checksum, hooks);
+        }
+        catch (...)
+        {
+            abortUpload(uploadUrl);
+            throw;
+        }
+    }
+
+    AssetInfo CloudAssetClient::sendChunks(const std::string& uploadUrl, const std::string& filename, const AssetBytes& content, const std::string& checksum,
+                                           const AssetUploadHooks& hooks) const
+    {
+        const auto totalBytes = content.size();
+        int interruptions = 0;
+
         for (std::size_t offset = 0; offset < totalBytes;)
         {
             if (hooks.isCancelled && hooks.isCancelled())
@@ -188,29 +210,114 @@ namespace stapik::cloud
             const auto chunkBegin = content.begin() + static_cast<std::ptrdiff_t>(offset);
             http::Bytes chunk(chunkBegin, chunkBegin + static_cast<std::ptrdiff_t>(chunkBytes));
 
-            const auto [httpStatus, body, retryAfter, headers] = perform(http::Method::Patch, uploadUrl, std::move(chunk), "API asset upload failed: ",
-                                                                         chunkProgressReporter(hooks, offset, chunkBytes, totalBytes), hooks.isCancelled,
-                                                                         { { "Content-Type", "application/octet-stream" }, { "Upload-Offset", std::to_string(offset) } });
+            std::optional<http::Response> response;
+            std::string interruption;
+            try
+            {
+                response = perform(http::Method::Patch, uploadUrl, std::move(chunk), "API asset upload failed: ",
+                                   chunkProgressReporter(hooks, offset, chunkBytes, totalBytes), hooks.isCancelled,
+                                   { { "Content-Type", "application/octet-stream" }, { "Upload-Offset", std::to_string(offset) } });
+            }
+            catch (const AssetTransferCancelledException&)
+            {
+                throw;
+            }
+            catch (const CloudStorageException& exception)
+            {
+                interruption = exception.what();
+            }
 
-            if (httpStatus == HTTP_PAYLOAD_TOO_LARGE)
-                throw CloudStorageException(std::format("API asset upload failed: the server accepts chunks smaller than {} bytes", m_chunking.chunkBytes));
+            if (response)
+            {
+                const auto& [httpStatus, body, retryAfter, headers] = *response;
 
-            throwIfFileRefused(httpStatus, body, filename);
+                if (httpStatus == HTTP_OK)
+                {
+                    const auto state = parseAssetUploadState(http::toText(body));
+                    offset += chunkBytes;
 
-            if (httpStatus != HTTP_OK)
-                throw CloudStorageException(std::format("API asset upload failed with status {}", httpStatus));
+                    if (state.asset)
+                        return *state.asset;
 
-            const auto state = parseAssetUploadState(http::toText(body));
-            offset += chunkBytes;
+                    if (state.offset != static_cast<std::int64_t>(offset))
+                        throw CloudStorageException("The cloud acknowledged an unexpected part of the upload");
 
-            if (state.asset)
-                return *state.asset;
+                    interruptions = 0;
+                    continue;
+                }
 
-            if (state.offset != static_cast<std::int64_t>(offset))
-                throw CloudStorageException("The cloud acknowledged an unexpected part of the upload");
+                if (httpStatus == HTTP_PAYLOAD_TOO_LARGE)
+                    throw CloudStorageException(std::format("API asset upload failed: the server accepts chunks smaller than {} bytes", m_chunking.chunkBytes));
+
+                throwIfFileRefused(httpStatus, body, filename);
+
+                // 409: the cloud is at another offset than assumed. 404: the upload is gone, perhaps because the last chunk completed it.
+                if (httpStatus != HTTP_CONFLICT && httpStatus != HTTP_NOT_FOUND)
+                    throw CloudStorageException(std::format("API asset upload failed with status {}", httpStatus));
+
+                interruption = std::format("API asset upload failed with status {}", httpStatus);
+            }
+
+            if (++interruptions > MAX_UPLOAD_INTERRUPTIONS)
+                throw CloudStorageException(interruption);
+
+            log::info("The upload of '{}' was interrupted ({}), asking the cloud how much of it arrived", filename, interruption);
+
+            const auto [resumedOffset, stored] = resumeUpload(uploadUrl, filename, totalBytes, checksum, hooks);
+            if (stored)
+                return *stored;
+
+            offset = resumedOffset;
         }
 
         throw CloudStorageException("The cloud did not confirm that the upload is complete");
+    }
+
+    auto CloudAssetClient::resumeUpload(const std::string& uploadUrl, const std::string& filename, const std::size_t totalBytes, const std::string& checksum,
+                                        const AssetUploadHooks& hooks) const -> Resumption
+    {
+        const auto [httpStatus, body, retryAfter, headers] = perform(http::Method::Get, uploadUrl, http::NoBody{}, "API asset upload failed: ", {}, hooks.isCancelled);
+
+        if (httpStatus == HTTP_OK)
+        {
+            const auto state = parseAssetUploadState(http::toText(body));
+            if (state.offset < 0 || state.offset > static_cast<std::int64_t>(totalBytes))
+                throw CloudStorageException("The cloud reported an invalid offset of the upload");
+
+            return Resumption{ .offset = static_cast<std::size_t>(state.offset) };
+        }
+
+        if (httpStatus != HTTP_NOT_FOUND)
+            throw CloudStorageException(std::format("API asset upload failed with status {}", httpStatus));
+
+        // The upload is gone. If the last chunk completed it before the answer was lost, the file is already stored.
+        const auto sameChecksum = [&checksum](const std::string& other)
+        {
+            return std::ranges::equal(checksum, other, [](const char left, const char right)
+            {
+                return std::tolower(static_cast<unsigned char>(left)) == std::tolower(static_cast<unsigned char>(right));
+            });
+        };
+
+        for (const auto& asset : listAssets())
+        {
+            if (asset.filename == filename && asset.sizeBytes == static_cast<std::int64_t>(totalBytes) && sameChecksum(asset.checksumSha256))
+                return Resumption{ .stored = asset };
+        }
+
+        throw CloudStorageException(std::format("The cloud lost the upload of '{}'", filename));
+    }
+
+    void CloudAssetClient::abortUpload(const std::string& uploadUrl) const
+    {
+        try
+        {
+            std::ignore = perform(http::Method::Delete, uploadUrl, http::NoBody{}, "API asset upload failed: ");
+        }
+        catch (const CloudStorageException& exception)
+        {
+            log::debug("Cannot abort the upload in the cloud: {}", exception.what());
+        }
     }
 
     bool CloudAssetClient::deleteAsset(const std::string& filename) const

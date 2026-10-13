@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -41,7 +42,20 @@ namespace stapik::cloud
                                              std::map<std::string, std::string> extraHeaders = {}) const;
         [[nodiscard]] std::string assetsUrl() const;
         [[nodiscard]] std::string assetUrl(const std::string& filename) const;
+        // What the cloud holds of an interrupted chunked upload: how many bytes arrived, or the finished file when the
+        // last chunk completed the upload before the answer was lost.
+        struct Resumption
+        {
+            std::size_t offset = 0;
+            std::optional<AssetInfo> stored;
+        };
+
         [[nodiscard]] AssetInfo uploadInChunks(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const;
+        [[nodiscard]] AssetInfo sendChunks(const std::string& uploadUrl, const std::string& filename, const AssetBytes& content, const std::string& checksum,
+                                           const AssetUploadHooks& hooks) const;
+        [[nodiscard]] Resumption resumeUpload(const std::string& uploadUrl, const std::string& filename, std::size_t totalBytes, const std::string& checksum,
+                                              const AssetUploadHooks& hooks) const;
+        void abortUpload(const std::string& uploadUrl) const;
 
         CloudStorageConfig m_config;
         std::string m_slotKey;

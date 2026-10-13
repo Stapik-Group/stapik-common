@@ -31,6 +31,14 @@ namespace
     const std::string UPLOAD_ID = "0b6f6a5e-1c3d-4f7a-9d2e-3a4b5c6d7e8f";
     const std::string UPLOADS_URL = "https://cloud.example/api/v1/asset-uploads";
 
+    std::string assetListWithChecksum(const std::string& checksum)
+    {
+        nlohmann::json asset = nlohmann::json::parse(ASSET_METADATA);
+        asset["sizeBytes"] = 4;
+        asset["checksumSha256"] = checksum;
+        return nlohmann::json{ { "assets", nlohmann::json::array({ asset }) } }.dump();
+    }
+
     std::string uploadState(const int offset, const bool completed = false)
     {
         nlohmann::json state = { { "uploadId", UPLOAD_ID }, { "filename", "a.jpg" }, { "sizeBytes", 4 }, { "offset", offset }, { "expiresAt", "2026-01-16T10:30:00Z" } };
@@ -393,12 +401,119 @@ TEST_F(CloudAssetClientTest, ChunkedUploadCanBeCancelledBetweenChunks)
 {
     m_http.respondWith(201, uploadState(0));
     m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(204);
 
     int checks = 0;
     const auto cancelOnSecondCheck = [&checks] { return ++checks > 1; };
 
     EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT, { .isCancelled = cancelOnSecondCheck }), AssetTransferCancelledException);
-    EXPECT_EQ(m_http.requests.size(), 2U);
+    ASSERT_EQ(m_http.requests.size(), 3U);
+    EXPECT_EQ(m_http.requests.back().method, Method::Delete);
+    EXPECT_EQ(m_http.requests.back().url, UPLOADS_URL + "/" + UPLOAD_ID);
+}
+
+TEST_F(CloudAssetClientTest, InterruptedChunkIsSentAgainAfterAskingTheCloud)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.failWith("Connection reset");
+    m_http.respondWith(200, uploadState(0));
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+
+    const auto info = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(info.filename, "a.jpg");
+    ASSERT_EQ(m_http.requests.size(), 5U);
+    EXPECT_EQ(m_http.requests[2].method, Method::Get);
+    EXPECT_EQ(m_http.requests[2].url, UPLOADS_URL + "/" + UPLOAD_ID);
+    EXPECT_EQ(m_http.requests[3].headers.at("Upload-Offset"), "0");
+    EXPECT_EQ(m_http.requests[4].headers.at("Upload-Offset"), "3");
+}
+
+TEST_F(CloudAssetClientTest, UploadContinuesFromTheOffsetTheCloudReports)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.failWith("Connection reset");
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+
+    std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    ASSERT_EQ(m_http.requests.size(), 4U);
+    EXPECT_EQ(m_http.requests[3].headers.at("Upload-Offset"), "3");
+    EXPECT_EQ(std::get<stapik::http::Bytes>(m_http.requests[3].body), (stapik::http::Bytes{ 0x80 }));
+}
+
+TEST_F(CloudAssetClientTest, OffsetConflictIsResolvedByAskingTheCloud)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(409);
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+
+    std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    ASSERT_EQ(m_http.requests.size(), 4U);
+    EXPECT_EQ(m_http.requests[3].headers.at("Upload-Offset"), "3");
+}
+
+TEST_F(CloudAssetClientTest, LostAnswerToTheLastChunkIsRecoveredFromTheAssetList)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(200, uploadState(3));
+    m_http.failWith("Connection reset");
+    m_http.respondWith(404);
+    m_http.respondWith(200, assetListWithChecksum(sha256Hex(BINARY_CONTENT)));
+
+    const auto info = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(info.checksumSha256, sha256Hex(BINARY_CONTENT));
+    ASSERT_EQ(m_http.requests.size(), 5U);
+    EXPECT_EQ(m_http.requests.back().method, Method::Get);
+    EXPECT_EQ(m_http.requests.back().url, ASSETS_URL);
+}
+
+TEST_F(CloudAssetClientTest, UploadLostByTheCloudIsReportedAndAborted)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.failWith("Connection reset");
+    m_http.respondWith(404);
+    m_http.respondWith(200, R"({"assets":[]})");
+    m_http.respondWith(404);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT); }),
+              "The cloud lost the upload of 'a.jpg'");
+    ASSERT_EQ(m_http.requests.size(), 5U);
+    EXPECT_EQ(m_http.requests.back().method, Method::Delete);
+}
+
+TEST_F(CloudAssetClientTest, UploadGivesUpAfterRepeatedInterruptions)
+{
+    m_http.respondWith(201, uploadState(0));
+    for (int interruption = 0; interruption < 3; ++interruption)
+    {
+        m_http.failWith("Connection reset");
+        m_http.respondWith(200, uploadState(0));
+    }
+    m_http.failWith("Connection reset");
+    m_http.respondWith(204);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT); }),
+              "API asset upload failed: Connection reset");
+    ASSERT_EQ(m_http.requests.size(), 9U);
+    EXPECT_EQ(m_http.requests.back().method, Method::Delete);
+}
+
+TEST_F(CloudAssetClientTest, RefusedUploadIsAbortedInTheCloud)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(415, R"({"detail":"Detected content type image/gif is not allowed in this slot"})");
+    m_http.respondWith(204);
+
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.gif", "image/gif", BINARY_CONTENT), AssetTypeNotAllowedException);
+    ASSERT_EQ(m_http.requests.size(), 3U);
+    EXPECT_EQ(m_http.requests.back().method, Method::Delete);
+    EXPECT_EQ(m_http.requests.back().url, UPLOADS_URL + "/" + UPLOAD_ID);
 }
 
 TEST_F(CloudAssetClientTest, TooLargeFileIsRefusedWhenTheUploadStarts)
