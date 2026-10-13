@@ -42,17 +42,24 @@ namespace stapik::sync
 
         bool connectWith(const CloudStorageConfig& config, const DocumentType& currentDocument)
         {
+            if (!connectPartitionsOnly(config))
+                return false;
+
+            m_scheduler->syncNow(currentDocument);
+            return true;
+        }
+
+        // Connects for an application that keeps its data only in partitions: the main document is neither
+        // read nor written, and nothing is sent until a partition is loaded or pushed.
+        bool connectPartitionsOnly(const CloudStorageConfig& config)
+        {
             if (!config.isConfigured())
                 return false;
 
             if (m_hooks.saveConfig && !m_hooks.saveConfig(config))
                 log::warning("Cannot save the cloud configuration; it will be lost after restart");
 
-            if (!activate(config))
-                return false;
-
-            m_scheduler->syncNow(currentDocument);
-            return true;
+            return activate(config);
         }
 
         void syncNow(const DocumentType& currentDocument)
