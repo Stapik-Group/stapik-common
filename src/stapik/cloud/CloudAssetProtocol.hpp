@@ -2,14 +2,36 @@
 
 #include "IAssetStorage.hpp"
 
+#include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace stapik::cloud
 {
+    // The state of a resumable upload (/asset-uploads): `offset` bytes have arrived so far, `asset` is set once the
+    // last byte did and the file is stored.
+    struct AssetUploadState
+    {
+        std::string uploadId;
+        std::string filename;
+        std::int64_t sizeBytes{};
+        std::int64_t offset{};
+        std::chrono::system_clock::time_point expiresAt;
+        std::optional<AssetInfo> asset;
+    };
+
     [[nodiscard]] std::string assetsUrl(const std::string& apiUrl, const std::string& slotKey);
     [[nodiscard]] std::string assetUrl(const std::string& apiUrl, const std::string& slotKey, const std::string& filename);
+
+    [[nodiscard]] std::string assetUploadsUrl(const std::string& apiUrl);
+    [[nodiscard]] std::string assetUploadUrl(const std::string& apiUrl, const std::string& uploadId);
+
+    // The body that starts a resumable upload. An empty mimeType or checksumSha256 is left out.
+    [[nodiscard]] std::string buildAssetUploadRequest(const std::string& slotKey, const std::string& filename, std::int64_t sizeBytes,
+                                                      const std::string& mimeType, const std::string& checksumSha256);
+    [[nodiscard]] AssetUploadState parseAssetUploadState(const std::string& body);
 
     [[nodiscard]] std::vector<AssetInfo> parseAssetList(const std::string& body);
     [[nodiscard]] AssetInfo parseAssetMetadata(const std::string& body);

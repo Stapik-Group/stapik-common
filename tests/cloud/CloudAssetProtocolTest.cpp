@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <nlohmann/json.hpp>
+
 #include <chrono>
 #include <string>
 #include <tuple>
@@ -162,4 +164,59 @@ TEST(CloudAssetProtocolTest, ProblemDetailIsReadFromTheErrorBody)
     EXPECT_FALSE(parseProblemDetail(R"({"title":"x"})").has_value());
     EXPECT_FALSE(parseProblemDetail("not json").has_value());
     EXPECT_FALSE(parseProblemDetail("").has_value());
+}
+
+TEST(CloudAssetProtocolTest, UploadUrlsAreBuiltUnderAssetUploads)
+{
+    EXPECT_EQ(assetUploadsUrl(API_URL), API_URL + "/api/v1/asset-uploads");
+    EXPECT_EQ(assetUploadUrl(API_URL, "0b6f6a5e-1c3d-4f7a-9d2e-3a4b5c6d7e8f"), API_URL + "/api/v1/asset-uploads/0b6f6a5e-1c3d-4f7a-9d2e-3a4b5c6d7e8f");
+    EXPECT_EQ(assetUploadUrl(API_URL, "a/b"), API_URL + "/api/v1/asset-uploads/a%2Fb");
+}
+
+TEST(CloudAssetProtocolTest, UploadRequestCarriesTheFileDescription)
+{
+    const auto request = nlohmann::json::parse(buildAssetUploadRequest("covers", "a.jpg", 4096, "image/jpeg", "abc"));
+
+    EXPECT_EQ(request.at("slotKey"), "covers");
+    EXPECT_EQ(request.at("filename"), "a.jpg");
+    EXPECT_EQ(request.at("sizeBytes"), 4096);
+    EXPECT_EQ(request.at("mimeType"), "image/jpeg");
+    EXPECT_EQ(request.at("checksumSha256"), "abc");
+}
+
+TEST(CloudAssetProtocolTest, UploadRequestLeavesOutEmptyOptionalFields)
+{
+    const auto request = nlohmann::json::parse(buildAssetUploadRequest("covers", "a.jpg", 1, "", ""));
+
+    EXPECT_FALSE(request.contains("mimeType"));
+    EXPECT_FALSE(request.contains("checksumSha256"));
+}
+
+TEST(CloudAssetProtocolTest, UploadInProgressIsParsed)
+{
+    const auto state = parseAssetUploadState(R"({"uploadId":"u-1","filename":"a.jpg","sizeBytes":4096,"offset":1024,"expiresAt":"2026-01-16T10:30:00Z"})");
+
+    EXPECT_EQ(state.uploadId, "u-1");
+    EXPECT_EQ(state.filename, "a.jpg");
+    EXPECT_EQ(state.sizeBytes, 4096);
+    EXPECT_EQ(state.offset, 1024);
+    EXPECT_EQ(epochSeconds(state.expiresAt), 1768559400);
+    EXPECT_FALSE(state.asset.has_value());
+}
+
+TEST(CloudAssetProtocolTest, CompletedUploadCarriesTheStoredAsset)
+{
+    const auto state = parseAssetUploadState(R"({"uploadId":"u-1","filename":"a.jpg","sizeBytes":4096,"offset":4096,"expiresAt":"2026-01-16T10:30:00Z",
+        "asset":{"filename":"a.jpg","mimeType":"image/jpeg","sizeBytes":4096,"checksumSha256":"abc","updatedAt":"2026-01-15T10:30:00Z"}})");
+
+    ASSERT_TRUE(state.asset.has_value());
+    EXPECT_EQ(state.asset->filename, "a.jpg");
+    EXPECT_EQ(state.asset->checksumSha256, "abc");
+}
+
+TEST(CloudAssetProtocolTest, MalformedUploadStateIsACloudStorageException)
+{
+    EXPECT_THROW(std::ignore = parseAssetUploadState("not json"), CloudStorageException);
+    EXPECT_THROW(std::ignore = parseAssetUploadState(R"({"uploadId":"u-1"})"), CloudStorageException);
+    EXPECT_THROW(std::ignore = parseAssetUploadState(R"({"uploadId":"u-1","filename":"a","sizeBytes":1,"offset":0,"expiresAt":"tomorrow"})"), CloudStorageException);
 }

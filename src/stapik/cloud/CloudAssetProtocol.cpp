@@ -169,6 +169,59 @@ namespace stapik::cloud
         return detail->get<std::string>();
     }
 
+    std::string assetUploadsUrl(const std::string& apiUrl)
+    {
+        return apiUrl + "/api/v1/asset-uploads";
+    }
+
+    std::string assetUploadUrl(const std::string& apiUrl, const std::string& uploadId)
+    {
+        return assetUploadsUrl(apiUrl) + "/" + encodePathSegment(uploadId);
+    }
+
+    std::string buildAssetUploadRequest(const std::string& slotKey, const std::string& filename, const std::int64_t sizeBytes,
+                                        const std::string& mimeType, const std::string& checksumSha256)
+    {
+        nlohmann::json request = { { "slotKey", slotKey }, { "filename", filename }, { "sizeBytes", sizeBytes } };
+
+        if (!mimeType.empty())
+            request["mimeType"] = mimeType;
+
+        if (!checksumSha256.empty())
+            request["checksumSha256"] = checksumSha256;
+
+        return request.dump();
+    }
+
+    AssetUploadState parseAssetUploadState(const std::string& body)
+    {
+        try
+        {
+            const auto json = nlohmann::json::parse(body);
+
+            const auto expiresAtText = json.at("expiresAt").get<std::string>();
+            const auto expiresAt = sync::parseIso8601(expiresAtText);
+            if (!expiresAt)
+                throw CloudStorageException("Invalid ISO-8601 timestamp: " + expiresAtText);
+
+            AssetUploadState state{
+                .uploadId = json.at("uploadId").get<std::string>(),
+                .filename = json.at("filename").get<std::string>(),
+                .sizeBytes = json.at("sizeBytes").get<std::int64_t>(),
+                .offset = json.at("offset").get<std::int64_t>(),
+                .expiresAt = *expiresAt };
+
+            if (const auto asset = json.find("asset"); asset != json.end() && !asset->is_null())
+                state.asset = toAssetInfo(*asset);
+
+            return state;
+        }
+        catch (const nlohmann::json::exception& e)
+        {
+            throw CloudStorageException(std::string("Failed to parse cloud response: ") + e.what());
+        }
+    }
+
     std::vector<AssetInfo> parseAssetList(const std::string& body)
     {
         try
