@@ -8,6 +8,7 @@
 #include <gtkmm/button.h>
 #include <gtkmm/grid.h>
 #include <gtkmm/label.h>
+#include <gtkmm/sizegroup.h>
 #include <sigc++/scoped_connection.h>
 
 #include <memory>
@@ -30,6 +31,7 @@ private:
     void retranslate();
 
     Gtk::Grid m_grid;
+    Glib::RefPtr<Gtk::SizeGroup> m_controlSizes;
     std::vector<std::unique_ptr<Line>> m_lines;
     Gtk::Button* m_closeButton = nullptr;
     sigc::scoped_connection m_localeConnection;
