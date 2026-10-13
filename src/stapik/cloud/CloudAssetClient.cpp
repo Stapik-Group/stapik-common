@@ -18,6 +18,7 @@ namespace stapik::cloud
         constexpr int HTTP_NOT_FOUND = 404;
         constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
         constexpr int HTTP_UNSUPPORTED_MEDIA_TYPE = 415;
+        constexpr int HTTP_UNPROCESSABLE_CONTENT = 422;
     }
 
     namespace
@@ -54,9 +55,10 @@ namespace stapik::cloud
     }
 
     http::Response CloudAssetClient::perform(const http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel,
-                                             http::ProgressCallback onProgress, http::CancelCheck isCancelled) const
+                                             http::ProgressCallback onProgress, http::CancelCheck isCancelled,
+                                             std::map<std::string, std::string> extraHeaders) const
     {
-        const http::Request request{
+        http::Request request{
             .method = method,
             .url = url,
             .headers = { { "x-api-key", m_config.apiKey } },
@@ -66,6 +68,7 @@ namespace stapik::cloud
             .onProgress = std::move(onProgress),
             .isCancelled = std::move(isCancelled)
         };
+        request.headers.merge(std::move(extraHeaders));
 
         auto result = m_http.send(request);
         if (!result)
@@ -119,13 +122,17 @@ namespace stapik::cloud
         const auto storedFilename = normalizeAssetFilename(filename);
         http::MultipartFile file{ .fieldName = "file", .filename = storedFilename, .mimeType = mimeType, .content = content };
         const auto [httpStatus, body, retryAfter, headers] = perform(http::Method::Put, assetUrl(storedFilename), std::move(file), "API asset upload failed: ",
-                                                uploadProgressReporter(hooks, content.size()), hooks.isCancelled);
+                                                uploadProgressReporter(hooks, content.size()), hooks.isCancelled,
+                                                { { "X-Checksum-Sha256", sha256Hex(content) } });
 
         if (httpStatus == HTTP_PAYLOAD_TOO_LARGE)
             throw AssetTooLargeException(std::format("File '{}' is too large for the cloud slot", filename));
 
         if (httpStatus == HTTP_UNSUPPORTED_MEDIA_TYPE)
             throw AssetTypeNotAllowedException(parseProblemDetail(http::toText(body)).value_or(std::format("File '{}' has a type the cloud slot does not accept", filename)));
+
+        if (httpStatus == HTTP_UNPROCESSABLE_CONTENT)
+            throw AssetChecksumMismatchException(parseProblemDetail(http::toText(body)).value_or(std::format("File '{}' was damaged on the way to the cloud", filename)));
 
         if (httpStatus != HTTP_OK && httpStatus != HTTP_CREATED)
             throw CloudStorageException(std::format("API asset upload failed with status {}", httpStatus));

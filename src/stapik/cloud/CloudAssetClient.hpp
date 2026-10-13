@@ -5,6 +5,7 @@
 
 #include "stapik/http/IHttpClient.hpp"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -24,7 +25,8 @@ namespace stapik::cloud
         [[nodiscard]] AssetInfo uploadAsset(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const override;
     private:
         [[nodiscard]] http::Response perform(http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel,
-                                             http::ProgressCallback onProgress = {}, http::CancelCheck isCancelled = {}) const;
+                                             http::ProgressCallback onProgress = {}, http::CancelCheck isCancelled = {},
+                                             std::map<std::string, std::string> extraHeaders = {}) const;
         [[nodiscard]] std::string assetsUrl() const;
         [[nodiscard]] std::string assetUrl(const std::string& filename) const;
 

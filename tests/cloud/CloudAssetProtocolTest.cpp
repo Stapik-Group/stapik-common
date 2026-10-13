@@ -95,13 +95,15 @@ TEST(CloudAssetProtocolTest, TooLargeFileIsACloudStorageException)
     EXPECT_THROW(throw AssetTooLargeException("too large"), CloudStorageException);
 }
 
-TEST(CloudAssetProtocolTest, FilenameRejectionsAreCloudStorageExceptions)
+TEST(CloudAssetProtocolTest, UploadRejectionsAreCloudStorageExceptions)
 {
     static_assert(std::is_base_of_v<CloudStorageException, InvalidAssetFilenameException>);
     static_assert(std::is_base_of_v<CloudStorageException, AssetTypeNotAllowedException>);
+    static_assert(std::is_base_of_v<CloudStorageException, AssetChecksumMismatchException>);
 
     EXPECT_THROW(throw InvalidAssetFilenameException("bad name"), CloudStorageException);
     EXPECT_THROW(throw AssetTypeNotAllowedException("bad type"), CloudStorageException);
+    EXPECT_THROW(throw AssetChecksumMismatchException("bad checksum"), CloudStorageException);
 }
 
 TEST(CloudAssetProtocolTest, PlainFilenameIsKept)

@@ -32,7 +32,7 @@ namespace stapik::http
         for (int retriesDone = 0;; ++retriesDone)
         {
             auto result = m_inner.send(request);
-            if (!result || !shouldRetry(result.value(), retriesDone))
+            if (!result || !shouldRetry(request, result.value(), retriesDone))
                 return result;
 
             const auto delay = *result.value().retryAfter;
@@ -43,9 +43,12 @@ namespace stapik::http
         }
     }
 
-    bool RetryingHttpClient::shouldRetry(const Response& response, const int retriesDone) const
+    bool RetryingHttpClient::shouldRetry(const Request& request, const Response& response, const int retriesDone) const
     {
-        const bool retryableStatus = response.status == HTTP_TOO_MANY_REQUESTS || response.status == HTTP_SERVICE_UNAVAILABLE;
+        // A 429 is always answered before the request is processed. A 503 does not say whether it was, so a request that
+        // is not safe to repeat (POST, PATCH) is not sent again after it.
+        const bool repeatable = request.method != Method::Post && request.method != Method::Patch;
+        const bool retryableStatus = response.status == HTTP_TOO_MANY_REQUESTS || (response.status == HTTP_SERVICE_UNAVAILABLE && repeatable);
 
         return retryableStatus
                && retriesDone < m_policy.maxRetries

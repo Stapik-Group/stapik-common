@@ -19,7 +19,9 @@ namespace stapik::http
     enum class Method
     {
         Get,
+        Post,
         Put,
+        Patch,
         Delete
     };
 

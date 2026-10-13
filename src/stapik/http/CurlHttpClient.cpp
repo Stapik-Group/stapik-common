@@ -186,8 +186,14 @@ namespace stapik::http
                 using enum Method;
                 case Get:
                     return;
+                case Post:
+                    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+                    return;
                 case Put:
                     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+                    return;
+                case Patch:
+                    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
                     return;
                 case Delete:
                     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");

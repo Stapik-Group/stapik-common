@@ -1,4 +1,5 @@
 #include "stapik/cloud/CloudAssetClient.hpp"
+#include "stapik/cloud/CloudAssetProtocol.hpp"
 
 #include "support/FakeHttpClient.hpp"
 #include "support/ThrownMessage.hpp"
@@ -269,6 +270,32 @@ TEST_F(CloudAssetClientTest, InvalidFilenameIsRejectedWithoutARequest)
     EXPECT_THROW(std::ignore = m_client.downloadAsset("a:b.jpg"), InvalidAssetFilenameException);
     EXPECT_THROW(std::ignore = m_client.deleteAsset("a:b.jpg"), InvalidAssetFilenameException);
     EXPECT_TRUE(m_http.requests.empty());
+}
+
+TEST_F(CloudAssetClientTest, UploadSendsTheChecksumOfTheContent)
+{
+    m_http.respondWith(201, ASSET_METADATA);
+
+    std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(m_http.requests.front().headers.at("X-Checksum-Sha256"), sha256Hex(BINARY_CONTENT));
+    EXPECT_EQ(m_http.requests.front().headers.at("x-api-key"), "secret-key");
+}
+
+TEST_F(CloudAssetClientTest, ChecksumMismatchIsReportedWithTheServerReason)
+{
+    m_http.respondWith(422, R"({"detail":"Uploaded content checksum aa does not match the expected bb"})");
+
+    EXPECT_EQ(thrownMessage<AssetChecksumMismatchException>([&] { std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT); }),
+              "Uploaded content checksum aa does not match the expected bb");
+}
+
+TEST_F(CloudAssetClientTest, ChecksumMismatchWithoutDetailGetsAGenericReason)
+{
+    m_http.respondWith(422);
+
+    EXPECT_EQ(thrownMessage<AssetChecksumMismatchException>([&] { std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT); }),
+              "File 'a.jpg' was damaged on the way to the cloud");
 }
 
 TEST_F(CloudAssetClientTest, UnexpectedStatusOnUploadIsReported)

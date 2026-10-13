@@ -65,6 +65,14 @@ namespace stapik::cloud
         using CloudStorageException::CloudStorageException;
     };
 
+    // The server received different bytes than were sent (HTTP 422, the SHA-256 of the file does not match).
+    // The file that was in the cloud before is untouched; uploading the file again may succeed.
+    class AssetChecksumMismatchException : public CloudStorageException
+    {
+    public:
+        using CloudStorageException::CloudStorageException;
+    };
+
     // Abstraction of a remote collection of binary files (a BINARY_COLLECTION slot). It allows the
     // logic built on top of it to be tested against a fake without any network access.
     //
@@ -75,6 +83,7 @@ namespace stapik::cloud
     //    is not configured; deleteAsset() returns false when there was nothing to delete.
     //  - uploadAsset() throws AssetTooLargeException when the file exceeds the size limit of the slot and
     //    AssetTypeNotAllowedException when the slot does not accept the type of the file.
+    //  - uploadAsset() throws AssetChecksumMismatchException when the server received damaged data.
     //  - Every call with a filename throws InvalidAssetFilenameException when the name cannot be stored.
     //  - uploadAsset() throws AssetTransferCancelledException when the hooks cancel the upload; the file is then not
     //    guaranteed to be stored.
