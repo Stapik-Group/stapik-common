@@ -192,6 +192,13 @@ namespace stapik::sync
             return m_signalPartitionOutcome;
         }
 
+        // The cloud reported that the API key expires at the given time (it does so within the last 30 days
+        // of the key). Emitted once per reported time, until the session connects with another configuration.
+        sigc::signal<void(TimePoint)>& signalApiKeyExpiring()
+        {
+            return m_signalApiKeyExpiring;
+        }
+
         sigc::signal<void(const std::optional<std::vector<int>>&)>& signalAvailableYears()
         {
             return m_signalAvailableYears;
@@ -226,6 +233,8 @@ namespace stapik::sync
 
         void onPartitionOutcome(const std::string& partition, const SyncOutcome<DocumentType>& outcome)
         {
+            reportApiKeyExpiry();
+
             if (const auto found = m_partitions.find(partition); found != m_partitions.end()
                 && (outcome.state == SyncState::Synchronized || outcome.replacesLocal()))
             {
@@ -252,6 +261,9 @@ namespace stapik::sync
             m_scheduler.reset();
             m_storage.reset();
             m_config.reset();
+            m_reportedApiKeyExpiry.reset();
+            if (m_hooks.expiryMonitor)
+                m_hooks.expiryMonitor->reset();
 
             if (!m_hooks.createStorage)
                 return false;
@@ -277,8 +289,22 @@ namespace stapik::sync
             return true;
         }
 
+        void reportApiKeyExpiry()
+        {
+            if (!m_hooks.expiryMonitor)
+                return;
+
+            const auto expiresAt = m_hooks.expiryMonitor->expiresAt();
+            if (!expiresAt || expiresAt == m_reportedApiKeyExpiry)
+                return;
+
+            m_reportedApiKeyExpiry = expiresAt;
+            m_signalApiKeyExpiring.emit(*expiresAt);
+        }
+
         void onOutcome(const SyncOutcome<DocumentType>& outcome)
         {
+            reportApiKeyExpiry();
             m_signalOutcome.emit(outcome);
 
             if (outcome.replacesLocal())
@@ -299,6 +325,7 @@ namespace stapik::sync
         std::unique_ptr<AsyncSyncScheduler<DocumentType>> m_scheduler;
         std::map<std::string, PartitionEntry> m_partitions;
         std::unique_ptr<task::BackgroundTaskRunner> m_yearsRunner;
+        std::optional<TimePoint> m_reportedApiKeyExpiry;
         sigc::signal<void(const DocumentType&)> m_signalDocumentReplaced;
         sigc::signal<void(TimePoint)> m_signalBaselineChanged;
         sigc::signal<void(SyncStatus)> m_signalStatusChanged;
@@ -307,6 +334,7 @@ namespace stapik::sync
         sigc::signal<void(const std::string&, TimePoint)> m_signalPartitionBaselineChanged;
         sigc::signal<void(const std::string&, SyncStatus)> m_signalPartitionStatusChanged;
         sigc::signal<void(const std::string&, const SyncOutcome<DocumentType>&)> m_signalPartitionOutcome;
+        sigc::signal<void(TimePoint)> m_signalApiKeyExpiring;
         sigc::signal<void(const std::optional<std::vector<int>>&)> m_signalAvailableYears;
     };
 }

@@ -3,12 +3,15 @@
 #include "CloudStorageConfig.hpp"
 #include "ICloudStorage.hpp"
 
+#include "ApiKeyExpiry.hpp"
+
 #include "stapik/http/IHttpClient.hpp"
 
 #include <nlohmann/json.hpp>
 #include <string>
 #include <chrono>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <vector>
@@ -16,7 +19,8 @@
 class CloudStorageClient : public ICloudStorage
 {
 public:
-    CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient = stapik::http::defaultHttpClient());
+    CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient = stapik::http::defaultHttpClient(),
+                       std::shared_ptr<stapik::cloud::ApiKeyExpiryMonitor> expiryMonitor = {});
 
     [[nodiscard]] std::optional<CloudDocument> loadDocument() const override;
     [[nodiscard]] CloudWriteResult saveDocument(const nlohmann::json& data, std::chrono::system_clock::time_point clientLastKnownUpdate) const override;
@@ -40,6 +44,7 @@ private:
     CloudStorageConfig m_config;
     std::string m_slotKey;
     const stapik::http::IHttpClient& m_http;
+    std::shared_ptr<stapik::cloud::ApiKeyExpiryMonitor> m_expiryMonitor;
     mutable std::mutex m_knownVersionsMutex;
     mutable std::map<std::string, KnownVersion> m_knownVersions;
 

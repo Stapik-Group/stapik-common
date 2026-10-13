@@ -450,6 +450,18 @@ TEST_F(CloudAssetClientTest, RateLimitedChunkIsNotTreatedAsAnInterruption)
     EXPECT_EQ(m_http.requests.back().method, Method::Delete);
 }
 
+TEST_F(CloudAssetClientTest, ExpiryOfTheApiKeyIsPassedToTheMonitor)
+{
+    const auto monitor = std::make_shared<ApiKeyExpiryMonitor>();
+    const CloudAssetClient client(CONFIG, "covers", m_http, AssetChunking{}, monitor);
+    m_http.respondWithHeaders(200, R"({"assets":[]})", { { "x-api-key-expires-at", "2026-11-01T08:00:00Z" } });
+
+    EXPECT_TRUE(client.listAssets().empty());
+
+    ASSERT_TRUE(monitor->expiresAt().has_value());
+    EXPECT_EQ(*monitor->expiresAt(), std::chrono::sys_days{ std::chrono::year{ 2026 } / std::chrono::November / 1 } + 8h);
+}
+
 TEST_F(CloudAssetClientTest, UploadContinuesFromTheOffsetTheCloudReports)
 {
     m_http.respondWith(201, uploadState(0));

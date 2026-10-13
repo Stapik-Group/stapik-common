@@ -124,3 +124,17 @@ TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheTutorialWindow)
             << file.filename().string();
     }
 }
+
+TEST(CommonLocaleKeysTest, EveryLanguageTranslatesTheApiKeyExpiryWarning)
+{
+    const auto files = localeFiles();
+    ASSERT_FALSE(files.empty());
+
+    for (const auto& file : files)
+    {
+        const auto translations = readJson(file);
+        expectNonEmptyString(translations, "cloud.apiKeyExpiring", file.filename().string());
+        EXPECT_NE(translations.at("cloud.apiKeyExpiring").get<std::string>().find("{date}"), std::string::npos)
+            << file.filename().string();
+    }
+}

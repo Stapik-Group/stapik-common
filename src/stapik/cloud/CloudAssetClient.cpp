@@ -65,11 +65,13 @@ namespace stapik::cloud
         }
     }
 
-    CloudAssetClient::CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient, const AssetChunking chunking) :
+    CloudAssetClient::CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient, const AssetChunking chunking,
+                                     std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor) :
         m_config(std::move(config)),
         m_slotKey(std::move(slotKey)),
         m_http(httpClient),
-        m_chunking(chunking)
+        m_chunking(chunking),
+        m_expiryMonitor(std::move(expiryMonitor))
     {
         m_chunking.chunkBytes = std::max<std::size_t>(m_chunking.chunkBytes, 1);
 
@@ -111,6 +113,9 @@ namespace stapik::cloud
 
             throw CloudStorageException(std::string(failureLabel) + result.error().message);
         }
+
+        if (m_expiryMonitor)
+            m_expiryMonitor->observe(result.value());
 
         if (result.value().status == HTTP_TOO_MANY_REQUESTS)
             throw CloudRateLimitedException(result.value().retryAfter);

@@ -63,6 +63,7 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/cloud/ApiKeyExpiry.cpp
         src/stapik/cloud/AssetCache.cpp
         src/stapik/cloud/CloudAssetClient.cpp
         src/stapik/cloud/CloudAssetProtocol.cpp

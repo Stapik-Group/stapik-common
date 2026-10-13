@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CloudStorageConfig.hpp"
+#include "ApiKeyExpiry.hpp"
 #include "IAssetStorage.hpp"
 
 #include "stapik/http/IHttpClient.hpp"
 
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -29,7 +31,8 @@ namespace stapik::cloud
     class CloudAssetClient final : public IAssetStorage
     {
     public:
-        CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient = http::defaultHttpClient(), AssetChunking chunking = {});
+        CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient = http::defaultHttpClient(), AssetChunking chunking = {},
+                         std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor = {});
 
         [[nodiscard]] std::vector<AssetInfo> listAssets() const override;
         [[nodiscard]] std::optional<AssetBytes> downloadAsset(const std::string& filename) const override;
@@ -61,5 +64,6 @@ namespace stapik::cloud
         std::string m_slotKey;
         const http::IHttpClient& m_http;
         AssetChunking m_chunking;
+        std::shared_ptr<ApiKeyExpiryMonitor> m_expiryMonitor;
     };
 }

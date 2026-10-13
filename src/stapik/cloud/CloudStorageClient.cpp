@@ -13,10 +13,12 @@ namespace
     constexpr int HTTP_TOO_MANY_REQUESTS = 429;
 }
 
-CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient):
+CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient,
+                                       std::shared_ptr<stapik::cloud::ApiKeyExpiryMonitor> expiryMonitor):
     m_config(std::move(config)),
     m_slotKey(std::move(slotKey)),
-    m_http(httpClient)
+    m_http(httpClient),
+    m_expiryMonitor(std::move(expiryMonitor))
 {
     if (m_config.isConfigured() && !m_config.isSecure())
         stapik::log::warning("Cloud API URL does not use https:// - the API key and documents are sent unencrypted. This is not a secure connection.");
@@ -42,6 +44,9 @@ stapik::http::Response CloudStorageClient::perform(const stapik::http::Method me
     auto result = m_http.send(request);
     if (!result)
         throw CloudStorageException(std::string(failureLabel) + result.error().message);
+
+    if (m_expiryMonitor)
+        m_expiryMonitor->observe(result.value());
 
     if (result.value().status == HTTP_TOO_MANY_REQUESTS)
         throw CloudRateLimitedException(result.value().retryAfter);

@@ -4,6 +4,7 @@
 #include "stapik/cloud/CloudStorageFactory.hpp"
 #include "stapik/storage/CloudStorageConfigStorage.hpp"
 
+#include <memory>
 #include <utility>
 
 namespace stapik::sync
@@ -13,6 +14,7 @@ namespace stapik::sync
         const auto appName = app::AppContext::instance().info().internalName;
 
         CloudSessionHooks hooks;
+        hooks.expiryMonitor = std::make_shared<cloud::ApiKeyExpiryMonitor>();
 
         hooks.loadConfig = [appName]
         {
@@ -24,9 +26,9 @@ namespace stapik::sync
             return CloudStorageConfigStorage::save(config, appName).hasValue();
         };
 
-        hooks.createStorage = [slotKey = std::move(slotKey)](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>
+        hooks.createStorage = [slotKey = std::move(slotKey), monitor = hooks.expiryMonitor](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>
         {
-            return cloud::createCloudStorage(config, slotKey);
+            return cloud::createCloudStorage(config, slotKey, http::defaultHttpClient(), monitor);
         };
 
         return hooks;

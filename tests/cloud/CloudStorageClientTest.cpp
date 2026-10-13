@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -521,4 +522,15 @@ TEST_F(CloudStorageClientTest, RateLimitWithoutRetryAfterHasNoRequestedWait)
     {
         EXPECT_FALSE(exception.retryAfter().has_value());
     }
+}
+
+TEST_F(CloudStorageClientTest, ExpiryOfTheApiKeyIsPassedToTheMonitor)
+{
+    const auto monitor = std::make_shared<stapik::cloud::ApiKeyExpiryMonitor>();
+    const CloudStorageClient client(CONFIG, "budget", m_http, monitor);
+    m_http.respondWithHeaders(404, "", { { "x-api-key-expires-at", "2026-11-01T08:00:00Z" } });
+
+    EXPECT_FALSE(client.loadDocument().has_value());
+
+    EXPECT_EQ(monitor->expiresAt(), std::optional{ std::chrono::sys_days{ std::chrono::year{ 2026 } / std::chrono::November / 1 } + 8h });
 }

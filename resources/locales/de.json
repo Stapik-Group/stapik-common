@@ -129,6 +129,7 @@
   "cloud.connected": "Verbunden",
   "cloud.connected.secondary": "Erfolgreich mit der Cloud verbunden.",
   "cloud.failed.header": "Verbindung fehlgeschlagen",
+  "cloud.apiKeyExpiring": "Ihr Cloud-API-Schlüssel läuft am {date} ab. Erstellen Sie im Cloud-Panel einen neuen und tragen Sie ihn in den Verbindungseinstellungen ein.",
   "money.entry.invalid": "Betrag eingeben, z. B. {example}",
   "emptyState.noData": "Keine Daten",
   "sync.status.idle": "Aktuell",
