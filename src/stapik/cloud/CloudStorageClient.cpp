@@ -60,6 +60,28 @@ stapik::http::Response CloudStorageClient::performDelete(const std::string& url)
     return perform(stapik::http::Method::Delete, url, stapik::http::NoBody{}, "API delete failed: ");
 }
 
+auto CloudStorageClient::knownVersion(const std::string& url) const -> std::optional<KnownVersion>
+{
+    const std::scoped_lock lock(m_knownVersionsMutex);
+
+    if (const auto found = m_knownVersions.find(url); found != m_knownVersions.end())
+        return found->second;
+
+    return std::nullopt;
+}
+
+void CloudStorageClient::remember(const std::string& url, const CloudDocument& document) const
+{
+    const std::scoped_lock lock(m_knownVersionsMutex);
+    m_knownVersions.insert_or_assign(url, KnownVersion{ .updatedAt = document.updatedAt, .etag = document.etag });
+}
+
+void CloudStorageClient::forget(const std::string& url) const
+{
+    const std::scoped_lock lock(m_knownVersionsMutex);
+    m_knownVersions.erase(url);
+}
+
 CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Response& response)
 {
     const auto json = nlohmann::json::parse(response.body.begin(), response.body.end());
@@ -78,13 +100,18 @@ std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string&
     const auto response = performGet(url);
 
     if (response.status == 404)
+    {
+        forget(url);
         return std::nullopt;
+    }
 
     if (response.status != 200)
         throw CloudStorageException(std::format("API read failed with status {}", response.status));
     try
     {
-        return parseDocumentResponse(response);
+        auto document = parseDocumentResponse(response);
+        remember(url, document);
+        return document;
     }
     catch (const nlohmann::json::exception& e)
     {
@@ -95,24 +122,36 @@ std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string&
 CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const nlohmann::json& data, const std::chrono::system_clock::time_point clientLastKnownUpdate) const
 {
     // The server detects conflicts by ETag (If-Match), while the sync remembers the updatedAt of the last version it knew.
-    // So the current version is read first: its ETag is the one that matches the baseline, or the baseline is stale.
-    const auto current = readDocument(url);
-    if (current && current->updatedAt != clientLastKnownUpdate)
-        return CloudWriteResult{ .document = *current, .conflict = true };
+    // The ETag of that version is either already known from an earlier read or write, or the current version is read first:
+    // its ETag is the one that matches the baseline, or the baseline is stale.
+    std::string ifMatch;
+    if (const auto known = knownVersion(url); known && known->updatedAt == clientLastKnownUpdate && !known->etag.empty())
+    {
+        ifMatch = known->etag;
+    }
+    else if (const auto current = readDocument(url))
+    {
+        if (current->updatedAt != clientLastKnownUpdate)
+            return CloudWriteResult{ .document = *current, .conflict = true };
+
+        ifMatch = current->etag;
+    }
 
     const nlohmann::json payload = { { "content", data.dump() } };
 
-    const auto response = performPut(url, payload.dump(), current ? current->etag : std::string{});
+    const auto response = performPut(url, payload.dump(), ifMatch);
 
     if (response.status != 200 && response.status != 409)
         throw CloudStorageException(std::format("API write failed with status {}", response.status));
 
     try
     {
-        return CloudWriteResult{
+        CloudWriteResult result{
             .document = parseDocumentResponse(response),
             .conflict = response.status == 409
         };
+        remember(url, result.document);
+        return result;
     }
     catch (const nlohmann::json::exception& e)
     {
@@ -176,7 +215,11 @@ bool CloudStorageClient::deletePartition(const std::string& partition) const
     if (!m_config.isConfigured())
         return false;
 
-    const auto [httpStatus, body, retryAfter, headers] = performDelete(stapik::cloud::partitionUrl(documentUrl(), partition));
+    const auto url = stapik::cloud::partitionUrl(documentUrl(), partition);
+    const auto [httpStatus, body, retryAfter, headers] = performDelete(url);
+
+    if (httpStatus == 204 || httpStatus == 404)
+        forget(url);
 
     if (httpStatus == 204)
         return true;

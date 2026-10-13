@@ -9,6 +9,7 @@
 #include <string>
 #include <chrono>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <vector>
 
@@ -28,9 +29,19 @@ public:
 private:
     static constexpr std::chrono::seconds TIMEOUT{ 8 };
 
+    // The version of a document (or partition) this client last saw on the server, kept per URL.
+    // A save whose baseline equals it can send the ETag at once instead of reading the document first.
+    struct KnownVersion
+    {
+        std::chrono::system_clock::time_point updatedAt;
+        std::string etag;
+    };
+
     CloudStorageConfig m_config;
     std::string m_slotKey;
     const stapik::http::IHttpClient& m_http;
+    mutable std::mutex m_knownVersionsMutex;
+    mutable std::map<std::string, KnownVersion> m_knownVersions;
 
     [[nodiscard]] stapik::http::Response perform(stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel,
                                                  std::map<std::string, std::string> extraHeaders = {}) const;
@@ -38,6 +49,10 @@ private:
     [[nodiscard]] stapik::http::Response performPut(const std::string& url, const std::string& body, const std::string& ifMatch) const;
     [[nodiscard]] stapik::http::Response performDelete(const std::string& url) const;
     [[nodiscard]] std::string documentUrl() const;
+
+    [[nodiscard]] std::optional<KnownVersion> knownVersion(const std::string& url) const;
+    void remember(const std::string& url, const CloudDocument& document) const;
+    void forget(const std::string& url) const;
 
     [[nodiscard]] std::optional<CloudDocument> readDocument(const std::string& url) const;
     [[nodiscard]] CloudWriteResult writeDocument(const std::string& url, const nlohmann::json& data, std::chrono::system_clock::time_point clientLastKnownUpdate) const;
