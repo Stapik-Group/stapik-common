@@ -1,7 +1,5 @@
 #include "stapik/cloud/CloudStorageClient.hpp"
 
-#include "stapik/sync/Timestamp.hpp"
-
 #include "support/FakeHttpClient.hpp"
 #include "support/ThrownMessage.hpp"
 
@@ -37,6 +35,12 @@ namespace
     protected:
         FakeHttpClient m_http;
         CloudStorageClient m_client{ CONFIG, "budget", m_http };
+
+        // The answer to the read that precedes every save of an existing document.
+        void respondWithCurrentDocument(const std::string& etag = "\"current\"") const
+        {
+            m_http.respondWithHeaders(200, documentResponse(nlohmann::json::object()), { { "etag", etag } });
+        }
     };
 }
 
@@ -154,35 +158,89 @@ TEST_F(CloudStorageClientTest, ResponseWithInvalidTimestampIsReportedAsCloudErro
     EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudStorageException);
 }
 
-TEST_F(CloudStorageClientTest, SendsContentAndBaselineInAPut)
+TEST_F(CloudStorageClientTest, SendsContentWithIfMatchInAPut)
 {
+    respondWithCurrentDocument("\"hash-1\"");
     m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
 
     std::ignore = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
 
-    const auto& request = m_http.requests.front();
+    ASSERT_EQ(m_http.requests.size(), 2U);
+    EXPECT_EQ(m_http.requests.front().method, Method::Get);
+    EXPECT_EQ(m_http.requests.front().url, DOCUMENT_URL);
+
+    const auto& request = m_http.requests.back();
     EXPECT_EQ(request.method, Method::Put);
     EXPECT_EQ(request.url, DOCUMENT_URL);
     EXPECT_EQ(request.headers.at("x-api-key"), "secret-key");
+    EXPECT_EQ(request.headers.at("If-Match"), "\"hash-1\"");
 
     const auto payload = nlohmann::json::parse(bodyText(request));
     EXPECT_EQ(nlohmann::json::parse(payload.at("content").get<std::string>()), (nlohmann::json{ { "a", 1 } }));
-    EXPECT_EQ(stapik::sync::parseIso8601(payload.at("clientLastKnownUpdate").get<std::string>()), SERVER_TIME);
+    EXPECT_FALSE(payload.contains("clientLastKnownUpdate"));
+}
+
+TEST_F(CloudStorageClientTest, MissingDocumentIsCreatedWithoutIfMatch)
+{
+    m_http.respondWith(404);
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
+
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, {});
+
+    EXPECT_FALSE(conflict);
+    ASSERT_EQ(m_http.requests.size(), 2U);
+    EXPECT_EQ(m_http.requests.back().method, Method::Put);
+    EXPECT_FALSE(m_http.requests.back().headers.contains("If-Match"));
+}
+
+TEST_F(CloudStorageClientTest, StaleBaselineIsAConflictAndNothingIsSent)
+{
+    respondWithCurrentDocument("\"hash-4\"");
+
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME - 1h);
+
+    EXPECT_TRUE(conflict);
+    EXPECT_EQ(document.content, nlohmann::json::object());
+    EXPECT_EQ(document.updatedAt, SERVER_TIME);
+    EXPECT_EQ(document.etag, "\"hash-4\"");
+    ASSERT_EQ(m_http.requests.size(), 1U);
+    EXPECT_EQ(m_http.requests.front().method, Method::Get);
+}
+
+TEST_F(CloudStorageClientTest, CurrentDocumentWithoutEtagIsWrittenWithoutIfMatch)
+{
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+    m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
+
+    std::ignore = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
+
+    ASSERT_EQ(m_http.requests.size(), 2U);
+    EXPECT_FALSE(m_http.requests.back().headers.contains("If-Match"));
+}
+
+TEST_F(CloudStorageClientTest, UnexpectedStatusOnTheReadBeforeSaveIsReported)
+{
+    m_http.respondWith(500);
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME); }), "API read failed with status 500");
+    EXPECT_EQ(m_http.requests.size(), 1U);
 }
 
 TEST_F(CloudStorageClientTest, AcceptedSaveReturnsTheStoredDocument)
 {
+    respondWithCurrentDocument();
     m_http.respondWith(200, documentResponse(nlohmann::json{ { "a", 1 } }));
 
-    const auto result = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
 
-    EXPECT_FALSE(result.conflict);
-    EXPECT_EQ(result.document.content, (nlohmann::json{ { "a", 1 } }));
-    EXPECT_EQ(result.document.updatedAt, SERVER_TIME);
+    EXPECT_FALSE(conflict);
+    EXPECT_EQ(document.content, (nlohmann::json{ { "a", 1 } }));
+    EXPECT_EQ(document.updatedAt, SERVER_TIME);
 }
 
 TEST_F(CloudStorageClientTest, AcceptedSaveReturnsTheNewEtag)
 {
+    respondWithCurrentDocument();
     m_http.respondWithHeaders(200, documentResponse(nlohmann::json{ { "a", 1 } }), { { "etag", "\"hash-2\"" } });
 
     const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "a", 1 } }, SERVER_TIME);
@@ -192,9 +250,10 @@ TEST_F(CloudStorageClientTest, AcceptedSaveReturnsTheNewEtag)
 
 TEST_F(CloudStorageClientTest, ConflictingSaveReturnsTheServerEtag)
 {
+    respondWithCurrentDocument();
     m_http.respondWithHeaders(409, documentResponse(nlohmann::json{ { "server", true } }), { { "etag", "\"hash-3\"" } });
 
-    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME - 1h);
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME);
 
     EXPECT_TRUE(conflict);
     EXPECT_EQ(document.etag, "\"hash-3\"");
@@ -202,26 +261,29 @@ TEST_F(CloudStorageClientTest, ConflictingSaveReturnsTheServerEtag)
 
 TEST_F(CloudStorageClientTest, ConflictingSaveReturnsTheServerVersion)
 {
+    respondWithCurrentDocument();
     m_http.respondWith(409, documentResponse(nlohmann::json{ { "server", true } }));
 
-    const auto result = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME - 1h);
+    const auto [document, conflict] = m_client.saveDocument(nlohmann::json{ { "local", true } }, SERVER_TIME);
 
-    EXPECT_TRUE(result.conflict);
-    EXPECT_EQ(result.document.content, (nlohmann::json{ { "server", true } }));
+    EXPECT_TRUE(conflict);
+    EXPECT_EQ(document.content, (nlohmann::json{ { "server", true } }));
 }
 
 TEST_F(CloudStorageClientTest, UnexpectedStatusOnSaveIsReported)
 {
+    respondWithCurrentDocument();
     m_http.respondWith(401);
 
-    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), {}); }), "API write failed with status 401");
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME); }), "API write failed with status 401");
 }
 
 TEST_F(CloudStorageClientTest, TransportFailureOnSaveIsReportedWithTheReason)
 {
+    respondWithCurrentDocument();
     m_http.failWith("Could not resolve host");
 
-    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), {}); }), "API write failed: Could not resolve host");
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME); }), "API write failed: Could not resolve host");
 }
 
 TEST_F(CloudStorageClientTest, PartitionListIsReadFromThePartitionsUrl)
@@ -273,22 +335,28 @@ TEST_F(CloudStorageClientTest, MissingPartitionLoadsAsNullopt)
 
 TEST_F(CloudStorageClientTest, PartitionIsSavedWithAPutToItsUrl)
 {
+    respondWithCurrentDocument("\"hash-5\"");
     m_http.respondWith(200, documentResponse(nlohmann::json{ { "year", 2025 } }));
 
-    const auto result = m_client.savePartition("2025", nlohmann::json{ { "year", 2025 } }, SERVER_TIME);
+    const auto [document, conflict] = m_client.savePartition("2025", nlohmann::json{ { "year", 2025 } }, SERVER_TIME);
 
-    EXPECT_EQ(m_http.requests.front().method, Method::Put);
+    ASSERT_EQ(m_http.requests.size(), 2U);
+    EXPECT_EQ(m_http.requests.front().method, Method::Get);
     EXPECT_EQ(m_http.requests.front().url, PARTITIONS_URL + "/2025");
-    EXPECT_FALSE(result.conflict);
+    EXPECT_EQ(m_http.requests.back().method, Method::Put);
+    EXPECT_EQ(m_http.requests.back().url, PARTITIONS_URL + "/2025");
+    EXPECT_EQ(m_http.requests.back().headers.at("If-Match"), "\"hash-5\"");
+    EXPECT_FALSE(conflict);
 }
 
 TEST_F(CloudStorageClientTest, ConflictingPartitionSaveReturnsTheServerVersion)
 {
+    respondWithCurrentDocument();
     m_http.respondWith(409, documentResponse(nlohmann::json{ { "server", true } }));
 
-    const auto result = m_client.savePartition("2025", nlohmann::json::object(), SERVER_TIME - 1h);
+    const auto [document, conflict] = m_client.savePartition("2025", nlohmann::json::object(), SERVER_TIME);
 
-    EXPECT_TRUE(result.conflict);
+    EXPECT_TRUE(conflict);
 }
 
 TEST_F(CloudStorageClientTest, DeletedPartitionIsReportedAsDeleted)

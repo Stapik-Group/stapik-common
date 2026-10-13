@@ -22,15 +22,17 @@ std::string CloudStorageClient::documentUrl() const
     return m_config.normalizedApiUrl() + "/api/v1/documents/" + m_slotKey;
 }
 
-stapik::http::Response CloudStorageClient::perform(const stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel) const
+stapik::http::Response CloudStorageClient::perform(const stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel,
+                                                   std::map<std::string, std::string> extraHeaders) const
 {
-    const stapik::http::Request request{
+    stapik::http::Request request{
         .method = method,
         .url = url,
         .headers = { { "x-api-key", m_config.apiKey }, { "Content-Type", "application/json" } },
         .body = std::move(body),
         .timeout = TIMEOUT
     };
+    request.headers.merge(std::move(extraHeaders));
 
     auto result = m_http.send(request);
     if (!result)
@@ -44,9 +46,13 @@ stapik::http::Response CloudStorageClient::performGet(const std::string& url) co
     return perform(stapik::http::Method::Get, url, stapik::http::NoBody{}, "API read failed: ");
 }
 
-stapik::http::Response CloudStorageClient::performPut(const std::string& url, const std::string& body) const
+stapik::http::Response CloudStorageClient::performPut(const std::string& url, const std::string& body, const std::string& ifMatch) const
 {
-    return perform(stapik::http::Method::Put, url, stapik::http::toBytes(body), "API write failed: ");
+    std::map<std::string, std::string> headers;
+    if (!ifMatch.empty())
+        headers.emplace("If-Match", ifMatch);
+
+    return perform(stapik::http::Method::Put, url, stapik::http::toBytes(body), "API write failed: ", std::move(headers));
 }
 
 stapik::http::Response CloudStorageClient::performDelete(const std::string& url) const
@@ -88,12 +94,15 @@ std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string&
 
 CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const nlohmann::json& data, const std::chrono::system_clock::time_point clientLastKnownUpdate) const
 {
-    const nlohmann::json payload = {
-        { "content", data.dump() },
-        { "clientLastKnownUpdate", stapik::sync::toIso8601(clientLastKnownUpdate, stapik::sync::TimestampPrecision::Microseconds) }
-    };
+    // The server detects conflicts by ETag (If-Match), while the sync remembers the updatedAt of the last version it knew.
+    // So the current version is read first: its ETag is the one that matches the baseline, or the baseline is stale.
+    const auto current = readDocument(url);
+    if (current && current->updatedAt != clientLastKnownUpdate)
+        return CloudWriteResult{ .document = *current, .conflict = true };
 
-    const auto response = performPut(url, payload.dump());
+    const nlohmann::json payload = { { "content", data.dump() } };
+
+    const auto response = performPut(url, payload.dump(), current ? current->etag : std::string{});
 
     if (response.status != 200 && response.status != 409)
         throw CloudStorageException(std::format("API write failed with status {}", response.status));

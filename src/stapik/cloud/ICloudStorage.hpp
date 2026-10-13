@@ -37,9 +37,10 @@ struct CloudPartitionInfo
 // Contract:
 //  - loadDocument() returns std::nullopt when the document does not exist or the storage
 //    is not configured; network and protocol failures are reported as CloudStorageException.
-//  - saveDocument() returns a CloudWriteResult; conflict == true means the server rejected
-//    the write (409) and returned its own, newer version in `document`. Failures are
-//    reported as CloudStorageException.
+//  - saveDocument() returns a CloudWriteResult; conflict == true means the write was not applied
+//    because the cloud holds another version than the one the client last knew (the server
+//    answered 409, or a read before the write already showed it) and its own version is in
+//    `document`. Failures are reported as CloudStorageException.
 //  - Partitions are independent named documents inside the same slot (e.g. one per archived
 //    year) with their own content, version and conflict handling. listPartitions() does not
 //    include the main document. loadPartition() returns std::nullopt when the partition does

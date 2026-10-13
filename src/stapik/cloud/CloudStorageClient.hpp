@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <chrono>
+#include <map>
 #include <optional>
 #include <vector>
 
@@ -31,9 +32,10 @@ private:
     std::string m_slotKey;
     const stapik::http::IHttpClient& m_http;
 
-    [[nodiscard]] stapik::http::Response perform(stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel) const;
+    [[nodiscard]] stapik::http::Response perform(stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel,
+                                                 std::map<std::string, std::string> extraHeaders = {}) const;
     [[nodiscard]] stapik::http::Response performGet(const std::string& url) const;
-    [[nodiscard]] stapik::http::Response performPut(const std::string& url, const std::string& body) const;
+    [[nodiscard]] stapik::http::Response performPut(const std::string& url, const std::string& body, const std::string& ifMatch) const;
     [[nodiscard]] stapik::http::Response performDelete(const std::string& url) const;
     [[nodiscard]] std::string documentUrl() const;
 
