@@ -50,7 +50,7 @@ stapik::http::Response CloudStorageClient::perform(const stapik::http::Method me
         m_expiryMonitor->observe(result.value());
 
     if (result.value().status == HTTP_TOO_MANY_REQUESTS)
-        throw CloudRateLimitedException(result.value().retryAfter);
+        throw CloudRateLimitedException(result.value().retryAfter, stapik::cloud::parseRateLimit(result.value()));
 
     return std::move(result).value();
 }

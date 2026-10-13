@@ -34,8 +34,9 @@ an application that has to work with one stays on an older stapik-common.
 ## Limits and warnings
 
 - At most 600 requests a minute per API key. An answer `429` with a `Retry-After` of 30 s or less is waited out by
-  the HTTP client (see [http.md](http.md)); otherwise `CloudRateLimitedException::retryAfter()` carries the wait. The
-  sync keeps its local document and does not retry sooner than that (`SyncOutcome::retryAfter`).
+  the HTTP client (see [http.md](http.md)); otherwise `CloudRateLimitedException::retryAfter()` carries the wait,
+  and `rateLimit()` the allowance the answer reported (`X-RateLimit-Limit`, `-Remaining`, `-Reset`, see
+  `parseRateLimit()`). The sync keeps its local document and does not retry sooner than that (`SyncOutcome::retryAfter`).
 - When the API key is about to expire (30 days by default) the cloud adds `X-Api-Key-Expires-At` to its answers.
   `ApiKeyExpiryMonitor` records it, and `CloudSession::signalApiKeyExpiring` reports it once per date. The text to show
   is the translation key `cloud.apiKeyExpiring` with the argument `{date}`.

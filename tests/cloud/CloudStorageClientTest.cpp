@@ -509,6 +509,21 @@ TEST_F(CloudStorageClientTest, RateLimitIsReportedWithTheRequestedWait)
     }
 }
 
+TEST_F(CloudStorageClientTest, RateLimitedAnswerCarriesTheReportedAllowance)
+{
+    m_http.respondWithHeaders(429, "", { { "x-ratelimit-limit", "600" }, { "x-ratelimit-remaining", "0" }, { "x-ratelimit-reset", "30" } });
+
+    try
+    {
+        std::ignore = m_client.loadDocument();
+        FAIL() << "Expected CloudRateLimitedException";
+    }
+    catch (const CloudRateLimitedException& exception)
+    {
+        EXPECT_EQ(exception.rateLimit(), std::optional(stapik::cloud::RateLimitState{ .limit = 600, .remaining = 0, .resetAfter = 30s }));
+    }
+}
+
 TEST_F(CloudStorageClientTest, RateLimitWithoutRetryAfterHasNoRequestedWait)
 {
     m_http.respondWith(429);

@@ -118,7 +118,7 @@ namespace stapik::cloud
             m_expiryMonitor->observe(result.value());
 
         if (result.value().status == HTTP_TOO_MANY_REQUESTS)
-            throw CloudRateLimitedException(result.value().retryAfter);
+            throw CloudRateLimitedException(result.value().retryAfter, parseRateLimit(result.value()));
 
         return std::move(result).value();
     }
