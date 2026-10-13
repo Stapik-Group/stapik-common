@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <deque>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,6 +25,11 @@ namespace stapik::test
         void respondWith(const int status, http::Bytes body) const
         {
             m_replies.emplace_back(http::Response{ .status = status, .body = std::move(body) });
+        }
+
+        void respondWithHeaders(const int status, const std::string& body, std::map<std::string, std::string> headers) const
+        {
+            m_replies.emplace_back(http::Response{ .status = status, .body = http::toBytes(body), .headers = std::move(headers) });
         }
 
         void respondWithRetryAfter(const int status, const std::chrono::seconds retryAfter) const

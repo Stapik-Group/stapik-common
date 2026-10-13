@@ -3,9 +3,11 @@
 #include "stapik/cloud/CloudStorageException.hpp"
 #include "stapik/cloud/ICloudStorage.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <optional>
 #include <string>
@@ -26,6 +28,9 @@ namespace stapik::test
 
         std::atomic<bool> failSaves{ false };
 
+        // When set, every call fails as if the cloud answered 429 with this Retry-After.
+        std::optional<std::chrono::seconds> rateLimitedFor;
+
         mutable std::atomic<int> loadCalls{ 0 };
         mutable std::atomic<int> saveCalls{ 0 };
         mutable std::atomic<int> partitionLoadCalls{ 0 };
@@ -34,12 +39,17 @@ namespace stapik::test
         mutable std::vector<std::string> savedPartitions;
         mutable std::vector<TimePoint> receivedBaselines;
 
+        std::vector<CloudChange> changes;
+        TimePoint changesServerTime{};
+        mutable std::vector<TimePoint> changeQueries;
+
         TimePoint nextServerTime{};
         std::chrono::seconds serverTimeStep{ 0 };
 
         [[nodiscard]] std::optional<CloudDocument> loadDocument() const override
         {
             ++loadCalls;
+            throwIfRateLimited();
             if (unreachable)
                 throw CloudStorageException("network unreachable");
 
@@ -51,6 +61,7 @@ namespace stapik::test
             ++saveCalls;
             receivedBaselines.push_back(clientLastKnownUpdate);
 
+            throwIfRateLimited();
             if (unreachable || failSaves)
                 throw CloudStorageException("network unreachable");
 
@@ -118,6 +129,25 @@ namespace stapik::test
                 throw CloudStorageException("network unreachable");
 
             return const_cast<FakeCloudStorage&>(*this).partitions.erase(partition) > 0;
+        }
+
+        [[nodiscard]] CloudChangeList listChanges(const TimePoint since) const override
+        {
+            changeQueries.push_back(since);
+            throwIfRateLimited();
+            if (unreachable)
+                throw CloudStorageException("network unreachable");
+
+            CloudChangeList result{ .serverTime = changesServerTime };
+            std::ranges::copy_if(changes, std::back_inserter(result.changes), [since](const CloudChange& change) { return change.updatedAt > since; });
+            return result;
+        }
+
+    private:
+        void throwIfRateLimited() const
+        {
+            if (rateLimitedFor)
+                throw CloudRateLimitedException(rateLimitedFor);
         }
     };
 }

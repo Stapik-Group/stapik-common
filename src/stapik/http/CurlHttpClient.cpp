@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -68,22 +69,43 @@ namespace stapik::http
 
         struct ResponseHeaders
         {
-            std::optional<std::string> retryAfter;
+            std::map<std::string, std::string> values;
         };
+
+        std::string_view trimmed(const std::string_view text)
+        {
+            constexpr std::string_view WHITESPACE = " \t\r\n";
+
+            const auto first = text.find_first_not_of(WHITESPACE);
+            if (first == std::string_view::npos)
+                return {};
+
+            const auto last = text.find_last_not_of(WHITESPACE);
+            return text.substr(first, last - first + 1);
+        }
+
+        std::string lowerCased(const std::string_view text)
+        {
+            std::string result(text);
+            std::ranges::transform(result, result.begin(), [](const char character) { return static_cast<char>(std::tolower(static_cast<unsigned char>(character))); });
+            return result;
+        }
 
         std::size_t collectHeader(const char *data, const std::size_t size, const std::size_t count, void *destination)
         {
             constexpr std::string_view STATUS_LINE_PREFIX = "HTTP/";
-            constexpr std::string_view RETRY_AFTER_PREFIX = "retry-after:";
 
-            auto &[retryAfter] = *static_cast<ResponseHeaders *>(destination);
+            auto &[values] = *static_cast<ResponseHeaders *>(destination);
             const std::string_view line(data, size * count);
 
             if (line.starts_with(STATUS_LINE_PREFIX))
-                retryAfter.reset();
-            else if (line.size() > RETRY_AFTER_PREFIX.size() && std::ranges::equal(line.substr(0, RETRY_AFTER_PREFIX.size()), RETRY_AFTER_PREFIX,
-                         [](const char actual, const char expected) { return std::tolower(static_cast<unsigned char>(actual)) == expected; }))
-                retryAfter = std::string(line.substr(RETRY_AFTER_PREFIX.size()));
+            {
+                values.clear();
+                return line.size();
+            }
+
+            if (const auto colon = line.find(':'); colon != std::string_view::npos && colon > 0)
+                values[lowerCased(trimmed(line.substr(0, colon)))] = std::string(trimmed(line.substr(colon + 1)));
 
             return line.size();
         }
@@ -164,8 +186,14 @@ namespace stapik::http
                 using enum Method;
                 case Get:
                     return;
+                case Post:
+                    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+                    return;
                 case Put:
                     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+                    return;
+                case Patch:
+                    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
                     return;
                 case Delete:
                     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -241,9 +269,9 @@ namespace stapik::http
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
 
         std::optional<std::chrono::seconds> retryAfter;
-        if (headers.retryAfter)
-            retryAfter = parseRetryAfter(*headers.retryAfter, time::systemClock().now());
+        if (const auto found = headers.values.find("retry-after"); found != headers.values.end())
+            retryAfter = parseRetryAfter(found->second, time::systemClock().now());
 
-        return Response{ .status = static_cast<int>(status), .body = std::move(sink.body), .retryAfter = retryAfter };
+        return Response{ .status = static_cast<int>(status), .body = std::move(sink.body), .retryAfter = retryAfter, .headers = std::move(headers.values) };
     }
 }

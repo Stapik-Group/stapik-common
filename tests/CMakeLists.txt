@@ -19,9 +19,11 @@ add_executable(stapikcommon_tests
         app/UserAgentTest.cpp
         archive/AppArchiveTest.cpp
         archive/ZipTest.cpp
+        cloud/ApiKeyExpiryTest.cpp
         cloud/AssetCacheTest.cpp
         cloud/CloudAssetClientTest.cpp
         cloud/CloudAssetProtocolTest.cpp
+        cloud/CloudChangesProtocolTest.cpp
         cloud/CloudPartitionProtocolTest.cpp
         cloud/CloudPartitionsTest.cpp
         cloud/CloudStorageClientTest.cpp
@@ -30,6 +32,7 @@ add_executable(stapikcommon_tests
         cloud/CompressedCloudStorageTest.cpp
         cloud/ConnectionCheckTest.cpp
         cloud/EncryptedCloudStorageTest.cpp
+        cloud/RateLimitTest.cpp
         cloud/SizeWarningAssetStorageTest.cpp
         command/UndoStackTest.cpp
         compression/GzipTest.cpp

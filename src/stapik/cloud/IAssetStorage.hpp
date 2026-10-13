@@ -49,6 +49,30 @@ namespace stapik::cloud
         using CloudStorageException::CloudStorageException;
     };
 
+    // The cloud cannot store a file under this name (empty, too long, forbidden characters, a reserved name, ...).
+    // The name is checked before any request is sent, with the rules the server applies.
+    class InvalidAssetFilenameException : public CloudStorageException
+    {
+    public:
+        using CloudStorageException::CloudStorageException;
+    };
+
+    // The server refuses the type of the file, detected from its content, in this slot (HTTP 415).
+    // Uploading the same file again can never succeed, so callers should not retry it.
+    class AssetTypeNotAllowedException : public CloudStorageException
+    {
+    public:
+        using CloudStorageException::CloudStorageException;
+    };
+
+    // The server received different bytes than were sent (HTTP 422, the SHA-256 of the file does not match).
+    // The file that was in the cloud before is untouched; uploading the file again may succeed.
+    class AssetChecksumMismatchException : public CloudStorageException
+    {
+    public:
+        using CloudStorageException::CloudStorageException;
+    };
+
     // Abstraction of a remote collection of binary files (a BINARY_COLLECTION slot). It allows the
     // logic built on top of it to be tested against a fake without any network access.
     //
@@ -57,7 +81,10 @@ namespace stapik::cloud
     //  - listAssets() returns an empty list when the slot does not exist or the storage is not
     //    configured; downloadAsset() returns std::nullopt when the file does not exist or the storage
     //    is not configured; deleteAsset() returns false when there was nothing to delete.
-    //  - uploadAsset() throws AssetTooLargeException when the file exceeds the size limit of the slot.
+    //  - uploadAsset() throws AssetTooLargeException when the file exceeds the size limit of the slot and
+    //    AssetTypeNotAllowedException when the slot does not accept the type of the file.
+    //  - uploadAsset() throws AssetChecksumMismatchException when the server received damaged data.
+    //  - Every call with a filename throws InvalidAssetFilenameException when the name cannot be stored.
     //  - uploadAsset() throws AssetTransferCancelledException when the hooks cancel the upload; the file is then not
     //    guaranteed to be stored.
     //  - Network and protocol failures (including a key without write permission) are reported

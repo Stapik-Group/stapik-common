@@ -261,3 +261,20 @@ TEST_F(SyncCoordinatorTest, UploadedContentIsASyncEnvelopeOfTheDocument)
     EXPECT_EQ(envelope.lastUpdate, at(300));
     EXPECT_EQ(envelope.payload.at("text").get<std::string>(), "payload text");
 }
+
+TEST_F(SyncCoordinatorTest, RateLimitKeepsLocalAndPassesOnTheRequestedWait)
+{
+    m_fake.rateLimitedFor = std::chrono::seconds{ 20 };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 300));
+
+    EXPECT_EQ(outcome.state, SyncState::OfflineKeptLocal);
+    EXPECT_EQ(outcome.retryAfter, std::optional{ std::chrono::seconds{ 20 } });
+}
+
+TEST_F(SyncCoordinatorTest, PlainOfflineHasNoRequestedWait)
+{
+    m_fake.unreachable = true;
+
+    EXPECT_FALSE(m_coordinator.pushLocalChange(local("mine", 300)).retryAfter.has_value());
+}

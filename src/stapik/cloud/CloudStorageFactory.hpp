@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CloudStorageConfig.hpp"
+#include "ApiKeyExpiry.hpp"
 #include "ICloudStorage.hpp"
 
 #include "stapik/http/IHttpClient.hpp"
@@ -13,5 +14,6 @@ namespace stapik::cloud
     [[nodiscard]] std::unique_ptr<ICloudStorage> createCloudStorage(
         const CloudStorageConfig& config,
         const std::string& slotKey,
-        const http::IHttpClient& httpClient = http::defaultHttpClient());
+        const http::IHttpClient& httpClient = http::defaultHttpClient(),
+        std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor = {});
 }

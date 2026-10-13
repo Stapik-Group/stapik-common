@@ -65,4 +65,9 @@ namespace stapik::cloud
     {
         return m_inner->deletePartition(partition);
     }
+
+    CloudChangeList TransformingCloudStorage::listChanges(const std::chrono::system_clock::time_point since) const
+    {
+        return m_inner->listChanges(since);
+    }
 }

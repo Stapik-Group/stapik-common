@@ -62,6 +62,31 @@ TEST_F(RetryingHttpClientTest, UnavailableServiceIsRetriedToo)
     EXPECT_EQ(m_client.send(Request{}).value().status, 200);
 }
 
+TEST_F(RetryingHttpClientTest, PostAndPatchAreNotRepeatedAfterUnavailable)
+{
+    for (const auto method : { Method::Post, Method::Patch })
+    {
+        m_inner.requests.clear();
+        m_inner.respondWithRetryAfter(503, 1s);
+
+        EXPECT_EQ(m_client.send(Request{ .method = method }).value().status, 503);
+        EXPECT_EQ(m_inner.requests.size(), 1U);
+    }
+}
+
+TEST_F(RetryingHttpClientTest, PostAndPatchAreRepeatedAfterThrottling)
+{
+    for (const auto method : { Method::Post, Method::Patch })
+    {
+        m_inner.requests.clear();
+        m_inner.respondWithRetryAfter(429, 1s);
+        m_inner.respondWith(200);
+
+        EXPECT_EQ(m_client.send(Request{ .method = method }).value().status, 200);
+        EXPECT_EQ(m_inner.requests.size(), 2U);
+    }
+}
+
 TEST_F(RetryingHttpClientTest, OtherStatusesAreNeverRetried)
 {
     m_inner.respondWithRetryAfter(500, 1s);

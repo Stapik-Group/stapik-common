@@ -9,6 +9,7 @@
 
 #include <sigc++/signal.h>
 
+#include <algorithm>
 #include <chrono>
 #include <optional>
 #include <string>
@@ -155,7 +156,7 @@ namespace stapik::sync
                     m_debounce.cancel();
                     break;
                 case OfflineKeptLocal:
-                    requeueForRetry(outcome.document);
+                    requeueForRetry(outcome.document, outcome.retryAfter);
                     break;
                 case RemoteUnreadable:
                 default:
@@ -176,7 +177,7 @@ namespace stapik::sync
                 m_job->document = m_job->document.withLastKnownCloudUpdate(*baseline);
         }
 
-        void requeueForRetry(const DocumentType& keptLocal)
+        void requeueForRetry(const DocumentType& keptLocal, const std::optional<std::chrono::seconds> retryAfter)
         {
             if (!m_job)
                 m_job = Job{ .kind = m_runningKind, .document = keptLocal };
@@ -188,7 +189,11 @@ namespace stapik::sync
             if (m_debounce.pending())
                 return;
 
-            m_retry.setDelay(backoffDelay(m_options.initialRetryDelay, m_options.maxRetryDelay, m_consecutiveFailures));
+            auto delay = backoffDelay(m_options.initialRetryDelay, m_options.maxRetryDelay, m_consecutiveFailures);
+            if (retryAfter)
+                delay = std::max(delay, std::chrono::duration_cast<std::chrono::milliseconds>(*retryAfter));
+
+            m_retry.setDelay(delay);
             m_retry.trigger();
         }
 

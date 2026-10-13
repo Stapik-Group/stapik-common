@@ -7,7 +7,9 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -213,4 +215,17 @@ TEST_F(EncryptedCloudStorageTest, ListingAndDeletingPartitionsGoThroughToTheServ
     EXPECT_TRUE(cloud->deletePartition("2024"));
     EXPECT_FALSE(cloud->deletePartition("2024"));
     EXPECT_FALSE(m_server.partitions.contains("2024"));
+}
+
+TEST_F(EncryptedCloudStorageTest, ChangeFeedGoesThroughToTheServerUntouched)
+{
+    m_server.changes = { CloudChange{ .slotKey = "budget", .partition = "2025", .contentHash = "h", .updatedAt = TimePoint{} + std::chrono::seconds{ 50 } } };
+    m_server.changesServerTime = TimePoint{} + std::chrono::seconds{ 60 };
+
+    const auto list = storage()->listChanges(TimePoint{} + std::chrono::seconds{ 10 });
+
+    EXPECT_EQ(list.serverTime, m_server.changesServerTime);
+    ASSERT_EQ(list.changes.size(), 1U);
+    EXPECT_EQ(list.changes.front().partition, std::optional<std::string>{ "2025" });
+    EXPECT_EQ(m_server.changeQueries, std::vector<TimePoint>{ TimePoint{} + std::chrono::seconds{ 10 } });
 }

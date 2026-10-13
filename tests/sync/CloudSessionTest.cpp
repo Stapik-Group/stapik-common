@@ -74,6 +74,7 @@ namespace
                 m_savedConfigs.push_back(config);
                 return m_saveSucceeds;
             };
+            result.expiryMonitor = m_expiryMonitor;
             result.createStorage = [this](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>
             {
                 m_createdFor.push_back(config);
@@ -94,7 +95,13 @@ namespace
             return SyncEnvelope::fromJson(m_fake.stored->content).payload.at("text").get<std::string>();
         }
 
+        void reportKeyExpiry(const std::string& expiresAt) const
+        {
+            m_expiryMonitor->observe(stapik::http::Response{ .status = 200, .headers = { { "x-api-key-expires-at", expiresAt } } });
+        }
+
         AsyncSyncOptions m_options{ 30ms, 40ms, 160ms };
+        std::shared_ptr<stapik::cloud::ApiKeyExpiryMonitor> m_expiryMonitor = std::make_shared<stapik::cloud::ApiKeyExpiryMonitor>();
         FakeCloudStorage m_fake;
         std::optional<CloudStorageConfig> m_storedConfig;
         bool m_saveSucceeds = true;
@@ -284,4 +291,49 @@ TEST_F(CloudSessionTest, DestroyingTheSessionWithPendingChangesIsSafe)
 
     EXPECT_EQ(m_fake.saveCalls, 0);
     EXPECT_TRUE(m_baselines.empty());
+}
+
+TEST_F(CloudSessionTest, ExpiringApiKeyIsReportedOncePerReportedTime)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), m_options);
+    std::vector<TimePoint> expiries;
+    session.signalApiKeyExpiring().connect([&expiries](const TimePoint expiresAt) { expiries.push_back(expiresAt); });
+    reportKeyExpiry("2026-11-01T08:00:00Z");
+
+    session.syncNow(local("one", 100));
+    ASSERT_TRUE(pumpUntil([&expiries] { return !expiries.empty(); }));
+    session.pushChange(local("two", 200));
+    session.flush();
+    pumpFor(150ms);
+
+    EXPECT_EQ(expiries.size(), 1U);
+    EXPECT_EQ(expiries.front(), std::chrono::sys_days{ std::chrono::year{ 2026 } / std::chrono::November / 1 } + 8h);
+}
+
+TEST_F(CloudSessionTest, SessionWithoutExpiryReportsNothing)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), m_options);
+    int reports = 0;
+    session.signalApiKeyExpiring().connect([&reports](TimePoint) { ++reports; });
+
+    session.syncNow(local("one", 100));
+    pumpFor(150ms);
+
+    EXPECT_EQ(reports, 0);
+}
+
+TEST_F(CloudSessionTest, ConnectingWithAnotherKeyForgetsTheEarlierExpiry)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), m_options);
+    int reports = 0;
+    session.signalApiKeyExpiring().connect([&reports](TimePoint) { ++reports; });
+    reportKeyExpiry("2026-11-01T08:00:00Z");
+
+    ASSERT_TRUE(session.connectWith(CloudStorageConfig{ .apiUrl = "https://example.com", .apiKey = "new-key" }, local("one", 100)));
+    pumpFor(150ms);
+
+    EXPECT_EQ(reports, 0);
 }

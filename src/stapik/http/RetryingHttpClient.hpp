@@ -23,7 +23,7 @@ namespace stapik::http
         [[nodiscard]] SendResult send(const Request& request) const override;
 
     private:
-        [[nodiscard]] bool shouldRetry(const Response& response, int retriesDone) const;
+        [[nodiscard]] bool shouldRetry(const Request& request, const Response& response, int retriesDone) const;
         [[nodiscard]] bool waitFor(std::chrono::seconds delay, const CancelCheck& isCancelled) const;
 
         const IHttpClient& m_inner;

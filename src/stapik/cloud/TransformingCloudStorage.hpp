@@ -20,6 +20,8 @@ namespace stapik::cloud
         [[nodiscard]] CloudWriteResult savePartition(const std::string& partition, const nlohmann::json& data, std::chrono::system_clock::time_point clientLastKnownUpdate) const override;
         [[nodiscard]] bool deletePartition(const std::string& partition) const override;
 
+        [[nodiscard]] CloudChangeList listChanges(std::chrono::system_clock::time_point since) const override;
+
     protected:
         explicit TransformingCloudStorage(std::unique_ptr<ICloudStorage> inner);
 

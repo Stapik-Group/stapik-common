@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.2)
-project(stapikcommon VERSION 1.5.0 LANGUAGES CXX)
+project(stapikcommon VERSION 1.5.1 LANGUAGES CXX)
 
 set(stapikcommon_VERSION_SUFFIX "")
 set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}_${stapikcommon_VERSION_SUFFIX}")
@@ -63,15 +63,18 @@ target_sources(stapikcommon PRIVATE
 )
 
 target_sources(stapikcommon PRIVATE
+        src/stapik/cloud/ApiKeyExpiry.cpp
         src/stapik/cloud/AssetCache.cpp
         src/stapik/cloud/CloudAssetClient.cpp
         src/stapik/cloud/CloudAssetProtocol.cpp
+        src/stapik/cloud/CloudChangesProtocol.cpp
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp
         src/stapik/cloud/CompressedCloudStorage.cpp
         src/stapik/cloud/ConnectionCheck.cpp
         src/stapik/cloud/EncryptedCloudStorage.cpp
+        src/stapik/cloud/RateLimit.cpp
         src/stapik/cloud/SizeWarningAssetStorage.cpp
         src/stapik/cloud/TransformingCloudStorage.cpp
 )

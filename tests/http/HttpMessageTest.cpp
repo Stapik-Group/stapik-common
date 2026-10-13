@@ -60,3 +60,17 @@ TEST(HttpMessageTest, RequestDefaultsToBodylessGet)
     EXPECT_TRUE(std::holds_alternative<NoBody>(request.body));
     EXPECT_FALSE(request.maxResponseBytes.has_value());
 }
+
+TEST(HttpMessageTest, ResponseHeaderIsFoundByLowerCaseName)
+{
+    const Response response{ .status = 200, .headers = { { "etag", "\"abc\"" } } };
+
+    EXPECT_EQ(response.header("etag"), "\"abc\"");
+}
+
+TEST(HttpMessageTest, MissingResponseHeaderIsEmpty)
+{
+    const Response response{ .status = 200 };
+
+    EXPECT_FALSE(response.header("etag").has_value());
+}

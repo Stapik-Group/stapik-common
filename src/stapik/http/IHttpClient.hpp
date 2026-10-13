@@ -20,6 +20,6 @@ namespace stapik::http
     };
 
     // The client used wherever a caller does not pass one: libcurl restricted to http(s) and TLS 1.2+, which waits and
-    // tries again when the server answers 429 or 503 with a short Retry-After.
+    // tries again when the server answers 429 or 503 with a short Retry-After (a POST or PATCH only after a 429).
     [[nodiscard]] const IHttpClient& defaultHttpClient();
 }

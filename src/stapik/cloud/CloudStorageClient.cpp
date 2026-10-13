@@ -1,4 +1,5 @@
 #include "CloudStorageClient.hpp"
+#include "CloudChangesProtocol.hpp"
 #include "CloudPartitionProtocol.hpp"
 #include "CloudStorageException.hpp"
 
@@ -8,10 +9,17 @@
 #include <format>
 #include <glib.h>
 
-CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient):
+namespace
+{
+    constexpr int HTTP_TOO_MANY_REQUESTS = 429;
+}
+
+CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient,
+                                       std::shared_ptr<stapik::cloud::ApiKeyExpiryMonitor> expiryMonitor):
     m_config(std::move(config)),
     m_slotKey(std::move(slotKey)),
-    m_http(httpClient)
+    m_http(httpClient),
+    m_expiryMonitor(std::move(expiryMonitor))
 {
     if (m_config.isConfigured() && !m_config.isSecure())
         stapik::log::warning("Cloud API URL does not use https:// - the API key and documents are sent unencrypted. This is not a secure connection.");
@@ -22,19 +30,27 @@ std::string CloudStorageClient::documentUrl() const
     return m_config.normalizedApiUrl() + "/api/v1/documents/" + m_slotKey;
 }
 
-stapik::http::Response CloudStorageClient::perform(const stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel) const
+stapik::http::Response CloudStorageClient::perform(const stapik::http::Method method, const std::string& url, stapik::http::RequestBody body, const char* failureLabel,
+                                                   std::map<std::string, std::string> extraHeaders) const
 {
-    const stapik::http::Request request{
+    stapik::http::Request request{
         .method = method,
         .url = url,
         .headers = { { "x-api-key", m_config.apiKey }, { "Content-Type", "application/json" } },
         .body = std::move(body),
         .timeout = TIMEOUT
     };
+    request.headers.merge(std::move(extraHeaders));
 
     auto result = m_http.send(request);
     if (!result)
         throw CloudStorageException(std::string(failureLabel) + result.error().message);
+
+    if (m_expiryMonitor)
+        m_expiryMonitor->observe(result.value());
+
+    if (result.value().status == HTTP_TOO_MANY_REQUESTS)
+        throw CloudRateLimitedException(result.value().retryAfter, stapik::cloud::parseRateLimit(result.value()));
 
     return std::move(result).value();
 }
@@ -44,9 +60,13 @@ stapik::http::Response CloudStorageClient::performGet(const std::string& url) co
     return perform(stapik::http::Method::Get, url, stapik::http::NoBody{}, "API read failed: ");
 }
 
-stapik::http::Response CloudStorageClient::performPut(const std::string& url, const std::string& body) const
+stapik::http::Response CloudStorageClient::performPut(const std::string& url, const std::string& body, const std::string& ifMatch) const
 {
-    return perform(stapik::http::Method::Put, url, stapik::http::toBytes(body), "API write failed: ");
+    std::map<std::string, std::string> headers;
+    if (!ifMatch.empty())
+        headers.emplace("If-Match", ifMatch);
+
+    return perform(stapik::http::Method::Put, url, stapik::http::toBytes(body), "API write failed: ", std::move(headers));
 }
 
 stapik::http::Response CloudStorageClient::performDelete(const std::string& url) const
@@ -54,9 +74,31 @@ stapik::http::Response CloudStorageClient::performDelete(const std::string& url)
     return perform(stapik::http::Method::Delete, url, stapik::http::NoBody{}, "API delete failed: ");
 }
 
-CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Bytes& body)
+auto CloudStorageClient::knownVersion(const std::string& url) const -> std::optional<KnownVersion>
 {
-    const auto json = nlohmann::json::parse(body.begin(), body.end());
+    const std::scoped_lock lock(m_knownVersionsMutex);
+
+    if (const auto found = m_knownVersions.find(url); found != m_knownVersions.end())
+        return found->second;
+
+    return std::nullopt;
+}
+
+void CloudStorageClient::remember(const std::string& url, const CloudDocument& document) const
+{
+    const std::scoped_lock lock(m_knownVersionsMutex);
+    m_knownVersions.insert_or_assign(url, KnownVersion{ .updatedAt = document.updatedAt, .etag = document.etag });
+}
+
+void CloudStorageClient::forget(const std::string& url) const
+{
+    const std::scoped_lock lock(m_knownVersionsMutex);
+    m_knownVersions.erase(url);
+}
+
+CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Response& response)
+{
+    const auto json = nlohmann::json::parse(response.body.begin(), response.body.end());
     const auto contentString = json.at("content").get<std::string>();
     const auto updatedAtString = json.at("updatedAt").get<std::string>();
 
@@ -64,21 +106,26 @@ CloudDocument CloudStorageClient::parseDocumentResponse(const stapik::http::Byte
     if (!contentString.empty())
         content = nlohmann::json::parse(contentString);
 
-    return CloudDocument{ .content = content, .updatedAt = parseTimestamp(updatedAtString) };
+    return CloudDocument{ .content = content, .updatedAt = parseTimestamp(updatedAtString), .etag = response.header("etag").value_or("") };
 }
 
 std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string& url) const
 {
-    const auto [httpStatus, body, retryAfter] = performGet(url);
+    const auto response = performGet(url);
 
-    if (httpStatus == 404)
+    if (response.status == 404)
+    {
+        forget(url);
         return std::nullopt;
+    }
 
-    if (httpStatus != 200)
-        throw CloudStorageException(std::format("API read failed with status {}", httpStatus));
+    if (response.status != 200)
+        throw CloudStorageException(std::format("API read failed with status {}", response.status));
     try
     {
-        return parseDocumentResponse(body);
+        auto document = parseDocumentResponse(response);
+        remember(url, document);
+        return document;
     }
     catch (const nlohmann::json::exception& e)
     {
@@ -88,22 +135,37 @@ std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string&
 
 CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const nlohmann::json& data, const std::chrono::system_clock::time_point clientLastKnownUpdate) const
 {
-    const nlohmann::json payload = {
-        { "content", data.dump() },
-        { "clientLastKnownUpdate", stapik::sync::toIso8601(clientLastKnownUpdate, stapik::sync::TimestampPrecision::Microseconds) }
-    };
+    // The server detects conflicts by ETag (If-Match), while the sync remembers the updatedAt of the last version it knew.
+    // The ETag of that version is either already known from an earlier read or write, or the current version is read first:
+    // its ETag is the one that matches the baseline, or the baseline is stale.
+    std::string ifMatch;
+    if (const auto known = knownVersion(url); known && known->updatedAt == clientLastKnownUpdate && !known->etag.empty())
+    {
+        ifMatch = known->etag;
+    }
+    else if (const auto current = readDocument(url))
+    {
+        if (current->updatedAt != clientLastKnownUpdate)
+            return CloudWriteResult{ .document = *current, .conflict = true };
 
-    const auto [httpStatus, body, retryAfter] = performPut(url, payload.dump());
+        ifMatch = current->etag;
+    }
 
-    if (httpStatus != 200 && httpStatus != 409)
-        throw CloudStorageException(std::format("API write failed with status {}", httpStatus));
+    const nlohmann::json payload = { { "content", data.dump() } };
+
+    const auto response = performPut(url, payload.dump(), ifMatch);
+
+    if (response.status != 200 && response.status != 409)
+        throw CloudStorageException(std::format("API write failed with status {}", response.status));
 
     try
     {
-        return CloudWriteResult{
-            .document = parseDocumentResponse(body),
-            .conflict = httpStatus == 409
+        CloudWriteResult result{
+            .document = parseDocumentResponse(response),
+            .conflict = response.status == 409
         };
+        remember(url, result.document);
+        return result;
     }
     catch (const nlohmann::json::exception& e)
     {
@@ -135,7 +197,7 @@ std::vector<CloudPartitionInfo> CloudStorageClient::listPartitions() const
     if (!m_config.isConfigured())
         return {};
 
-    const auto [httpStatus, body, retryAfter] = performGet(stapik::cloud::partitionsUrl(documentUrl()));
+    const auto [httpStatus, body, retryAfter, headers] = performGet(stapik::cloud::partitionsUrl(documentUrl()));
 
     if (httpStatus == 404)
         return {};
@@ -167,7 +229,11 @@ bool CloudStorageClient::deletePartition(const std::string& partition) const
     if (!m_config.isConfigured())
         return false;
 
-    const auto [httpStatus, body, retryAfter] = performDelete(stapik::cloud::partitionUrl(documentUrl(), partition));
+    const auto url = stapik::cloud::partitionUrl(documentUrl(), partition);
+    const auto [httpStatus, body, retryAfter, headers] = performDelete(url);
+
+    if (httpStatus == 204 || httpStatus == 404)
+        forget(url);
 
     if (httpStatus == 204)
         return true;
@@ -176,6 +242,19 @@ bool CloudStorageClient::deletePartition(const std::string& partition) const
         return false;
 
     throw CloudStorageException(std::format("API partition delete failed with status {}", httpStatus));
+}
+
+CloudChangeList CloudStorageClient::listChanges(const std::chrono::system_clock::time_point since) const
+{
+    if (!m_config.isConfigured())
+        return CloudChangeList{ .serverTime = since };
+
+    const auto [httpStatus, body, retryAfter, headers] = performGet(stapik::cloud::changesUrl(m_config.normalizedApiUrl(), since));
+
+    if (httpStatus != 200)
+        throw CloudStorageException(std::format("API change list failed with status {}", httpStatus));
+
+    return stapik::cloud::parseChangeList(stapik::http::toText(body));
 }
 
 std::chrono::system_clock::time_point CloudStorageClient::parseTimestamp(const std::string& text)

@@ -135,6 +135,7 @@
   "cloud.connected": "Połączono",
   "cloud.connected.secondary": "Pomyślnie połączono z chmurą.",
   "cloud.failed.header": "Nie udało się połączyć",
+  "cloud.apiKeyExpiring": "Twój klucz API chmury wygasa {date}. Utwórz nowy w panelu chmury i wpisz go w ustawieniach połączenia.",
   "money.entry.invalid": "Wpisz kwotę, np. {example}",
   "emptyState.noData": "Brak danych",
   "sync.status.idle": "Aktualne",

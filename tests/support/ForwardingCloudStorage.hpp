@@ -45,6 +45,11 @@ namespace stapik::test
             return m_target.deletePartition(partition);
         }
 
+        [[nodiscard]] CloudChangeList listChanges(const FakeCloudStorage::TimePoint since) const override
+        {
+            return m_target.listChanges(since);
+        }
+
     private:
         FakeCloudStorage& m_target;
     };

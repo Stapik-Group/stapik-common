@@ -225,6 +225,23 @@ TEST_F(AsyncSyncSchedulerTest, OfflineSyncNowIsRetriedAsAReconciliation)
     EXPECT_EQ(m_outcomes.back().document.text, "theirs");
 }
 
+TEST_F(AsyncSyncSchedulerTest, RateLimitedSyncWaitsAtLeastAsLongAsTheCloudAsked)
+{
+    m_fake.stored = cloudDocument("theirs", 500, 600);
+    m_fake.rateLimitedFor = 1s;
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.syncNow(local("mine", 100));
+    ASSERT_TRUE(pumpUntil([this] { return sawStatus(SyncStatus::Offline); }));
+    const auto callsAfterFirstAttempt = m_fake.loadCalls.load();
+
+    // The plain backoff (40 ms, then 80 ms) would have retried several times by now.
+    pumpFor(400ms);
+
+    EXPECT_EQ(m_fake.loadCalls.load(), callsAfterFirstAttempt);
+}
+
 TEST_F(AsyncSyncSchedulerTest, UnreadableCloudDocumentIsReportedAndNotRetried)
 {
     m_fake.stored = CloudDocument{ .content = nlohmann::json::object(), .updatedAt = at(5000) };
