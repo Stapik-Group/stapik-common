@@ -29,6 +29,8 @@ if (!response)
   twice and only when the wait is 30 s or less, otherwise the response is returned as it is. A `POST` or `PATCH` is
   sent again only after a 429: a 503 does not tell whether the request was already processed. The wait ends early with
   a cancelled `TransportError` when `isCancelled` says so. `RetryingHttpClient` can wrap any other `IHttpClient`.
+- `Response::headers` holds the headers of the final response with lower-case names (`Response::header("etag")`); a
+  repeated header keeps its last value.
 - Proxy: libcurl follows `http_proxy`, `https_proxy` and `all_proxy` on every platform. On Windows, when none of them
   is set, the proxy of the Windows user settings is used: a configuration script (PAC) or auto-detection, otherwise
   the fixed proxy per scheme, with the bypass list. The `<local>` entry of the bypass list has no libcurl equivalent
@@ -43,4 +45,4 @@ if (!response)
 
 `CloudStorageClient` and `CloudAssetClient` take an `IHttpClient` as the last constructor argument, and so does
 `createCloudStorage()`. Tests pass `FakeHttpClient` (`tests/support/FakeHttpClient.hpp`), queue the responses with
-`respondWith()` or `failWith()` and read the sent requests from `requests`.
+`respondWith()`, `respondWithHeaders()` or `failWith()` and read the sent requests from `requests`.

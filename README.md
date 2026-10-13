@@ -25,7 +25,7 @@ Instead of copy-pasting the same plumbing from project to project, every app pul
 - **Document backups** – rotating copies of the data file and a dialog to restore one of them (see [docs/backups.md](docs/backups.md))
 - **Application archive** – one ZIP with the document, the settings and the cloud files: "back up the whole application" and restore it (see [docs/archive.md](docs/archive.md))
 - **Timestamps and clock** – consistent time handling and formatting, and an injectable clock so tests do not depend on the system time (see [docs/clock.md](docs/clock.md))
-- **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client
+- **Cloud storage** – a clean `ICloudStorage` interface plus a cloud client for stapik-cloud 1.2.0 or newer: version-checked saves, chunked file uploads, rate limit and API key expiry handling (see [docs/cloud.md](docs/cloud.md))
 - **HTTP client** – `IHttpClient` over libcurl, so network code is testable with a fake (see [docs/http.md](docs/http.md))
 - **End-to-end encryption** – documents are encrypted before they leave the device; the cloud only stores a blob (see [docs/encryption.md](docs/encryption.md))
 - **Compression** – large cloud documents are gzipped before they are sent (see [docs/compression.md](docs/compression.md))
