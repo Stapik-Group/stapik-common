@@ -236,6 +236,41 @@ TEST_F(CloudAssetClientTest, TooLargeFileIsReportedAsSuch)
     EXPECT_THROW(std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), AssetTooLargeException);
 }
 
+TEST_F(CloudAssetClientTest, UnsupportedTypeIsReportedWithTheServerReason)
+{
+    m_http.respondWith(415, R"({"detail":"Detected content type image/gif is not allowed in this slot"})");
+
+    EXPECT_EQ(thrownMessage<AssetTypeNotAllowedException>([&] { std::ignore = m_client.uploadAsset("a.gif", "image/gif", BINARY_CONTENT); }),
+              "Detected content type image/gif is not allowed in this slot");
+}
+
+TEST_F(CloudAssetClientTest, UnsupportedTypeWithoutDetailGetsAGenericReason)
+{
+    m_http.respondWith(415);
+
+    EXPECT_EQ(thrownMessage<AssetTypeNotAllowedException>([&] { std::ignore = m_client.uploadAsset("a.gif", "image/gif", BINARY_CONTENT); }),
+              "File 'a.gif' has a type the cloud slot does not accept");
+}
+
+TEST_F(CloudAssetClientTest, UploadSendsTheNormalizedFilename)
+{
+    m_http.respondWith(201, ASSET_METADATA);
+
+    std::ignore = m_client.uploadAsset("a\xCC\xA8.jpg", "image/jpeg", BINARY_CONTENT);
+
+    const auto& request = m_http.requests.front();
+    EXPECT_EQ(request.url, ASSETS_URL + "/%C4%85.jpg");
+    EXPECT_EQ(std::get<stapik::http::MultipartFile>(request.body).filename, "\xC4\x85.jpg");
+}
+
+TEST_F(CloudAssetClientTest, InvalidFilenameIsRejectedWithoutARequest)
+{
+    EXPECT_THROW(std::ignore = m_client.uploadAsset("a:b.jpg", "image/jpeg", BINARY_CONTENT), InvalidAssetFilenameException);
+    EXPECT_THROW(std::ignore = m_client.downloadAsset("a:b.jpg"), InvalidAssetFilenameException);
+    EXPECT_THROW(std::ignore = m_client.deleteAsset("a:b.jpg"), InvalidAssetFilenameException);
+    EXPECT_TRUE(m_http.requests.empty());
+}
+
 TEST_F(CloudAssetClientTest, UnexpectedStatusOnUploadIsReported)
 {
     m_http.respondWith(401);

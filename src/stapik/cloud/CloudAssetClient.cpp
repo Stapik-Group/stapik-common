@@ -17,6 +17,7 @@ namespace stapik::cloud
         constexpr int HTTP_NO_CONTENT = 204;
         constexpr int HTTP_NOT_FOUND = 404;
         constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
+        constexpr int HTTP_UNSUPPORTED_MEDIA_TYPE = 415;
     }
 
     namespace
@@ -49,7 +50,7 @@ namespace stapik::cloud
 
     std::string CloudAssetClient::assetUrl(const std::string& filename) const
     {
-        return cloud::assetUrl(m_config.normalizedApiUrl(), m_slotKey, filename);
+        return cloud::assetUrl(m_config.normalizedApiUrl(), m_slotKey, normalizeAssetFilename(filename));
     }
 
     http::Response CloudAssetClient::perform(const http::Method method, const std::string& url, http::RequestBody body, const char* failureLabel,
@@ -115,12 +116,16 @@ namespace stapik::cloud
         if (!m_config.isConfigured())
             throw CloudStorageException("Cloud sync is not configured");
 
-        http::MultipartFile file{ .fieldName = "file", .filename = filename, .mimeType = mimeType, .content = content };
-        const auto [httpStatus, body, retryAfter, headers] = perform(http::Method::Put, assetUrl(filename), std::move(file), "API asset upload failed: ",
+        const auto storedFilename = normalizeAssetFilename(filename);
+        http::MultipartFile file{ .fieldName = "file", .filename = storedFilename, .mimeType = mimeType, .content = content };
+        const auto [httpStatus, body, retryAfter, headers] = perform(http::Method::Put, assetUrl(storedFilename), std::move(file), "API asset upload failed: ",
                                                 uploadProgressReporter(hooks, content.size()), hooks.isCancelled);
 
         if (httpStatus == HTTP_PAYLOAD_TOO_LARGE)
             throw AssetTooLargeException(std::format("File '{}' is too large for the cloud slot", filename));
+
+        if (httpStatus == HTTP_UNSUPPORTED_MEDIA_TYPE)
+            throw AssetTypeNotAllowedException(parseProblemDetail(http::toText(body)).value_or(std::format("File '{}' has a type the cloud slot does not accept", filename)));
 
         if (httpStatus != HTTP_OK && httpStatus != HTTP_CREATED)
             throw CloudStorageException(std::format("API asset upload failed with status {}", httpStatus));

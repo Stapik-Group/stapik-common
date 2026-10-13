@@ -1,15 +1,20 @@
 #include "stapik/cloud/CloudAssetProtocol.hpp"
 #include "stapik/cloud/CloudStorageException.hpp"
 
+#include "support/ThrownMessage.hpp"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <string>
+#include <tuple>
 #include <type_traits>
+#include <vector>
 
 namespace
 {
     using namespace stapik::cloud;
+    using stapik::test::thrownMessage;
 
     const std::string API_URL = "https://cloud.example.com";
 
@@ -88,4 +93,71 @@ TEST(CloudAssetProtocolTest, TooLargeFileIsACloudStorageException)
     static_assert(std::is_base_of_v<CloudStorageException, AssetTooLargeException>);
 
     EXPECT_THROW(throw AssetTooLargeException("too large"), CloudStorageException);
+}
+
+TEST(CloudAssetProtocolTest, FilenameRejectionsAreCloudStorageExceptions)
+{
+    static_assert(std::is_base_of_v<CloudStorageException, InvalidAssetFilenameException>);
+    static_assert(std::is_base_of_v<CloudStorageException, AssetTypeNotAllowedException>);
+
+    EXPECT_THROW(throw InvalidAssetFilenameException("bad name"), CloudStorageException);
+    EXPECT_THROW(throw AssetTypeNotAllowedException("bad type"), CloudStorageException);
+}
+
+TEST(CloudAssetProtocolTest, PlainFilenameIsKept)
+{
+    EXPECT_EQ(normalizeAssetFilename("cover 1.jpg"), "cover 1.jpg");
+    EXPECT_EQ(normalizeAssetFilename("COM0"), "COM0");
+    EXPECT_EQ(normalizeAssetFilename("console.txt"), "console.txt");
+}
+
+TEST(CloudAssetProtocolTest, FilenameIsComposedToNfc)
+{
+    EXPECT_EQ(normalizeAssetFilename("a\xCC\xA8.jpg"), "\xC4\x85.jpg");
+    EXPECT_EQ(normalizeAssetFilename("\xC4\x85.jpg"), "\xC4\x85.jpg");
+}
+
+TEST(CloudAssetProtocolTest, FilenamesTheServerRefusesAreRejected)
+{
+    const std::vector<std::string> refused = {
+        "", "   ", "a/b", "a\\b", "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b",
+        "name.", "name ", " name", "a\tb", "a\nb",
+        "CON", "con", "PRN.txt", "Aux.tar.gz", "NUL .txt", "COM1", "lpt9.log",
+        "a\xE2\x80\x8B" "b",
+        "a\xEE\x80\x80" "b",
+        "a\xFF" "b",
+        std::string(256, 'a')
+    };
+
+    for (const auto& name : refused)
+        EXPECT_THROW(std::ignore = normalizeAssetFilename(name), InvalidAssetFilenameException) << name;
+}
+
+TEST(CloudAssetProtocolTest, FilenameLengthIsCountedInUtf8Bytes)
+{
+    EXPECT_NO_THROW(std::ignore = normalizeAssetFilename(std::string(255, 'a')));
+
+    std::string polish;
+    for (int letter = 0; letter < 127; ++letter)
+        polish += "\xC4\x85";
+
+    EXPECT_NO_THROW(std::ignore = normalizeAssetFilename(polish));
+
+    polish += "\xC4\x85";
+    EXPECT_THROW(std::ignore = normalizeAssetFilename(polish), InvalidAssetFilenameException);
+}
+
+TEST(CloudAssetProtocolTest, RejectedFilenameExplainsWhy)
+{
+    EXPECT_EQ(thrownMessage<InvalidAssetFilenameException>([] { std::ignore = normalizeAssetFilename(" "); }), "Invalid filename: must not be blank");
+    EXPECT_EQ(thrownMessage<InvalidAssetFilenameException>([] { std::ignore = normalizeAssetFilename("a:b"); }), "Invalid filename: contains forbidden character U+003A");
+    EXPECT_EQ(thrownMessage<InvalidAssetFilenameException>([] { std::ignore = normalizeAssetFilename("con.txt"); }), "Invalid filename: is a reserved system name");
+}
+
+TEST(CloudAssetProtocolTest, ProblemDetailIsReadFromTheErrorBody)
+{
+    EXPECT_EQ(parseProblemDetail(R"({"title":"x","detail":"Why not"})"), "Why not");
+    EXPECT_FALSE(parseProblemDetail(R"({"title":"x"})").has_value());
+    EXPECT_FALSE(parseProblemDetail("not json").has_value());
+    EXPECT_FALSE(parseProblemDetail("").has_value());
 }
