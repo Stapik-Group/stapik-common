@@ -18,6 +18,7 @@ namespace stapik::cloud
         constexpr int HTTP_CREATED = 201;
         constexpr int HTTP_NO_CONTENT = 204;
         constexpr int HTTP_NOT_FOUND = 404;
+        constexpr int HTTP_TOO_MANY_REQUESTS = 429;
         constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
         constexpr int HTTP_UNSUPPORTED_MEDIA_TYPE = 415;
         constexpr int HTTP_UNPROCESSABLE_CONTENT = 422;
@@ -110,6 +111,9 @@ namespace stapik::cloud
 
             throw CloudStorageException(std::string(failureLabel) + result.error().message);
         }
+
+        if (result.value().status == HTTP_TOO_MANY_REQUESTS)
+            throw CloudRateLimitedException(result.value().retryAfter);
 
         return std::move(result).value();
     }
@@ -219,6 +223,10 @@ namespace stapik::cloud
                                    { { "Content-Type", "application/octet-stream" }, { "Upload-Offset", std::to_string(offset) } });
             }
             catch (const AssetTransferCancelledException&)
+            {
+                throw;
+            }
+            catch (const CloudRateLimitedException&)
             {
                 throw;
             }

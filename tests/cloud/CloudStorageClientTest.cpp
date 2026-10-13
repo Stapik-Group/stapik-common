@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <optional>
 #include <string>
 #include <tuple>
 
@@ -489,4 +490,35 @@ TEST_F(CloudStorageClientTest, TransportFailureOnPartitionDeleteIsReportedWithTh
     m_http.failWith("Connection refused");
 
     EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.deletePartition("2025"); }), "API delete failed: Connection refused");
+}
+
+TEST_F(CloudStorageClientTest, RateLimitIsReportedWithTheRequestedWait)
+{
+    m_http.respondWithRetryAfter(429, 45s);
+
+    try
+    {
+        std::ignore = m_client.loadDocument();
+        FAIL() << "Expected CloudRateLimitedException";
+    }
+    catch (const CloudRateLimitedException& exception)
+    {
+        EXPECT_EQ(exception.retryAfter(), std::optional{ 45s });
+        EXPECT_STREQ(exception.what(), "API rate limit exceeded, retry in 45 s");
+    }
+}
+
+TEST_F(CloudStorageClientTest, RateLimitWithoutRetryAfterHasNoRequestedWait)
+{
+    m_http.respondWith(429);
+
+    try
+    {
+        std::ignore = m_client.saveDocument(nlohmann::json::object(), {});
+        FAIL() << "Expected CloudRateLimitedException";
+    }
+    catch (const CloudRateLimitedException& exception)
+    {
+        EXPECT_FALSE(exception.retryAfter().has_value());
+    }
 }

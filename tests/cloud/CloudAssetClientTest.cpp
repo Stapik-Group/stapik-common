@@ -430,6 +430,26 @@ TEST_F(CloudAssetClientTest, InterruptedChunkIsSentAgainAfterAskingTheCloud)
     EXPECT_EQ(m_http.requests[4].headers.at("Upload-Offset"), "3");
 }
 
+TEST_F(CloudAssetClientTest, RateLimitedChunkIsNotTreatedAsAnInterruption)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWithRetryAfter(429, 90s);
+
+    try
+    {
+        std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+        FAIL() << "Expected CloudRateLimitedException";
+    }
+    catch (const CloudRateLimitedException& exception)
+    {
+        EXPECT_EQ(exception.retryAfter(), std::optional{ 90s });
+    }
+
+    EXPECT_EQ(m_http.requests.front().method, Method::Post);
+    EXPECT_EQ(m_http.requests[1].method, Method::Patch);
+    EXPECT_EQ(m_http.requests.back().method, Method::Delete);
+}
+
 TEST_F(CloudAssetClientTest, UploadContinuesFromTheOffsetTheCloudReports)
 {
     m_http.respondWith(201, uploadState(0));

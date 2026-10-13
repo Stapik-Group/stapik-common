@@ -26,6 +26,9 @@ namespace stapik::test
 
         std::atomic<bool> failSaves{ false };
 
+        // When set, every call fails as if the cloud answered 429 with this Retry-After.
+        std::optional<std::chrono::seconds> rateLimitedFor;
+
         mutable std::atomic<int> loadCalls{ 0 };
         mutable std::atomic<int> saveCalls{ 0 };
         mutable std::atomic<int> partitionLoadCalls{ 0 };
@@ -40,6 +43,7 @@ namespace stapik::test
         [[nodiscard]] std::optional<CloudDocument> loadDocument() const override
         {
             ++loadCalls;
+            throwIfRateLimited();
             if (unreachable)
                 throw CloudStorageException("network unreachable");
 
@@ -51,6 +55,7 @@ namespace stapik::test
             ++saveCalls;
             receivedBaselines.push_back(clientLastKnownUpdate);
 
+            throwIfRateLimited();
             if (unreachable || failSaves)
                 throw CloudStorageException("network unreachable");
 
@@ -118,6 +123,13 @@ namespace stapik::test
                 throw CloudStorageException("network unreachable");
 
             return const_cast<FakeCloudStorage&>(*this).partitions.erase(partition) > 0;
+        }
+
+    private:
+        void throwIfRateLimited() const
+        {
+            if (rateLimitedFor)
+                throw CloudRateLimitedException(rateLimitedFor);
         }
     };
 }

@@ -8,6 +8,11 @@
 #include <format>
 #include <glib.h>
 
+namespace
+{
+    constexpr int HTTP_TOO_MANY_REQUESTS = 429;
+}
+
 CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient):
     m_config(std::move(config)),
     m_slotKey(std::move(slotKey)),
@@ -37,6 +42,9 @@ stapik::http::Response CloudStorageClient::perform(const stapik::http::Method me
     auto result = m_http.send(request);
     if (!result)
         throw CloudStorageException(std::string(failureLabel) + result.error().message);
+
+    if (result.value().status == HTTP_TOO_MANY_REQUESTS)
+        throw CloudRateLimitedException(result.value().retryAfter);
 
     return std::move(result).value();
 }

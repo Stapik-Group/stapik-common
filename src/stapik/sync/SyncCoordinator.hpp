@@ -131,7 +131,12 @@ namespace stapik::sync
         static SyncOutcome<DocumentType> offline(const DocumentType& localDocument, const CloudStorageException& exception)
         {
             log::info("Cloud unavailable, keeping the local document: {}", exception.what());
-            return { SyncState::OfflineKeptLocal, localDocument, exception.what() };
+
+            std::optional<std::chrono::seconds> retryAfter;
+            if (const auto* rateLimited = dynamic_cast<const CloudRateLimitedException*>(&exception))
+                retryAfter = rateLimited->retryAfter();
+
+            return { SyncState::OfflineKeptLocal, localDocument, exception.what(), retryAfter };
         }
 
         static SyncOutcome<DocumentType> remoteUnreadable(const DocumentType& localDocument)
