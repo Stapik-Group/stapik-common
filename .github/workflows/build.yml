@@ -82,7 +82,7 @@ jobs:
           IMAGE: ${{ matrix.image }}
         run: |
           cpack --config build/CPackConfig.cmake -G DEB -B dist
-          suffix="${IMAGE//[:\/]/-}"
+          suffix="$(printf '%s' "$IMAGE" | tr ':/' '--')"
           for package in dist/*.deb; do
             mv "$package" "${package%.deb}-$suffix.deb"
           done
