@@ -31,19 +31,26 @@ dialog .dialog-vbox,
 popover contents { background-color: @stapik_bg; }
 
 /* --- Title bars and navigation --- */
-headerbar {
+/* :backdrop is the state of a window that is not active. It is listed on purpose: without it the system theme paints
+   the title bar of an inactive window in its own color. */
+headerbar,
+headerbar:backdrop {
     background: linear-gradient(to right, @stapik_blue, @stapik_blue_light);
     padding: 4px 8px;
     border-bottom: 2px solid @stapik_border_dark;
 }
 
-headerbar { min-height: 39px; }
+headerbar,
+headerbar:backdrop { min-height: 39px; }
 
 headerbar .title,
 headerbar label {
     color: #ffffff;
     font-weight: bold;
 }
+
+headerbar:backdrop .title,
+headerbar:backdrop label { opacity: 0.7; }
 
 windowcontrols button,
 windowcontrols button:hover,

@@ -4,6 +4,7 @@
 #include "stapik/theme/FontChoice.hpp"
 
 #include <glibmm/refptr.h>
+#include <gtkmm/adjustment.h>
 #include <gtkmm/fontdialog.h>
 #include <pango/pango.h>
 #include <pangomm/context.h>
@@ -17,6 +18,9 @@ namespace
 {
     constexpr int BOX_SPACING = 6;
     constexpr double SIZE_ROUNDING_STEP = 0.5;
+    constexpr double SIZE_SPIN_PAGE_STEP = 1.0;
+    constexpr int SIZE_SPIN_DIGITS = 1;
+    constexpr int SIZE_SPIN_WIDTH_CHARS = 5;
     constexpr double FALLBACK_SIZE_POINTS = 10.0;
     constexpr auto FALLBACK_FAMILY = "Sans";
 
@@ -52,10 +56,17 @@ namespace stapik::ui
         m_button.set_use_font(true);
         m_button.set_hexpand(true);
 
+        m_sizeSpin.set_adjustment(Gtk::Adjustment::create(
+            FALLBACK_SIZE_POINTS, theme::MIN_FONT_SIZE_POINTS, theme::MAX_FONT_SIZE_POINTS, SIZE_ROUNDING_STEP, SIZE_SPIN_PAGE_STEP));
+        m_sizeSpin.set_digits(SIZE_SPIN_DIGITS);
+        m_sizeSpin.set_width_chars(SIZE_SPIN_WIDTH_CHARS);
+
         m_box.append(m_button);
+        m_box.append(m_sizeSpin);
         m_box.append(m_resetButton);
 
         m_button.property_font_desc().signal_changed().connect([this] { onFontPicked(); });
+        m_sizeSpin.signal_value_changed().connect([this] { onSizeEdited(); });
         m_resetButton.signal_clicked().connect([this] { m_setting.reset(); });
         m_settingConnection = m_setting.signalChanged().connect([this](const std::string&) { showSetting(); });
 
@@ -78,6 +89,7 @@ namespace stapik::ui
 
         m_button.get_dialog()->set_title(loc.translate("dialog.font.title"));
         m_resetButton.set_label(loc.translate("settings.font.default"));
+        m_sizeSpin.set_tooltip_text(loc.translate("settings.font.size"));
         showSetting();
     }
 
@@ -90,6 +102,9 @@ namespace stapik::ui
 
         m_programmaticChange = true;
         m_button.set_font_desc(description);
+        m_sizeSpin.set_value(std::clamp(
+            std::round(sizeInPoints(description) / SIZE_ROUNDING_STEP) * SIZE_ROUNDING_STEP,
+            theme::MIN_FONT_SIZE_POINTS, theme::MAX_FONT_SIZE_POINTS));
         m_programmaticChange = false;
     }
 
@@ -107,6 +122,19 @@ namespace stapik::ui
         m_setting.set(theme::formatFontChoice({
             .family = family,
             .sizePoints = std::clamp(size, theme::MIN_FONT_SIZE_POINTS, theme::MAX_FONT_SIZE_POINTS) }));
+    }
+
+    void FontSettingRow::onSizeEdited()
+    {
+        if (m_programmaticChange)
+            return;
+
+        // Only the size changes; the family stays the one that is shown on the button.
+        const std::string family = firstFamily(m_button.get_font_desc().get_family());
+        if (family.empty())
+            return;
+
+        m_setting.set(theme::formatFontChoice({ .family = family, .sizePoints = m_sizeSpin.get_value() }));
     }
 
     // What the application uses now, as far as the widget can tell; it is shown while the theme's font is in use.

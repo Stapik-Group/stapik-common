@@ -390,6 +390,12 @@ void showTutorialWindow(Gtk::Window& parent, const std::filesystem::path& tutori
         window->hide();
         return true;
     }, false);
-    window->signal_hide().connect([window] { delete window; });
+    // The window is forgotten as soon as it is hidden, so a new request does not reach one that is about to be deleted.
+    window->signal_hide().connect([window]
+    {
+        if (g_openWindow == window)
+            g_openWindow = nullptr;
+    });
+    deleteOnHide(window);
     window->present();
 }

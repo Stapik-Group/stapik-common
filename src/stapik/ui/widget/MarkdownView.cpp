@@ -286,7 +286,11 @@ namespace stapik::ui
             return;
 
         if (const auto* link = linkAt(x, y))
-            m_signalLinkActivated.emit(link->target);
+        {
+            // A copy: the handler may show another chapter, which replaces the links this one belongs to.
+            const std::string target = link->target;
+            m_signalLinkActivated.emit(target);
+        }
     }
 
     const MarkdownView::LinkRange* MarkdownView::linkAt(const double x, const double y)

@@ -8,6 +8,8 @@
 #include "stapik/ui/dialog/SettingsDialog.hpp"
 #include "stapik/ui/dialog/TutorialWindow.hpp"
 
+#include <glibmm/main.h>
+
 #include <algorithm>
 #include <utility>
 
@@ -35,10 +37,10 @@ StandardMenu::StandardMenu(Gtk::ApplicationWindow& window, const StandardMenuOpt
     if (m_options.undoStack != nullptr)
     {
         m_undoActions = std::make_unique<UndoActions>(m_window, *m_options.undoStack);
-        m_undoConnection = m_options.undoStack->signalChanged().connect([this] { rebuild(); });
+        m_undoConnection = m_options.undoStack->signalChanged().connect([this] { scheduleRebuild(); });
     }
 
-    m_localeConnection = LocaleManager::instance().signalLocaleChanged().connect([this] { rebuild(); });
+    m_localeConnection = LocaleManager::instance().signalLocaleChanged().connect([this] { scheduleRebuild(); });
 
     rebuild();
 }
@@ -47,6 +49,22 @@ StandardMenu::~StandardMenu()
 {
     m_localeConnection.disconnect();
     m_undoConnection.disconnect();
+    m_rebuildConnection.disconnect();
+}
+
+void StandardMenu::scheduleRebuild()
+{
+    // Choosing Undo or Redo in the menu changes the history while the item that was chosen is still being activated,
+    // and the rebuild replaces the very items of the menu. It waits for the main loop to idle, and many changes
+    // in a row make one rebuild.
+    if (m_rebuildConnection.connected())
+        return;
+
+    m_rebuildConnection = Glib::signal_idle().connect([this]
+    {
+        rebuild();
+        return false;
+    });
 }
 
 stapik::ui::SettingsLayout& StandardMenu::settings()
