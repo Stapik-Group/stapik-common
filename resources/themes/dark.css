@@ -213,7 +213,7 @@ button.stapik-color-swatch { padding: 0; }
 
 .stapik-category-default { color: @stapik_text_muted; }
 
-.stapik-category-red { background-color: #ff453a; color: #ffffff; }
+.stapik-category-red { background-color: #d62f33; color: #ffffff; }
 
 .stapik-category-green { background-color: #34c759; color: #ffffff; }
 
@@ -227,7 +227,7 @@ button.stapik-color-swatch { padding: 0; }
 
 .stapik-category-brown { background-color: #a2845e; color: #ffffff; }
 
-.stapik-category-pink { background-color: #ff2d55; color: #ffffff; }
+.stapik-category-pink { background-color: #f06eb0; color: #ffffff; }
 
 .stapik-category-teal { background-color: #30b0c7; color: #ffffff; }
 
