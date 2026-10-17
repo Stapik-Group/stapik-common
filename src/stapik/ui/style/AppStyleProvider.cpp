@@ -73,6 +73,12 @@ void AppStyleProvider::apply(const std::string& themeId, const std::string& font
 {
     removeCurrentProviders();
 
+    if (!Gdk::Display::get_default())
+    {
+        stapik::log::warning("There is no display, the style is not applied");
+        return;
+    }
+
     const auto* theme = m_registry.find(themeId);
     if (theme == nullptr)
     {
@@ -137,6 +143,12 @@ const stapik::theme::ThemeRegistry& AppStyleProvider::themes() const
 
 void AppStyleProvider::removeCurrentProviders()
 {
+    if (!Gdk::Display::get_default())
+    {
+        m_currentProviders.clear();
+        return;
+    }
+
     for (const auto& provider : m_currentProviders)
         Gtk::StyleContext::remove_provider_for_display(Gdk::Display::get_default(), provider);
 

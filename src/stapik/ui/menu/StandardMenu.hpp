@@ -78,6 +78,7 @@ private:
     void initSettingsAction() const;
     void initAboutAction() const;
     void initLogAction() const;
+    void scheduleRebuild();
     void initTutorialAction() const;
 
     Gtk::ApplicationWindow& m_window;
@@ -90,4 +91,5 @@ private:
     Gtk::PopoverMenuBar m_menuBar;
     sigc::connection m_localeConnection;
     sigc::connection m_undoConnection;
+    sigc::connection m_rebuildConnection;
 };

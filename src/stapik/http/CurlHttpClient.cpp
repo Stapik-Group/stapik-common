@@ -22,10 +22,18 @@ namespace stapik::http
 {
     namespace
     {
+        // curl_easy_init() would initialize libcurl by itself on the first call, which is not thread-safe, and
+        // the first requests of an application come from several background threads at once.
+        void initializeCurl()
+        {
+            static const bool initialized = curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK;
+            (void)initialized;
+        }
+
         class CurlTransfer
         {
         public:
-            CurlTransfer() : m_handle(curl_easy_init())
+            CurlTransfer() : m_handle((initializeCurl(), curl_easy_init()))
             {
             }
 

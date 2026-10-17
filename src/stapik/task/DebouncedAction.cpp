@@ -1,5 +1,8 @@
 #include "DebouncedAction.hpp"
 
+#include "stapik/log/Log.hpp"
+
+#include <exception>
 #include <utility>
 
 namespace stapik::task
@@ -55,8 +58,19 @@ namespace stapik::task
         auto* self = static_cast<DebouncedAction*>(data);
         self->m_sourceId = 0;
 
-        if (self->m_action)
-            self->m_action();
+        try
+        {
+            if (self->m_action)
+                self->m_action();
+        }
+        catch (const std::exception& exception)
+        {
+            log::error("A delayed action failed: {}", exception.what());
+        }
+        catch (...)
+        {
+            log::error("A delayed action failed with an unknown exception");
+        }
 
         return G_SOURCE_REMOVE;
     }

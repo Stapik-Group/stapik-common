@@ -1,5 +1,7 @@
 #include "ConnectDialog.hpp"
 
+#include "DialogUtils.hpp"
+
 #include <utility>
 
 #include "stapik/locale/LocaleManager.hpp"
@@ -231,6 +233,6 @@ void showConnectDialog(
         dialog->hide();
     });
 
-    dialog->signal_hide().connect([dialog] { delete dialog; });
+    deleteOnHide(dialog);
     dialog->show();
 }
