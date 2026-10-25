@@ -7,7 +7,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <thread>
 #include <type_traits>
 #include <utility>
 
@@ -49,12 +48,17 @@ namespace stapik::task
             std::function<void()> onFinished;
         };
 
-        void workerLoop(const std::stop_token& stopToken);
+        struct State
+        {
+            std::mutex mutex;
+            std::condition_variable idle;
+            std::deque<Task> tasks;
+            bool draining = false;
+            std::atomic<bool> alive{ true };
+        };
 
-        std::shared_ptr<std::atomic<bool>> m_alive;
-        std::mutex m_mutex;
-        std::condition_variable_any m_wake;
-        std::deque<Task> m_tasks;
-        std::jthread m_worker;
+        static void drain(const std::shared_ptr<State>& state);
+
+        std::shared_ptr<State> m_state;
     };
 }

@@ -45,6 +45,14 @@ an application that has to work with one stays on an older stapik-common.
   `ApiKeyExpiryMonitor` records it, and `CloudSession::signalApiKeyExpiring` reports it once per date. The text to show
   is the translation key `cloud.apiKeyExpiring` with the argument `{date}`.
 
+## Background work
+
+- Sync jobs, the fetch of the available years and every other `BackgroundTaskRunner` task run on one pool of at most
+  four threads shared by the whole process. A scheduler per partition therefore does not mean a thread per partition:
+  an idle scheduler holds no thread, and jobs of many partitions wait for a free one.
+- A `BackgroundTaskRunner` still runs its own tasks one after another, in the order they were submitted, and drops the
+  ones that have not started when it is destroyed.
+
 ## Change feed
 
 `ICloudStorage::listChanges(since)` returns what changed in any slot of the key's extension after `since`, deleted
