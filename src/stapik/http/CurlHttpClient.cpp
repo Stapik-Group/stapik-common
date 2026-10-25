@@ -23,26 +23,83 @@ namespace stapik::http
 {
     namespace
     {
-        // curl_easy_init() would initialize libcurl by itself on the first call, which is not thread-safe, and
-        // the first requests of an application come from several background threads at once.
         void initializeCurl()
         {
             static const bool initialized = curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK;
             (void)initialized;
         }
 
+        class ThreadCurlHandle
+        {
+        public:
+            ThreadCurlHandle() = default;
+
+            ~ThreadCurlHandle()
+            {
+                curl_easy_cleanup(m_handle);
+            }
+
+            ThreadCurlHandle(const ThreadCurlHandle &) = delete;
+
+            ThreadCurlHandle &operator=(const ThreadCurlHandle &) = delete;
+
+            [[nodiscard]] CURL *acquire()
+            {
+                if (m_busy)
+                    return nullptr;
+
+                if (m_handle == nullptr)
+                {
+                    initializeCurl();
+                    m_handle = curl_easy_init();
+                }
+
+                m_busy = m_handle != nullptr;
+                return m_handle;
+            }
+
+            void release()
+            {
+                m_busy = false;
+            }
+
+            [[nodiscard]] bool owns(const CURL *handle) const { return handle == m_handle; }
+
+        private:
+            CURL *m_handle = nullptr;
+            bool m_busy = false;
+        };
+
+        ThreadCurlHandle &threadCurlHandle()
+        {
+            thread_local ThreadCurlHandle handle;
+            return handle;
+        }
+
         class CurlTransfer
         {
         public:
-            CurlTransfer() : m_handle((initializeCurl(), curl_easy_init()))
+            CurlTransfer() : m_handle(threadCurlHandle().acquire())
             {
+                if (m_handle == nullptr)
+                {
+                    initializeCurl();
+                    m_handle = curl_easy_init();
+                }
             }
 
             ~CurlTransfer()
             {
-                curl_easy_cleanup(m_handle);
+                if (m_handle != nullptr)
+                    curl_easy_reset(m_handle);
+
                 curl_mime_free(m_mime);
                 curl_slist_free_all(m_headers);
+
+                if (threadCurlHandle().owns(m_handle))
+                    threadCurlHandle().release();
+                else
+                    curl_easy_cleanup(m_handle);
             }
 
             CurlTransfer(const CurlTransfer &) = delete;
