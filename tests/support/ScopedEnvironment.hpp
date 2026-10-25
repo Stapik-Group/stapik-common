@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Environment.hpp"
+
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -19,9 +21,9 @@ namespace stapik::test
         ~ScopedEnvironment()
         {
             if (m_original)
-                setenv(m_name.c_str(), m_original->c_str(), 1);
+                setEnvironment(m_name, *m_original);
             else
-                unsetenv(m_name.c_str());
+                unsetEnvironment(m_name);
         }
 
         ScopedEnvironment(const ScopedEnvironment&) = delete;
