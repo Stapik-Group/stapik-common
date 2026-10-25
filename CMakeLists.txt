@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 4.2)
 project(stapikcommon VERSION 1.6.0 LANGUAGES CXX)
 
 set(stapikcommon_VERSION_SUFFIX "dev")
-set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}_${stapikcommon_VERSION_SUFFIX}")
+set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}")
+if(stapikcommon_VERSION_SUFFIX)
+    string(APPEND stapikcommon_VERSION_FULL "_${stapikcommon_VERSION_SUFFIX}")
+endif()
 message(STATUS "Building: ${PROJECT_NAME} version: ${stapikcommon_VERSION_FULL}")
 
 set(CMAKE_CXX_STANDARD 20)
