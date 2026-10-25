@@ -212,7 +212,7 @@ TEST(PayloadCipherTest, EveryDecryptionErrorHasDescription)
 TEST(PayloadCipherTest, GzipStreamPayloadRoundTripsBinaryBytes)
 {
     const PayloadCipher cipher(PASSPHRASE);
-    const std::string stream("\x1f\x8b\x08\x00\xff\xfe\x00binary", 14);
+    const std::string stream("\x1f\x8b\x08\x00\xff\xfe\x00" "binary", 13);
 
     const auto blob = cipher.encrypt(stream, CONTEXT, PayloadEncoding::GzipStream);
     const auto payload = cipher.decryptPayload(blob, CONTEXT);
