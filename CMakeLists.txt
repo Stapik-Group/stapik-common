@@ -165,6 +165,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
         src/stapik/storage/DirectoryLock.cpp
+        src/stapik/storage/Quarantine.cpp
         src/stapik/storage/SecretStore.cpp
 )
 

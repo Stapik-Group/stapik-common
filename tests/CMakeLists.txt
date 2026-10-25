@@ -77,6 +77,7 @@ add_executable(stapikcommon_tests
         storage/DirectoryLockTest.cpp
         storage/FileErrorTest.cpp
         storage/PathTextTest.cpp
+        storage/QuarantineTest.cpp
         sync/AsyncSyncSchedulerPartitionTest.cpp
         sync/AsyncSyncSchedulerTest.cpp
         sync/CloudSessionPartitionTest.cpp
