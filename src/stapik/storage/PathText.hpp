@@ -10,7 +10,7 @@ namespace stapik::storage
     // loses characters (a Polish or Cyrillic user name) and can throw.
     [[nodiscard]] inline std::string pathText(const std::filesystem::path& path)
     {
-        const auto text = path.generic_u8string();
+        const auto text = path.u8string();
         return {text.begin(), text.end()};
     }
 
