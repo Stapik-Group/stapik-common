@@ -3,6 +3,7 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -58,7 +59,7 @@ namespace stapik::settings
             { "settings", m_values }
         };
 
-        return root.dump(2) + "\n";
+        return text::dumpJson(root, 2) + "\n";
     }
 
     bool SettingsStore::replaceFromText(const std::string_view text)

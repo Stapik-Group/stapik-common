@@ -3,6 +3,7 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -171,7 +172,7 @@ namespace stapik::document
             { "document", document }
         };
 
-        return root.dump(2) + "\n";
+        return text::dumpJson(root, 2) + "\n";
     }
 
     void DocumentFileCore::quarantineFile() const

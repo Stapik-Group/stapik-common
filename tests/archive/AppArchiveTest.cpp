@@ -437,3 +437,15 @@ TEST_F(AppArchiveTest, ExportDoesNotTouchTheDataFiles)
 
     EXPECT_EQ(readText(m_directory / "source" / "data" / "note.json"), before);
 }
+
+TEST_F(AppArchiveTest, ExportReplacesInvalidUtf8InTheManifestInsteadOfFailing)
+{
+    auto installation = source();
+    installation.assets.put("c.txt", "third file", "text/bad\xff");
+
+    exportFrom(installation);
+
+    const auto zip = ZipReader::open(m_archivePath);
+    ASSERT_TRUE(zip) << zip.error().message();
+    EXPECT_NE(zip->readText("manifest.json").valueOr("").find("text/bad\xEF\xBF\xBD"), std::string::npos);
+}

@@ -611,3 +611,15 @@ TEST_F(DocumentFileTest, DeserializeReportsInvalidTextWithoutTouchingTheManagedF
     EXPECT_EQ(readText(m_path), before);
     EXPECT_TRUE(quarantinedFiles().empty());
 }
+
+TEST_F(DocumentFileTest, SaveReplacesInvalidUtf8InsteadOfFailing)
+{
+    DocumentFile<Note> file(m_path, 1);
+
+    ASSERT_TRUE(file.save(Note{ "bad\xff title", 1 }));
+    const auto result = file.load();
+
+    ASSERT_EQ(result.status, LoadStatus::Loaded);
+    ASSERT_TRUE(result.document.has_value());
+    EXPECT_EQ(result.document->title, "bad\xEF\xBF\xBD title");
+}
