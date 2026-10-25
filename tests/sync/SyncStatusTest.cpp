@@ -35,6 +35,7 @@ TEST(SyncStatusTest, OutcomesMapToStatuses)
     EXPECT_EQ(statusFor(SyncState::AuthRejected), SyncStatus::Error);
     EXPECT_EQ(statusFor(SyncState::DecryptionFailed), SyncStatus::Error);
     EXPECT_EQ(statusFor(SyncState::DocumentTooLarge), SyncStatus::Error);
+    EXPECT_EQ(statusFor(SyncState::LostRaceKeptLocal), SyncStatus::Syncing);
 }
 
 TEST(SyncStatusTest, EveryStatusHasADistinctCssClass)

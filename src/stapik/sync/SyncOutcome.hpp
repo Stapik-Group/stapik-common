@@ -16,7 +16,8 @@ namespace stapik::sync
         RemoteUnreadable,
         AuthRejected,
         DecryptionFailed,
-        DocumentTooLarge
+        DocumentTooLarge,
+        LostRaceKeptLocal
     };
 
     template<typename DocumentType>

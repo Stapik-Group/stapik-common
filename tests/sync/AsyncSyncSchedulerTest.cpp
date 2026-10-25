@@ -196,6 +196,29 @@ TEST_F(AsyncSyncSchedulerTest, SyncNowTakesTheNewerServerDocumentAndDropsQueuedC
     EXPECT_FALSE(scheduler.hasPendingWork());
 }
 
+TEST_F(AsyncSyncSchedulerTest, RaceLostWhileTheLocalDocumentIsNewerIsRetriedWithTheNewBaseline)
+{
+    m_fake.stored = cloudDocument("old", 100, 600);
+    std::atomic<int> raced{ 0 };
+    m_fake.beforeSave = [this, &raced]
+    {
+        if (const int count = ++raced; count <= 2)
+            m_fake.stored = cloudDocument("racer" + std::to_string(count), 150, 600 + count * 100);
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("mine", 300, 600));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty() && m_outcomes.back().state == SyncState::Synchronized; }));
+
+    EXPECT_EQ(m_outcomes.front().state, SyncState::LostRaceKeptLocal);
+    EXPECT_EQ(m_fake.saveCalls, 3);
+    EXPECT_EQ(m_fake.receivedBaselines.back(), at(800));
+    EXPECT_EQ(storedText(), "mine");
+    EXPECT_FALSE(sawStatus(SyncStatus::Conflict));
+    EXPECT_EQ(scheduler.status(), SyncStatus::Idle);
+}
+
 TEST_F(AsyncSyncSchedulerTest, SyncNowUploadsANewerLocalDocument)
 {
     m_fake.stored = cloudDocument("old", 100, 600);

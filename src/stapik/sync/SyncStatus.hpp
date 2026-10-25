@@ -60,6 +60,7 @@ namespace stapik::sync
             case SyncState::AuthRejected: return SyncStatus::Error;
             case SyncState::DecryptionFailed: return SyncStatus::Error;
             case SyncState::DocumentTooLarge: return SyncStatus::Error;
+            case SyncState::LostRaceKeptLocal: return SyncStatus::Syncing;
         }
 
         return SyncStatus::Error;

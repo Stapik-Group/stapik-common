@@ -161,6 +161,10 @@ namespace stapik::sync
                 case OfflineKeptLocal:
                     requeueForRetry(outcome.document, outcome.retryAfter);
                     break;
+                case LostRaceKeptLocal:
+                    rebaseQueuedJob(outcome.document);
+                    requeueForRetry(outcome.document, outcome.retryAfter);
+                    break;
                 case RemoteUnreadable:
                 case AuthRejected:
                 case DecryptionFailed:

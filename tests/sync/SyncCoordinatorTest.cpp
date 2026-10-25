@@ -208,7 +208,7 @@ TEST_F(SyncCoordinatorTest, ConflictWithOlderServerContentRetriesOnce)
     EXPECT_EQ(m_fake.stored->updatedAt, at(1000));
 }
 
-TEST_F(SyncCoordinatorTest, SecondConflictGivesUpAndAcceptsTheServer)
+TEST_F(SyncCoordinatorTest, SecondConflictWithOlderServerContentKeepsTheNewerLocalDocument)
 {
     m_fake.stored = cloudDocument("old", 100, 600);
     int writes = 0;
@@ -220,9 +220,47 @@ TEST_F(SyncCoordinatorTest, SecondConflictGivesUpAndAcceptsTheServer)
 
     const auto outcome = m_coordinator.resolveOnConnect(local("mine", 300));
 
+    EXPECT_EQ(outcome.state, SyncState::LostRaceKeptLocal);
+    EXPECT_FALSE(outcome.replacesLocal());
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(outcome.document.cloudBaseline, std::optional<TimePoint>{ at(800) });
+    EXPECT_FALSE(outcome.message.empty());
+    EXPECT_EQ(m_fake.saveCalls, 2);
+}
+
+TEST_F(SyncCoordinatorTest, SecondConflictWithNewerServerContentAcceptsTheServer)
+{
+    m_fake.stored = cloudDocument("old", 100, 600);
+    int writes = 0;
+    m_fake.beforeSave = [this, &writes]
+    {
+        ++writes;
+        m_fake.stored = cloudDocument("racer" + std::to_string(writes), writes == 1 ? 150 : 400, 600 + writes * 100);
+    };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 300));
+
     EXPECT_EQ(outcome.state, SyncState::LostRaceAcceptedServer);
+    EXPECT_TRUE(outcome.replacesLocal());
     EXPECT_EQ(outcome.document.text, "racer2");
     EXPECT_EQ(m_fake.saveCalls, 2);
+}
+
+TEST_F(SyncCoordinatorTest, PushWithTwoConflictsKeepsTheNewerLocalDocument)
+{
+    m_fake.stored = cloudDocument("old", 100, 600);
+    int writes = 0;
+    m_fake.beforeSave = [this, &writes]
+    {
+        ++writes;
+        m_fake.stored = cloudDocument("racer" + std::to_string(writes), 150, 600 + writes * 100);
+    };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("edited", 300, 600));
+
+    EXPECT_EQ(outcome.state, SyncState::LostRaceKeptLocal);
+    EXPECT_EQ(outcome.document.text, "edited");
+    EXPECT_EQ(outcome.document.cloudBaseline, std::optional<TimePoint>{ at(800) });
 }
 
 TEST_F(SyncCoordinatorTest, NetworkFailureDuringUploadKeepsLocal)

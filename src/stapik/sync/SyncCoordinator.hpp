@@ -196,9 +196,13 @@ namespace stapik::sync
                 if (!remote)
                     return remoteUnreadable(localDocument);
 
-                if (const bool localStillNewer = localTime > remote->contentTime; !localStillNewer || !canRetry)
-                {
+                if (localTime <= remote->contentTime)
                     return { SyncState::LostRaceAcceptedServer, remote->document.withLastKnownCloudUpdate(remote->cloudUpdatedAt) };
+
+                if (!canRetry)
+                {
+                    log::info("The cloud changed again during the upload, keeping the newer local document for a retry");
+                    return { SyncState::LostRaceKeptLocal, localDocument.withLastKnownCloudUpdate(remote->cloudUpdatedAt), "The cloud changed again during the upload" };
                 }
 
                 baseline = remote->cloudUpdatedAt;
