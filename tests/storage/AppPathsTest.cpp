@@ -12,9 +12,17 @@ namespace
 {
     namespace fs = std::filesystem;
 
+#ifdef _WIN32
+    constexpr auto USER_PROFILE_VARIABLE = "APPDATA";
+#else
+    constexpr auto USER_PROFILE_VARIABLE = "HOME";
+#endif
+
     class AppPathsTest : public testing::Test
     {
     protected:
+        stapik::test::ScopedEnvironment m_appData{ "APPDATA" };
+        stapik::test::ScopedEnvironment m_localAppData{ "LOCALAPPDATA" };
         stapik::test::ScopedEnvironment m_home{ "HOME" };
         stapik::test::ScopedEnvironment m_dataHome{ "XDG_DATA_HOME" };
         stapik::test::ScopedEnvironment m_configHome{ "XDG_CONFIG_HOME" };
@@ -33,6 +41,22 @@ TEST_F(AppPathsTest, UsesXdgVariablesWhenSet)
     EXPECT_EQ(AppPaths::userCacheDir("app"), "/xdg/cache/app");
 }
 
+#ifdef _WIN32
+TEST_F(AppPathsTest, FallsBackToAppDataWhenXdgVariableIsUnset)
+{
+    const fs::path roaming = "C:\\Users\\user\\AppData\\Roaming";
+    const fs::path local = "C:\\Users\\user\\AppData\\Local";
+    stapik::test::setEnvironment("APPDATA", roaming.string());
+    stapik::test::setEnvironment("LOCALAPPDATA", local.string());
+    stapik::test::unsetEnvironment("XDG_DATA_HOME");
+    stapik::test::unsetEnvironment("XDG_CONFIG_HOME");
+    stapik::test::unsetEnvironment("XDG_CACHE_HOME");
+
+    EXPECT_EQ(AppPaths::userDataDir("app"), roaming / "app" / "data");
+    EXPECT_EQ(AppPaths::userConfigDir("app"), roaming / "app" / "config");
+    EXPECT_EQ(AppPaths::userCacheDir("app"), local / "app" / "cache");
+}
+#else
 TEST_F(AppPathsTest, FallsBackToHomeWhenXdgVariableIsUnset)
 {
     stapik::test::setEnvironment("HOME", "/home/user");
@@ -56,10 +80,11 @@ TEST_F(AppPathsTest, EmptyXdgVariableIsTreatedAsUnset)
     EXPECT_EQ(AppPaths::userConfigDir("app"), "/home/user/.config/app");
     EXPECT_EQ(AppPaths::userCacheDir("app"), "/home/user/.cache/app");
 }
+#endif
 
 TEST_F(AppPathsTest, FallsBackToTempDirectoryWithoutHome)
 {
-    stapik::test::unsetEnvironment("HOME");
+    stapik::test::unsetEnvironment(USER_PROFILE_VARIABLE);
     stapik::test::unsetEnvironment("XDG_DATA_HOME");
 
     EXPECT_EQ(AppPaths::userDataDir("app"), fs::temp_directory_path() / "app");
@@ -181,6 +206,9 @@ TEST_F(CommonResourcesDirTest, ResourcesDirFallsBackToTheParentOfTheExecutableDi
 
 TEST_F(CommonResourcesDirTest, ResourcesDirDoesNotThrowWhenTheExecutableDirectoryCannotBeSearched)
 {
+#ifdef _WIN32
+    GTEST_SKIP() << "Windows does not refuse a directory through its permissions";
+#endif
     fs::permissions(m_executableDir, fs::perms::none);
 
     fs::path resolved;

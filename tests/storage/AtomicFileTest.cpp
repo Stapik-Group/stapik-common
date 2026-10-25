@@ -90,6 +90,9 @@ TEST_F(AtomicFileTest, LeavesNoTemporaryFilesBehind)
 
 TEST_F(AtomicFileTest, AppliesRequestedPermissions)
 {
+#ifdef _WIN32
+    GTEST_SKIP() << "Windows reports only the read-only attribute as permissions";
+#endif
     const auto privatePath = m_directory / "private.txt";
     const auto sharedPath = m_directory / "shared.txt";
 

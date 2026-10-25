@@ -4,12 +4,15 @@
 #include "support/ScopedEnvironment.hpp"
 #include "support/TemporaryDirectory.hpp"
 
+#include <glib.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -35,6 +38,40 @@ namespace
         "\"svg\" \"\"\n"
         "\" <svg\" \"*    \" 100\n"
         "\n";
+
+#ifdef _WIN32
+    constexpr auto ESCAPED_SEPARATOR = "\\\\";
+#else
+    constexpr auto ESCAPED_SEPARATOR = "/";
+#endif
+
+    std::string moduleLine(const std::string& directory, const std::string& fileName)
+    {
+        return "\"" + directory + ESCAPED_SEPARATOR + fileName + "\"";
+    }
+
+    std::vector<fs::path> modulePathsIn(const std::string& cacheText)
+    {
+        std::vector<fs::path> modules;
+        std::istringstream stream(cacheText);
+        for (std::string line; std::getline(stream, line);)
+        {
+            if (!line.starts_with('"') || !line.ends_with(".dll\""))
+                continue;
+
+            std::string unescaped;
+            for (std::size_t index = 1; index + 1 < line.size(); ++index)
+            {
+                if (line[index] == '\\' && index + 2 < line.size())
+                    ++index;
+                unescaped += line[index];
+            }
+
+            modules.emplace_back(unescaped);
+        }
+
+        return modules;
+    }
 
     std::string readAll(const fs::path& path)
     {
@@ -82,8 +119,8 @@ TEST(RebasePixbufLoadersCacheTest, PointsEveryLoaderIntoTheGivenDirectory)
     const auto rebased = rebasePixbufLoadersCache(SAMPLE_CACHE, fs::path("/app/lib/loaders"));
     const auto lines = linesOf(rebased);
 
-    EXPECT_EQ(lines[3], "\"/app/lib/loaders/libpixbufloader-png.dll\"");
-    EXPECT_EQ(lines[9], "\"/app/lib/loaders/libpixbufloader-svg.dll\"");
+    EXPECT_EQ(lines[3], moduleLine("/app/lib/loaders", "libpixbufloader-png.dll"));
+    EXPECT_EQ(lines[9], moduleLine("/app/lib/loaders", "libpixbufloader-svg.dll"));
 }
 
 TEST(RebasePixbufLoadersCacheTest, KeepsEveryOtherLineUntouched)
@@ -105,7 +142,7 @@ TEST(RebasePixbufLoadersCacheTest, EscapesBackslashesOfAWindowsDirectory)
 {
     const auto rebased = rebasePixbufLoadersCache(SAMPLE_CACHE, fs::path("C:\\Users\\Zosia\\app\\loaders"));
 
-    EXPECT_NE(rebased.find("\"C:\\\\Users\\\\Zosia\\\\app\\\\loaders/libpixbufloader-png.dll\""), std::string::npos);
+    EXPECT_NE(rebased.find(moduleLine("C:\\\\Users\\\\Zosia\\\\app\\\\loaders", "libpixbufloader-png.dll")), std::string::npos);
 }
 
 TEST(RebasePixbufLoadersCacheTest, KeepsWindowsLineEndings)
@@ -114,14 +151,14 @@ TEST(RebasePixbufLoadersCacheTest, KeepsWindowsLineEndings)
 
     const auto rebased = rebasePixbufLoadersCache(cache, fs::path("/app"));
 
-    EXPECT_EQ(rebased, "# header\r\n\"/app/libpixbufloader-png.dll\"\r\n\"png\" 5 \"gdk-pixbuf\" \"PNG\" \"LGPL\"\r\n");
+    EXPECT_EQ(rebased, "# header\r\n" + moduleLine("/app", "libpixbufloader-png.dll") + "\r\n\"png\" 5 \"gdk-pixbuf\" \"PNG\" \"LGPL\"\r\n");
 }
 
 TEST(RebasePixbufLoadersCacheTest, AcceptsForwardSlashesAndUnixModules)
 {
     const std::string cache = "\"/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-png.so\"\n";
 
-    EXPECT_EQ(rebasePixbufLoadersCache(cache, fs::path("/app")), "\"/app/libpixbufloader-png.so\"\n");
+    EXPECT_EQ(rebasePixbufLoadersCache(cache, fs::path("/app")), moduleLine("/app", "libpixbufloader-png.so") + "\n");
 }
 
 TEST(RebasePixbufLoadersCacheTest, TextWithoutModuleLinesAndEmptyTextAreUnchanged)
@@ -155,11 +192,11 @@ TEST_F(BundledRuntimeTest, PointsGlibAtTheBundledSchemasAndData)
     configureBundledRuntime(bundle.path(), cache.path());
 
     ASSERT_NE(std::getenv("GSETTINGS_SCHEMA_DIR"), nullptr);
-    EXPECT_EQ(std::string(std::getenv("GSETTINGS_SCHEMA_DIR")), (bundle.path() / "share/glib-2.0/schemas").string());
+    EXPECT_EQ(fs::path(std::getenv("GSETTINGS_SCHEMA_DIR")), bundle.path() / "share/glib-2.0/schemas");
     ASSERT_NE(std::getenv("XDG_DATA_DIRS"), nullptr);
-    EXPECT_EQ(std::string(std::getenv("XDG_DATA_DIRS")), (bundle.path() / "share").string());
+    EXPECT_EQ(fs::path(std::getenv("XDG_DATA_DIRS")), bundle.path() / "share");
     ASSERT_NE(std::getenv("FONTCONFIG_PATH"), nullptr);
-    EXPECT_EQ(std::string(std::getenv("FONTCONFIG_PATH")), (bundle.path() / "etc/fonts").string());
+    EXPECT_EQ(fs::path(std::getenv("FONTCONFIG_PATH")), bundle.path() / "etc/fonts");
 }
 
 TEST_F(BundledRuntimeTest, BundledShareDirectoryIsSearchedFirstAndOnlyOnce)
@@ -172,7 +209,7 @@ TEST_F(BundledRuntimeTest, BundledShareDirectoryIsSearchedFirstAndOnlyOnce)
     configureBundledRuntime(bundle.path(), cache.path());
     configureBundledRuntime(bundle.path(), cache.path());
 
-    EXPECT_EQ(std::string(std::getenv("XDG_DATA_DIRS")), (bundle.path() / "share").string() + ":/other/share");
+    EXPECT_EQ(std::string(std::getenv("XDG_DATA_DIRS")), (bundle.path() / "share").string() + G_SEARCHPATH_SEPARATOR_S + "/other/share");
 }
 
 TEST_F(BundledRuntimeTest, WritesARebasedLoadersCacheAndSelectsIt)
@@ -188,8 +225,12 @@ TEST_F(BundledRuntimeTest, WritesARebasedLoadersCacheAndSelectsIt)
     const fs::path cacheFile = std::getenv("GDK_PIXBUF_MODULE_FILE");
     EXPECT_EQ(cacheFile.parent_path(), cache.path());
 
-    const auto loadersDirectory = (bundle.path() / "lib/gdk-pixbuf-2.0/2.10.0/loaders").string();
-    EXPECT_NE(readAll(cacheFile).find("\"" + loadersDirectory + "/libpixbufloader-png.dll\""), std::string::npos);
+    const auto expectedModule = (bundle.path() / "lib/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-png.dll").lexically_normal();
+    const auto modules = modulePathsIn(readAll(cacheFile));
+    EXPECT_TRUE(std::ranges::any_of(modules, [&](const fs::path& module)
+    {
+        return module.lexically_normal() == expectedModule;
+    }));
     EXPECT_EQ(readAll(cacheFile).find("msys64"), std::string::npos);
 }
 

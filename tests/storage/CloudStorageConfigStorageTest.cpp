@@ -438,6 +438,9 @@ TEST_F(CloudStorageConfigStorageTest, MissingOrBrokenConfigFileReportsNoSecrets)
 
 TEST_F(CloudStorageConfigStorageTest, LoadDoesNotThrowWhenTheConfigDirectoryCannotBeSearched)
 {
+#ifdef _WIN32
+    GTEST_SKIP() << "Windows does not refuse a directory through its permissions";
+#endif
     fs::permissions(configPath().parent_path(), fs::perms::none);
 
     std::optional<CloudStorageConfig> config;
