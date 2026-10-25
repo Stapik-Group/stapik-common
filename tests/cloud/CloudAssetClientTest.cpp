@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -100,6 +101,53 @@ TEST_F(CloudAssetClientTest, EveryRequestHasAResponseSizeLimit)
     std::ignore = m_client.listAssets();
 
     EXPECT_TRUE(m_http.requests.front().maxResponseBytes.has_value());
+}
+
+TEST_F(CloudAssetClientTest, ResponseSizeLimitIs64MiBByDefault)
+{
+    m_http.respondWith(404);
+
+    std::ignore = m_client.listAssets();
+
+    EXPECT_EQ(m_http.requests.front().maxResponseBytes, std::optional<std::size_t>{ 64U * 1024U * 1024U });
+}
+
+TEST_F(CloudAssetClientTest, ResponseSizeLimitGrowsToTheSlotLimit)
+{
+    const CloudAssetClient client(CONFIG, "covers", m_http, AssetChunking{}, nullptr, AssetSizeLimit{ .maxBytes = 200LL * 1024 * 1024 });
+    m_http.respondWith(404);
+
+    std::ignore = client.downloadAsset("a.jpg");
+
+    EXPECT_EQ(m_http.requests.front().maxResponseBytes, std::optional<std::size_t>{ 200U * 1024U * 1024U });
+}
+
+TEST_F(CloudAssetClientTest, SmallerSlotLimitDoesNotShrinkTheResponseSizeLimit)
+{
+    const CloudAssetClient client(CONFIG, "covers", m_http, AssetChunking{}, nullptr, AssetSizeLimit{ .maxBytes = 10LL * 1024 * 1024 });
+    m_http.respondWith(404);
+
+    std::ignore = client.downloadAsset("a.jpg");
+
+    EXPECT_EQ(m_http.requests.front().maxResponseBytes, std::optional<std::size_t>{ 64U * 1024U * 1024U });
+}
+
+TEST_F(CloudAssetClientTest, UnknownSlotLimitKeepsTheDefaultResponseSizeLimit)
+{
+    const CloudAssetClient client(CONFIG, "covers", m_http, AssetChunking{}, nullptr, AssetSizeLimit{});
+    m_http.respondWith(404);
+
+    std::ignore = client.downloadAsset("a.jpg");
+
+    EXPECT_EQ(m_http.requests.front().maxResponseBytes, std::optional<std::size_t>{ 64U * 1024U * 1024U });
+}
+
+TEST_F(CloudAssetClientTest, DownloadAboveTheResponseSizeLimitIsReportedWithTheLimit)
+{
+    m_http.failWith("The response is larger than the limit of 67108864 bytes");
+
+    EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.downloadAsset("a.jpg"); }),
+              "API asset download failed: The response is larger than the limit of 67108864 bytes");
 }
 
 TEST_F(CloudAssetClientTest, ListIsParsedFromTheResponse)

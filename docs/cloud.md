@@ -31,7 +31,9 @@ an application that has to work with one stays on an older stapik-common.
   interruptions in a row. A cancelled or failed upload is aborted in the cloud. An upload stopped by a long
   `CloudRateLimitedException` is kept: uploading the same file again continues from the offset the cloud reports,
   or starts anew when the cloud no longer has the upload.
-- Downloads are limited to 64 MiB.
+- Downloads are limited to 64 MiB. A slot that accepts larger files needs its `AssetSizeLimit` as the last argument of
+  `CloudAssetClient`: the limit is then the larger of the two, so every file that could be uploaded can be downloaded
+  (and backed up). A file above the limit fails with "The response is larger than the limit of N bytes".
 
 ## Limits and warnings
 

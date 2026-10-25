@@ -11,6 +11,7 @@
 #include <cctype>
 #include <chrono>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <map>
 #include <optional>
@@ -73,6 +74,7 @@ namespace stapik::http
         {
             Bytes body;
             std::size_t limit = std::numeric_limits<std::size_t>::max();
+            bool limitExceeded = false;
         };
 
         struct ResponseHeaders
@@ -120,14 +122,17 @@ namespace stapik::http
 
         std::size_t collectBody(const char *data, const std::size_t size, const std::size_t count, void *destination)
         {
-            auto &[body, limit] = *static_cast<ResponseSink *>(destination);
+            auto &sink = *static_cast<ResponseSink *>(destination);
             const auto length = size * count;
 
-            if (length > limit - body.size())
+            if (length > sink.limit - sink.body.size())
+            {
+                sink.limitExceeded = true;
                 return 0;
+            }
 
             const auto *bytes = reinterpret_cast<const std::uint8_t *>(data);
-            body.insert(body.end(), bytes, bytes + length);
+            sink.body.insert(sink.body.end(), bytes, bytes + length);
             return length;
         }
 
@@ -182,8 +187,11 @@ namespace stapik::http
             curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &request);
         }
 
-        TransportError transportErrorOf(const CURLcode code)
+        TransportError transportErrorOf(const CURLcode code, const ResponseSink &sink)
         {
+            if (code == CURLE_WRITE_ERROR && sink.limitExceeded)
+                return TransportError{ .message = std::format("The response is larger than the limit of {} bytes", sink.limit) };
+
             return TransportError{ .message = curl_easy_strerror(code), .cancelled = code == CURLE_ABORTED_BY_CALLBACK };
         }
 
@@ -271,7 +279,7 @@ namespace stapik::http
         applyProgress(curl, request);
 
         if (const auto result = curl_easy_perform(curl); result != CURLE_OK)
-            return Failure(transportErrorOf(result));
+            return Failure(transportErrorOf(result, sink));
 
         long status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);

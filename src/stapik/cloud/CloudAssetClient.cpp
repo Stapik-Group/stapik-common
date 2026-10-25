@@ -5,7 +5,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <format>
+#include <limits>
 #include <mutex>
 #include <tuple>
 #include <utility>
@@ -14,7 +16,7 @@ namespace stapik::cloud
 {
     namespace
     {
-        constexpr std::size_t MAX_RESPONSE_BYTES = 64U * 1024U * 1024U;
+        constexpr std::size_t DEFAULT_MAX_RESPONSE_BYTES = 64U * 1024U * 1024U;
         constexpr int HTTP_OK = 200;
         constexpr int HTTP_CREATED = 201;
         constexpr int HTTP_NO_CONTENT = 204;
@@ -30,6 +32,15 @@ namespace stapik::cloud
 
     namespace
     {
+        std::size_t maxResponseBytesFor(const AssetSizeLimit& slotLimit)
+        {
+            if (slotLimit.maxBytes <= 0)
+                return DEFAULT_MAX_RESPONSE_BYTES;
+
+            const auto slotLimitBytes = std::min<std::uint64_t>(static_cast<std::uint64_t>(slotLimit.maxBytes), std::numeric_limits<std::size_t>::max());
+            return std::max(DEFAULT_MAX_RESPONSE_BYTES, static_cast<std::size_t>(slotLimitBytes));
+        }
+
         // The statuses by which the server refuses a file as a whole, whichever way it was sent.
         void throwIfFileRefused(const int httpStatus, const http::Bytes& body, const std::string& filename)
         {
@@ -67,12 +78,13 @@ namespace stapik::cloud
     }
 
     CloudAssetClient::CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient, const AssetChunking chunking,
-                                     std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor) :
+                                     std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor, const AssetSizeLimit slotLimit) :
         m_config(std::move(config)),
         m_slotKey(std::move(slotKey)),
         m_http(httpClient),
         m_chunking(chunking),
-        m_expiryMonitor(std::move(expiryMonitor))
+        m_expiryMonitor(std::move(expiryMonitor)),
+        m_maxResponseBytes(maxResponseBytesFor(slotLimit))
     {
         m_chunking.chunkBytes = std::max<std::size_t>(m_chunking.chunkBytes, 1);
 
@@ -100,7 +112,7 @@ namespace stapik::cloud
             .headers = { { "x-api-key", m_config.apiKey } },
             .body = std::move(body),
             .timeout = http::NO_TIMEOUT,
-            .maxResponseBytes = MAX_RESPONSE_BYTES,
+            .maxResponseBytes = m_maxResponseBytes,
             .onProgress = std::move(onProgress),
             .isCancelled = std::move(isCancelled)
         };

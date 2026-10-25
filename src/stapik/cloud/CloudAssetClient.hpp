@@ -2,6 +2,7 @@
 
 #include "CloudStorageConfig.hpp"
 #include "ApiKeyExpiry.hpp"
+#include "AssetSizeLimit.hpp"
 #include "IAssetStorage.hpp"
 
 #include "stapik/http/IHttpClient.hpp"
@@ -33,7 +34,7 @@ namespace stapik::cloud
     {
     public:
         CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient = http::defaultHttpClient(), AssetChunking chunking = {},
-                         std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor = {});
+                         std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor = {}, AssetSizeLimit slotLimit = {});
 
         [[nodiscard]] std::vector<AssetInfo> listAssets() const override;
         [[nodiscard]] std::optional<AssetBytes> downloadAsset(const std::string& filename) const override;
@@ -79,6 +80,7 @@ namespace stapik::cloud
         const http::IHttpClient& m_http;
         AssetChunking m_chunking;
         std::shared_ptr<ApiKeyExpiryMonitor> m_expiryMonitor;
+        std::size_t m_maxResponseBytes;
         mutable std::mutex m_pendingUploadsMutex;
         mutable std::map<std::string, PendingUpload> m_pendingUploads;
     };
