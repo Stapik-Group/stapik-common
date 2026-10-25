@@ -4,6 +4,7 @@
 #include "stapik/locale/PluralRules.hpp"
 #include "stapik/sync/SyncStatus.hpp"
 #include "stapik/theme/ThemeRegistry.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -240,9 +241,7 @@ TEST(CommonResourcesTest, EngineTranslatesFromTheCommonLocales)
 
 TEST(CommonResourcesTest, ApplicationLocalesOverrideCommonOnes)
 {
-    auto pattern = (fs::temp_directory_path() / "stapik-common-override-XXXXXX").string();
-    ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-    const fs::path appLocales = pattern;
+    const fs::path appLocales = stapik::test::createTemporaryDirectory("stapik-common-override");
     {
         std::ofstream file(appLocales / "en.json");
         file << R"({"dialog.button.cancel": "Never mind", "app.title": "My App"})";

@@ -1,6 +1,7 @@
 #include "stapik/app/AppContext.hpp"
 
 #include "support/ScopedEnvironment.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -29,9 +30,7 @@ namespace
             AppContext::resetForTests();
             setenv("STAPIK_LOG_FILE", "off", 1);
 
-            auto pattern = (fs::temp_directory_path() / "stapik-appcontext-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-appcontext");
             setenv("XDG_CONFIG_HOME", (m_directory / "config").c_str(), 1);
         }
 

@@ -5,6 +5,7 @@
 
 #include "support/FakeSecretStore.hpp"
 #include "support/ScopedEnvironment.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -30,9 +31,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-cloudconfig-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-cloudconfig");
 
             setenv("XDG_DATA_HOME", (m_directory / "data").c_str(), 1);
             setenv("XDG_CONFIG_HOME", (m_directory / "config").c_str(), 1);

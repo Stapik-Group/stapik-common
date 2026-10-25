@@ -4,6 +4,7 @@
 
 #include "support/FakeClock.hpp"
 #include "support/MainLoopPump.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -43,9 +44,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-update-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-update");
             m_settingsPath = m_directory / "settings.json";
             m_settings = std::make_unique<SettingsStore>(m_settingsPath);
         }

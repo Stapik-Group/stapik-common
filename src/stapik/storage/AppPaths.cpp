@@ -72,7 +72,7 @@ namespace
         static std::once_flag warned;
         std::call_once(warned, [&]
         {
-            log::warning("{} is not set, so the files of {} are kept in the temporary directory and may be lost", missingVariable, appName);
+            stapik::log::warning("{} is not set, so the files of {} are kept in the temporary directory and may be lost", missingVariable, appName);
         });
 
         return std::filesystem::temp_directory_path() / appName;

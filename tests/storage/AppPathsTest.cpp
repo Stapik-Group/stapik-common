@@ -1,6 +1,7 @@
 #include "stapik/storage/AppPaths.hpp"
 
 #include "support/ScopedEnvironment.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -65,9 +66,7 @@ TEST_F(AppPathsTest, FallsBackToTempDirectoryWithoutHome)
 
 TEST_F(AppPathsTest, EnsureUserDataDirCreatesTheDirectory)
 {
-    auto pattern = (fs::temp_directory_path() / "stapik-apppaths-XXXXXX").string();
-    ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-    const fs::path root = pattern;
+    const fs::path root = stapik::test::createTemporaryDirectory("stapik-apppaths");
 
     setenv("XDG_DATA_HOME", root.c_str(), 1);
 
@@ -87,9 +86,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-common-res-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_root = pattern;
+            m_root = stapik::test::createTemporaryDirectory("stapik-common-res");
             m_executableDir = m_root / "app" / "bin";
             fs::create_directories(m_executableDir);
         }

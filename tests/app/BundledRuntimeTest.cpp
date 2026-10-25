@@ -1,6 +1,7 @@
 #include "stapik/app/BundledRuntime.hpp"
 
 #include "support/ScopedEnvironment.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -14,6 +15,7 @@ namespace
     namespace fs = std::filesystem;
     using stapik::app::configureBundledRuntime;
     using stapik::app::rebasePixbufLoadersCache;
+    using stapik::test::TemporaryDirectory;
 
     // What gdk-pixbuf-query-loaders writes: a header, then one block per loader separated by blank lines.
     const std::string SAMPLE_CACHE =
@@ -49,31 +51,6 @@ namespace
             lines.push_back(line);
         return lines;
     }
-
-    class TemporaryDirectory
-    {
-    public:
-        TemporaryDirectory()
-        {
-            auto pattern = (fs::temp_directory_path() / "stapik-bundled-XXXXXX").string();
-            EXPECT_NE(mkdtemp(pattern.data()), nullptr);
-            m_path = pattern;
-        }
-
-        ~TemporaryDirectory()
-        {
-            std::error_code errorCode;
-            fs::remove_all(m_path, errorCode);
-        }
-
-        TemporaryDirectory(const TemporaryDirectory&) = delete;
-        TemporaryDirectory& operator=(const TemporaryDirectory&) = delete;
-
-        [[nodiscard]] const fs::path& path() const { return m_path; }
-
-    private:
-        fs::path m_path;
-    };
 
     class BundledRuntimeTest : public testing::Test
     {
