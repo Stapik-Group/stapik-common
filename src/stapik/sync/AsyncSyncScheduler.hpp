@@ -4,6 +4,7 @@
 #include "SyncCoordinator.hpp"
 #include "SyncStatus.hpp"
 
+#include "stapik/log/Log.hpp"
 #include "stapik/task/BackgroundTaskRunner.hpp"
 #include "stapik/task/DebouncedAction.hpp"
 
@@ -114,6 +115,7 @@ namespace stapik::sync
             m_job.reset();
             m_inFlight = true;
             m_runningKind = job.kind;
+            m_runningDocument = job.document;
             setStatus(SyncStatus::Syncing);
 
             m_runner.submit(
@@ -132,10 +134,11 @@ namespace stapik::sync
         void onJobFinished(std::optional<SyncOutcome<DocumentType>> result)
         {
             m_inFlight = false;
+            auto runningDocument = std::exchange(m_runningDocument, std::nullopt);
 
             if (!result)
             {
-                setStatus(SyncStatus::Error);
+                onJobFailed(std::move(runningDocument));
                 return;
             }
 
@@ -168,6 +171,17 @@ namespace stapik::sync
             const bool canContinue = outcome.state == SyncState::Synchronized;
             if (canContinue && m_job && !m_debounce.pending())
                 startJob();
+        }
+
+        void onJobFailed(std::optional<DocumentType> failedDocument)
+        {
+            if (failedDocument)
+                requeueForRetry(*failedDocument, std::nullopt);
+
+            log::error("Sync of {} failed unexpectedly, keeping the change for a retry (consecutive failures: {})",
+                partition().value_or("the main document"), m_consecutiveFailures);
+
+            setStatus(SyncStatus::Error);
         }
 
         void rebaseQueuedJob(const DocumentType& synchronized)
@@ -213,6 +227,7 @@ namespace stapik::sync
         std::optional<Job> m_job;
         bool m_inFlight = false;
         JobKind m_runningKind = JobKind::Push;
+        std::optional<DocumentType> m_runningDocument;
         int m_consecutiveFailures = 0;
         SyncStatus m_status = SyncStatus::Idle;
         sigc::signal<void(SyncStatus)> m_signalStatusChanged;
