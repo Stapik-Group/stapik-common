@@ -5,6 +5,8 @@
 
 #include <climits>
 #include <mutex>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -65,6 +67,17 @@ namespace
         return "";
     }
 
+    std::filesystem::path temporaryDirectoryFallback(const std::string& appName, const std::string_view missingVariable)
+    {
+        static std::once_flag warned;
+        std::call_once(warned, [&]
+        {
+            log::warning("{} is not set, so the files of {} are kept in the temporary directory and may be lost", missingVariable, appName);
+        });
+
+        return std::filesystem::temp_directory_path() / appName;
+    }
+
 #ifdef _WIN32
     std::filesystem::path environmentPath(const wchar_t* name)
     {
@@ -86,7 +99,7 @@ namespace
     {
         const auto base = environmentPath(kind == UserDirectory::Cache ? L"LOCALAPPDATA" : L"APPDATA");
         if (base.empty())
-            return std::filesystem::temp_directory_path() / appName;
+            return temporaryDirectoryFallback(appName, kind == UserDirectory::Cache ? "LOCALAPPDATA" : "APPDATA");
 
         switch (kind)
         {
@@ -102,7 +115,7 @@ namespace
     {
         const auto* home = std::getenv("HOME");
         if (home == nullptr || *home == '\0')
-            return std::filesystem::temp_directory_path() / appName;
+            return temporaryDirectoryFallback(appName, "HOME");
 
         switch (kind)
         {

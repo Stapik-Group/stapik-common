@@ -3,6 +3,7 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/storage/Quarantine.hpp"
 #include "stapik/text/JsonText.hpp"
 
 #include <algorithm>
@@ -11,9 +12,10 @@
 
 namespace stapik::settings
 {
-    SettingsStore::SettingsStore(std::filesystem::path filePath, const int schemaVersion) :
+    SettingsStore::SettingsStore(std::filesystem::path filePath, const int schemaVersion, const time::IClock& clock) :
         m_filePath(std::move(filePath)),
-        m_schemaVersion(schemaVersion)
+        m_schemaVersion(schemaVersion),
+        m_clock(&clock)
     {}
 
     LoadStatus SettingsStore::load()
@@ -153,21 +155,17 @@ namespace stapik::settings
 
     LoadStatus SettingsStore::quarantineCorruptedFile(const char* reason) const
     {
-        auto quarantinePath = m_filePath;
-        quarantinePath += ".corrupt";
+        const auto quarantined = storage::quarantineFile(m_filePath, m_clock->now());
 
-        std::error_code errorCode;
-        std::filesystem::rename(m_filePath, quarantinePath, errorCode);
-
-        if (errorCode)
+        if (!quarantined)
         {
             log::warning("Settings file {} is corrupted ({}) and could not be moved aside: {}",
-                storage::pathText(m_filePath), reason, errorCode.message());
+                storage::pathText(m_filePath), reason, quarantined.error().code.message());
         }
         else
         {
             log::warning("Settings file {} is corrupted ({}); moved to {}",
-                storage::pathText(m_filePath), reason, storage::pathText(quarantinePath));
+                storage::pathText(m_filePath), reason, storage::pathText(*quarantined));
         }
 
         return LoadStatus::Corrupted;

@@ -1,13 +1,18 @@
 #include "stapik/storage/CloudStorageConfigStorage.hpp"
 
+#include "stapik/log/Log.hpp"
+#include "stapik/log/RingBufferSink.hpp"
+
 #include "support/FakeSecretStore.hpp"
 #include "support/ScopedEnvironment.hpp"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -440,4 +445,22 @@ TEST_F(CloudStorageConfigStorageTest, LoadDoesNotThrowWhenTheConfigDirectoryCann
 
     fs::permissions(configPath().parent_path(), fs::perms::owner_all);
     EXPECT_FALSE(config.has_value());
+}
+
+TEST_F(CloudStorageConfigStorageTest, LoadOfBrokenConfigFileLogsWhyItCannotBeUsed)
+{
+    const auto originalSinks = stapik::log::sinks();
+    const auto sink = std::make_shared<stapik::log::RingBufferSink>(10);
+    stapik::log::setSinks({ sink });
+    writeConfigText("definitely not json");
+
+    const auto config = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+    const auto records = sink->snapshot();
+    stapik::log::setSinks(originalSinks);
+
+    EXPECT_FALSE(config.has_value());
+    EXPECT_TRUE(std::ranges::any_of(records, [](const stapik::log::LogRecord& record)
+    {
+        return record.message.find("config.json") != std::string::npos && record.message.find("cannot be used") != std::string::npos;
+    }));
 }

@@ -104,7 +104,10 @@ namespace
     {
         std::ifstream file(path);
         if (!file.is_open())
+        {
+            stapik::log::warning("Cannot open the cloud config {}", stapik::storage::pathText(path));
             return std::nullopt;
+        }
 
         try
         {
@@ -117,8 +120,9 @@ namespace
                 }
             };
         }
-        catch (const nlohmann::json::exception&)
+        catch (const nlohmann::json::exception& exception)
         {
+            stapik::log::warning("The cloud config {} cannot be used: {}", stapik::storage::pathText(path), exception.what());
             return std::nullopt;
         }
     }
@@ -222,7 +226,12 @@ stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageCo
 
 CloudSecretsInConfigFile CloudStorageConfigStorage::secretsKeptInConfigFile(const std::string& appName)
 {
-    const auto content = readConfigFile(configPath(appName));
+    const auto path = configPath(appName);
+    std::error_code errorCode;
+    if (!std::filesystem::exists(path, errorCode))
+        return {};
+
+    const auto content = readConfigFile(path);
     if (!content)
         return {};
 

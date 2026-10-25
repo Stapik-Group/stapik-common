@@ -43,9 +43,7 @@ namespace stapik::task
             return;
 
         cancel();
-
-        if (m_action)
-            m_action();
+        runAction();
     }
 
     bool DebouncedAction::pending() const
@@ -57,11 +55,17 @@ namespace stapik::task
     {
         auto* self = static_cast<DebouncedAction*>(data);
         self->m_sourceId = 0;
+        self->runAction();
 
+        return G_SOURCE_REMOVE;
+    }
+
+    void DebouncedAction::runAction() const
+    {
         try
         {
-            if (self->m_action)
-                self->m_action();
+            if (m_action)
+                m_action();
         }
         catch (const std::exception& exception)
         {
@@ -71,7 +75,5 @@ namespace stapik::task
         {
             log::error("A delayed action failed with an unknown exception");
         }
-
-        return G_SOURCE_REMOVE;
     }
 }

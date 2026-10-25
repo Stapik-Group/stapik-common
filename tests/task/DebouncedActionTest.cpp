@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <stdexcept>
 
 namespace
 {
@@ -84,6 +85,41 @@ TEST(DebouncedActionTest, FlushRunsPendingActionImmediatelyOnce)
 
     pumpFor(100ms);
     EXPECT_EQ(calls, 1);
+}
+
+TEST(DebouncedActionTest, FlushSwallowsTheExceptionOfTheAction)
+{
+    int calls = 0;
+    DebouncedAction action(500ms, [&calls] { ++calls; throw std::runtime_error("failed"); });
+
+    action.trigger();
+
+    EXPECT_NO_THROW(action.flush());
+    EXPECT_EQ(calls, 1);
+    EXPECT_FALSE(action.pending());
+}
+
+TEST(DebouncedActionTest, FlushSwallowsAnExceptionThatIsNotAStdException)
+{
+    DebouncedAction action(500ms, [] { throw 42; });
+
+    action.trigger();
+
+    EXPECT_NO_THROW(action.flush());
+    EXPECT_FALSE(action.pending());
+}
+
+TEST(DebouncedActionTest, TimedActionThatThrowsDoesNotStopLaterOnes)
+{
+    int calls = 0;
+    DebouncedAction action(10ms, [&calls] { if (++calls == 1) throw std::runtime_error("failed"); });
+
+    action.trigger();
+    pumpUntil([&calls] { return calls == 1; });
+    action.trigger();
+    pumpUntil([&calls] { return calls == 2; });
+
+    EXPECT_EQ(calls, 2);
 }
 
 TEST(DebouncedActionTest, FlushWithoutPendingTriggerDoesNothing)
