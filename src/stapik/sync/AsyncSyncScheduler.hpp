@@ -162,6 +162,9 @@ namespace stapik::sync
                     requeueForRetry(outcome.document, outcome.retryAfter);
                     break;
                 case RemoteUnreadable:
+                case AuthRejected:
+                case DecryptionFailed:
+                case DocumentTooLarge:
                 default:
                     break;
             }

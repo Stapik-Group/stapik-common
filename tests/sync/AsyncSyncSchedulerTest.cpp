@@ -349,6 +349,76 @@ TEST_F(AsyncSyncSchedulerTest, UnreadableCloudDocumentIsReportedAndNotRetried)
     EXPECT_EQ(m_fake.saveCalls, 1);
 }
 
+TEST_F(AsyncSyncSchedulerTest, RejectedApiKeyIsReportedAndNotRetried)
+{
+    m_fake.beforeSave = [] { throw CloudAuthRejectedException("API write failed with status 401"); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("x", 10));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(250ms);
+
+    ASSERT_EQ(m_outcomes.size(), 1U);
+    EXPECT_EQ(m_outcomes.front().state, SyncState::AuthRejected);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Error);
+    EXPECT_EQ(m_fake.saveCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, WrongPassphraseIsReportedAndNotRetried)
+{
+    m_fake.stored = cloudDocument("theirs", 500, 600);
+    m_fake.beforeLoad = [] { throw CloudDecryptionException("Cannot decrypt the cloud data"); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.syncNow(local("mine", 100));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(250ms);
+
+    ASSERT_EQ(m_outcomes.size(), 1U);
+    EXPECT_EQ(m_outcomes.front().state, SyncState::DecryptionFailed);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Error);
+    EXPECT_EQ(m_fake.loadCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, TooLargeDocumentIsReportedAndNotRetried)
+{
+    m_fake.beforeSave = [] { throw CloudDocumentTooLargeException("API write failed with status 413"); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("x", 10));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(250ms);
+
+    ASSERT_EQ(m_outcomes.size(), 1U);
+    EXPECT_EQ(m_outcomes.front().state, SyncState::DocumentTooLarge);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Error);
+    EXPECT_EQ(m_fake.saveCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, ChangeMadeAfterARejectionIsUploadedAgain)
+{
+    std::atomic<int> uploads{ 0 };
+    m_fake.beforeSave = [&uploads]
+    {
+        if (uploads++ == 0)
+            throw CloudAuthRejectedException("API write failed with status 403");
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("A", 100));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    scheduler.documentChanged(local("B", 200));
+    ASSERT_TRUE(pumpUntil([this] { return m_outcomes.size() == 2; }));
+
+    EXPECT_EQ(m_outcomes.back().state, SyncState::Synchronized);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Idle);
+    EXPECT_EQ(storedText(), "B");
+}
+
 TEST_F(AsyncSyncSchedulerTest, FlushUploadsWithoutWaitingForTheDebounceDelay)
 {
     AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });

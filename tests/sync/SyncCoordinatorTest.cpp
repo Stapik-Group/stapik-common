@@ -109,6 +109,49 @@ TEST_F(SyncCoordinatorTest, SubSecondDifferenceIsIgnored)
     EXPECT_EQ(m_fake.saveCalls, 0);
 }
 
+TEST_F(SyncCoordinatorTest, ConnectWithRejectedApiKeyKeepsLocalAndReportsIt)
+{
+    m_fake.beforeLoad = [] { throw CloudAuthRejectedException("API read failed with status 401"); };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::AuthRejected);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(outcome.message, "API read failed with status 401");
+    EXPECT_FALSE(outcome.retryAfter.has_value());
+}
+
+TEST_F(SyncCoordinatorTest, ConnectWithWrongPassphraseKeepsLocalAndReportsIt)
+{
+    m_fake.beforeLoad = [] { throw CloudDecryptionException("Cannot decrypt the cloud data"); };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::DecryptionFailed);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(outcome.message, "Cannot decrypt the cloud data");
+}
+
+TEST_F(SyncCoordinatorTest, PushWithRejectedApiKeyKeepsLocalAndReportsIt)
+{
+    m_fake.beforeSave = [] { throw CloudAuthRejectedException("API write failed with status 403"); };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::AuthRejected);
+    EXPECT_EQ(outcome.document.text, "mine");
+}
+
+TEST_F(SyncCoordinatorTest, PushOfATooLargeDocumentKeepsLocalAndReportsIt)
+{
+    m_fake.beforeSave = [] { throw CloudDocumentTooLargeException("API write failed with status 413"); };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::DocumentTooLarge);
+    EXPECT_EQ(outcome.document.text, "mine");
+}
+
 TEST_F(SyncCoordinatorTest, ConnectWhileOfflineKeepsLocal)
 {
     m_fake.unreachable = true;

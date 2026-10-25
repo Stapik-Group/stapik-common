@@ -13,7 +13,10 @@ namespace stapik::sync
         OfflineKeptLocal,
         ServerWon,
         LostRaceAcceptedServer,
-        RemoteUnreadable
+        RemoteUnreadable,
+        AuthRejected,
+        DecryptionFailed,
+        DocumentTooLarge
     };
 
     template<typename DocumentType>
