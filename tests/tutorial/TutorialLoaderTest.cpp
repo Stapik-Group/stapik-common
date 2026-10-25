@@ -1,5 +1,6 @@
 #include "stapik/markdown/MarkdownDocument.hpp"
 #include "stapik/tutorial/TutorialLoader.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -18,9 +19,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-tutorial-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_root = pattern;
+            m_root = stapik::test::createTemporaryDirectory("stapik-tutorial");
         }
 
         void TearDown() override

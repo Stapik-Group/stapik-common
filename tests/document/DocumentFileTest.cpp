@@ -1,6 +1,7 @@
 #include "stapik/document/DocumentFile.hpp"
 
 #include "support/FakeClock.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -60,9 +61,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-document-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-document");
             m_path = m_directory / "data" / "note.json";
         }
 
