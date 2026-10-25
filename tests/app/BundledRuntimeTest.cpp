@@ -1,5 +1,6 @@
 #include "stapik/app/BundledRuntime.hpp"
 
+#include "support/Environment.hpp"
 #include "support/ScopedEnvironment.hpp"
 #include "support/TemporaryDirectory.hpp"
 
@@ -62,10 +63,10 @@ namespace
 
         void SetUp() override
         {
-            unsetenv("GSETTINGS_SCHEMA_DIR");
-            unsetenv("XDG_DATA_DIRS");
-            unsetenv("FONTCONFIG_PATH");
-            unsetenv("GDK_PIXBUF_MODULE_FILE");
+            stapik::test::unsetEnvironment("GSETTINGS_SCHEMA_DIR");
+            stapik::test::unsetEnvironment("XDG_DATA_DIRS");
+            stapik::test::unsetEnvironment("FONTCONFIG_PATH");
+            stapik::test::unsetEnvironment("GDK_PIXBUF_MODULE_FILE");
         }
 
         static void createFile(const fs::path& file, const std::string& content = "")
@@ -166,7 +167,7 @@ TEST_F(BundledRuntimeTest, BundledShareDirectoryIsSearchedFirstAndOnlyOnce)
     const TemporaryDirectory bundle;
     const TemporaryDirectory cache;
     createFile(bundle.path() / "share/icons/Adwaita/index.theme");
-    setenv("XDG_DATA_DIRS", "/other/share", 1);
+    stapik::test::setEnvironment("XDG_DATA_DIRS", "/other/share");
 
     configureBundledRuntime(bundle.path(), cache.path());
     configureBundledRuntime(bundle.path(), cache.path());

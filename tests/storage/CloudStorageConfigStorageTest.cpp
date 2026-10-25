@@ -4,6 +4,7 @@
 #include "stapik/log/RingBufferSink.hpp"
 
 #include "support/FakeSecretStore.hpp"
+#include "support/Environment.hpp"
 #include "support/ScopedEnvironment.hpp"
 #include "support/TemporaryDirectory.hpp"
 
@@ -33,8 +34,8 @@ namespace
         {
             m_directory = stapik::test::createTemporaryDirectory("stapik-cloudconfig");
 
-            setenv("XDG_DATA_HOME", (m_directory / "data").c_str(), 1);
-            setenv("XDG_CONFIG_HOME", (m_directory / "config").c_str(), 1);
+            stapik::test::setEnvironment("XDG_DATA_HOME", (m_directory / "data").string());
+            stapik::test::setEnvironment("XDG_CONFIG_HOME", (m_directory / "config").string());
             fs::create_directories(configPath().parent_path());
         }
 

@@ -1,5 +1,6 @@
 #include "stapik/app/AppContext.hpp"
 
+#include "support/Environment.hpp"
 #include "support/ScopedEnvironment.hpp"
 #include "support/TemporaryDirectory.hpp"
 
@@ -28,10 +29,10 @@ namespace
         void SetUp() override
         {
             AppContext::resetForTests();
-            setenv("STAPIK_LOG_FILE", "off", 1);
+            stapik::test::setEnvironment("STAPIK_LOG_FILE", "off");
 
             m_directory = stapik::test::createTemporaryDirectory("stapik-appcontext");
-            setenv("XDG_CONFIG_HOME", (m_directory / "config").c_str(), 1);
+            stapik::test::setEnvironment("XDG_CONFIG_HOME", (m_directory / "config").string());
         }
 
         void TearDown() override

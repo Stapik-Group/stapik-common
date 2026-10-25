@@ -1,5 +1,6 @@
 #include "stapik/settings/AppSettings.hpp"
 
+#include "support/Environment.hpp"
 #include "support/ScopedEnvironment.hpp"
 #include "support/TemporaryDirectory.hpp"
 
@@ -37,8 +38,8 @@ namespace
         {
             m_directory = stapik::test::createTemporaryDirectory("stapik-appsettings");
 
-            setenv("XDG_CONFIG_HOME", (m_directory / "config").c_str(), 1);
-            setenv("XDG_DATA_HOME", (m_directory / "data").c_str(), 1);
+            stapik::test::setEnvironment("XDG_CONFIG_HOME", (m_directory / "config").string());
+            stapik::test::setEnvironment("XDG_DATA_HOME", (m_directory / "data").string());
         }
 
         void TearDown() override
