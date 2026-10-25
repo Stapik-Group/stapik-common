@@ -380,3 +380,52 @@ TEST_F(CloudStorageConfigStorageTest, NewKeyReplacesTheStoredOneAfterAnUnreadabl
 
     EXPECT_EQ(m_secretStore.lookup(APP_NAME, API_KEY_ACCOUNT).secret, "new-key");
 }
+
+TEST_F(CloudStorageConfigStorageTest, SecretsKeptInSecretStoreAreNotReportedInConfigFile)
+{
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key", "secret-passphrase" }, APP_NAME, m_secretStore));
+
+    EXPECT_FALSE(CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME).any());
+}
+
+TEST_F(CloudStorageConfigStorageTest, SecretsSavedWithoutSecretStoreAreReportedInConfigFile)
+{
+    m_secretStore.available = false;
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key", "secret-passphrase" }, APP_NAME, m_secretStore));
+
+    const auto inFile = CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME);
+
+    EXPECT_TRUE(inFile.apiKey);
+    EXPECT_TRUE(inFile.encryptionPassphrase);
+    EXPECT_TRUE(inFile.any());
+}
+
+TEST_F(CloudStorageConfigStorageTest, OnlyTheSecretInConfigFileIsReported)
+{
+    writeConfigText(R"({"apiUrl":"https://cloud.example","apiKey":"old-key"})");
+
+    const auto inFile = CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME);
+
+    EXPECT_TRUE(inFile.apiKey);
+    EXPECT_FALSE(inFile.encryptionPassphrase);
+}
+
+TEST_F(CloudStorageConfigStorageTest, SecretsMovedToSecretStoreOnLoadAreNoLongerReportedInConfigFile)
+{
+    writeConfigText(R"({"apiUrl":"https://cloud.example","apiKey":"old-key"})");
+    ASSERT_TRUE(CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME).any());
+
+    const auto config = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(config.has_value());
+    EXPECT_FALSE(CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME).any());
+}
+
+TEST_F(CloudStorageConfigStorageTest, MissingOrBrokenConfigFileReportsNoSecrets)
+{
+    EXPECT_FALSE(CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME).any());
+
+    writeConfigText("definitely not json");
+
+    EXPECT_FALSE(CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME).any());
+}

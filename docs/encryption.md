@@ -19,6 +19,15 @@ read, `load()` returns the config with empty secrets and `secretsUnreadable` set
 or unavailable keyring from a key that was never saved. Saving such a config leaves the stored secrets alone: a failed
 read cannot delete them. A key the user types in the meantime still replaces the stored one.
 
+Without a secret store (no Secret Service on Linux, for example) the secrets stay in `config.json`, readable only by the
+user. `CloudStorageConfigStorage::secretsKeptInConfigFile(appName)` tells which of them are there, so the application
+can warn about it after saving and in its settings.
+
+```cpp
+if (CloudStorageConfigStorage::secretsKeptInConfigFile(appName).any())
+    showPlainTextSecretsWarning();
+```
+
 ## What the server sees
 
 | Visible to the server                     | Hidden from the server                                                       |

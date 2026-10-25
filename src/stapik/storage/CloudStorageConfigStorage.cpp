@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <glib.h>
+#include <optional>
 #include <sstream>
 #include <utility>
 
@@ -91,6 +92,35 @@ namespace
             json["encryptionPassphrase"] = secrets.encryptionPassphrase;
 
         return stapik::storage::writeFileAtomically(path, stapik::text::dumpJson(json, 2), stapik::storage::OWNER_READ_WRITE);
+    }
+
+    struct ConfigFileContent
+    {
+        std::string apiUrl;
+        FileSecrets secrets;
+    };
+
+    std::optional<ConfigFileContent> readConfigFile(const std::filesystem::path& path)
+    {
+        std::ifstream file(path);
+        if (!file.is_open())
+            return std::nullopt;
+
+        try
+        {
+            const auto json = nlohmann::json::parse(file);
+            return ConfigFileContent{
+                .apiUrl = json.at("apiUrl").get<std::string>(),
+                .secrets = {
+                    .apiKey = json.value("apiKey", std::string{}),
+                    .encryptionPassphrase = json.value("encryptionPassphrase", std::string{})
+                }
+            };
+        }
+        catch (const nlohmann::json::exception&)
+        {
+            return std::nullopt;
+        }
     }
 
     struct ResolvedSecret
@@ -190,6 +220,15 @@ stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageCo
     return writeConfigFile(configPath(appName), config.apiUrl, secretsInFile);
 }
 
+CloudSecretsInConfigFile CloudStorageConfigStorage::secretsKeptInConfigFile(const std::string& appName)
+{
+    const auto content = readConfigFile(configPath(appName));
+    if (!content)
+        return {};
+
+    return { .apiKey = !content->secrets.apiKey.empty(), .encryptionPassphrase = !content->secrets.encryptionPassphrase.empty() };
+}
+
 std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::string& appName, stapik::storage::ISecretStore& secretStore)
 {
     migrateLegacyConfig(appName);
@@ -200,23 +239,13 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
 
     restrictToOwner(path);
 
-    std::ifstream file(path);
-    if (!file.is_open())
+    const auto content = readConfigFile(path);
+    if (!content)
         return std::nullopt;
 
     CloudStorageConfig config;
-    FileSecrets secretsInFile;
-    try
-    {
-        const auto json = nlohmann::json::parse(file);
-        config.apiUrl = json.at("apiUrl").get<std::string>();
-        secretsInFile.apiKey = json.value("apiKey", std::string{});
-        secretsInFile.encryptionPassphrase = json.value("encryptionPassphrase", std::string{});
-    }
-    catch (const nlohmann::json::exception&)
-    {
-        return std::nullopt;
-    }
+    config.apiUrl = content->apiUrl;
+    const auto& secretsInFile = content->secrets;
 
     moveFileSecretsToSecretStore(path, config.apiUrl, secretsInFile, appName, secretStore);
 
