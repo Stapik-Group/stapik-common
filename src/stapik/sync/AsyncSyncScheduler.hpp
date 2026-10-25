@@ -142,7 +142,11 @@ namespace stapik::sync
                 return;
             }
 
-            const auto& outcome = *result;
+            auto& outcome = *result;
+            outcome.discardedLocalChange = outcome.replacesLocal() && m_job.has_value();
+            if (outcome.discardedLocalChange)
+                log::warning("A change made while {} was syncing is dropped because the cloud version replaces the document", partition().value_or("the main document"));
+
             m_signalOutcome.emit(outcome);
 
             switch (outcome.state)
@@ -159,6 +163,10 @@ namespace stapik::sync
                     m_debounce.cancel();
                     break;
                 case OfflineKeptLocal:
+                    requeueForRetry(outcome.document, outcome.retryAfter);
+                    break;
+                case LostRaceKeptLocal:
+                    rebaseQueuedJob(outcome.document);
                     requeueForRetry(outcome.document, outcome.retryAfter);
                     break;
                 case RemoteUnreadable:
