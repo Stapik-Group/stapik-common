@@ -18,6 +18,7 @@ struct CloudStorageConfig
     std::string apiUrl;
     std::string apiKey;
     std::string encryptionPassphrase{};
+    bool secretsUnreadable = false;
 
     [[nodiscard]] bool isConfigured() const
     {

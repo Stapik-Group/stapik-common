@@ -12,6 +12,7 @@ namespace stapik::test
     {
     public:
         bool available = true;
+        bool lookupFails = false;
 
         bool store(const std::string& service, const std::string& account, const std::string& secret) override
         {
@@ -22,16 +23,16 @@ namespace stapik::test
             return true;
         }
 
-        std::optional<std::string> lookup(const std::string& service, const std::string& account) override
+        storage::SecretLookup lookup(const std::string& service, const std::string& account) override
         {
-            if (!available)
-                return std::nullopt;
+            if (!available || lookupFails)
+                return storage::SecretLookup::failed();
 
             const auto found = m_secrets.find({ service, account });
             if (found == m_secrets.end())
-                return std::nullopt;
+                return storage::SecretLookup::missing();
 
-            return found->second;
+            return storage::SecretLookup::found(found->second);
         }
 
         bool remove(const std::string& service, const std::string& account) override

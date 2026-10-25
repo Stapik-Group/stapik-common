@@ -67,20 +67,22 @@ namespace stapik::storage
                 return false;
             }
 
-            std::optional<std::string> lookup(const std::string& service, const std::string& account) override
+            SecretLookup lookup(const std::string& service, const std::string& account) override
             {
                 PCREDENTIALW credential = nullptr;
                 if (!CredReadW(targetName(service, account).c_str(), CRED_TYPE_GENERIC, 0, &credential))
                 {
                     const auto errorCode = GetLastError();
-                    if (errorCode != ERROR_NOT_FOUND)
-                        log::warning("Cannot read credential {}/{}: {}", service, account, std::system_category().message(static_cast<int>(errorCode)));
-                    return std::nullopt;
+                    if (errorCode == ERROR_NOT_FOUND)
+                        return SecretLookup::missing();
+
+                    log::warning("Cannot read credential {}/{}: {}", service, account, std::system_category().message(static_cast<int>(errorCode)));
+                    return SecretLookup::failed();
                 }
 
                 std::string secret(reinterpret_cast<const char*>(credential->CredentialBlob), credential->CredentialBlobSize);
                 CredFree(credential);
-                return secret;
+                return SecretLookup::found(std::move(secret));
             }
 
             bool remove(const std::string& service, const std::string& account) override
@@ -153,7 +155,7 @@ namespace stapik::storage
                 return stored;
             }
 
-            std::optional<std::string> lookup(const std::string& service, const std::string& account) override
+            SecretLookup lookup(const std::string& service, const std::string& account) override
             {
                 GError* error = nullptr;
 
@@ -162,13 +164,20 @@ namespace stapik::storage
                     ACCOUNT_ATTRIBUTE, account.c_str(),
                     nullptr);
 
+                const bool failed = error != nullptr;
                 logFailure("read", service, account, error);
+                if (failed)
+                {
+                    secret_password_free(password);
+                    return SecretLookup::failed();
+                }
+
                 if (password == nullptr)
-                    return std::nullopt;
+                    return SecretLookup::missing();
 
                 std::string secret(password);
                 secret_password_free(password);
-                return secret;
+                return SecretLookup::found(std::move(secret));
             }
 
             bool remove(const std::string& service, const std::string& account) override
@@ -202,9 +211,9 @@ namespace stapik::storage
                 return false;
             }
 
-            std::optional<std::string> lookup(const std::string&, const std::string&) override
+            SecretLookup lookup(const std::string&, const std::string&) override
             {
-                return std::nullopt;
+                return SecretLookup::missing();
             }
 
             bool remove(const std::string&, const std::string&) override
