@@ -85,6 +85,7 @@ add_executable(stapikcommon_tests
         sync/PartitionedSyncServiceTest.cpp
         sync/SyncCoordinatorPartitionTest.cpp
         sync/SyncCoordinatorTest.cpp
+        sync/SyncEnvelopeTest.cpp
         sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
         task/BackgroundTaskRunnerTest.cpp

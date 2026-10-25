@@ -175,6 +175,38 @@ TEST_F(SyncCoordinatorTest, ConnectWithUnreadableCloudDocumentOverwritesNothing)
     EXPECT_EQ(m_fake.saveCalls, 0);
 }
 
+TEST_F(SyncCoordinatorTest, ConnectWithAnInvalidCloudDateOverwritesNothing)
+{
+    m_fake.stored = CloudDocument{ .content = { { "lastUpdate", "yesterday" }, { "payload", { { "text", "theirs" } } } }, .updatedAt = at(600) };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(SyncCoordinatorTest, ConnectWithACloudDocumentWithoutADateOverwritesNothing)
+{
+    m_fake.stored = CloudDocument{ .content = { { "payload", { { "text", "theirs" } } } }, .updatedAt = at(600) };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
+    EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(SyncCoordinatorTest, PushRejectedBecauseOfAnInvalidCloudDateOverwritesNothing)
+{
+    m_fake.stored = CloudDocument{ .content = { { "lastUpdate", "yesterday" }, { "payload", { { "text", "theirs" } } } }, .updatedAt = at(600) };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 300, 100));
+
+    EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(m_fake.stored->updatedAt, at(600));
+}
+
 TEST_F(SyncCoordinatorTest, ConnectLosingARaceToANewerWriterAcceptsTheServer)
 {
     m_fake.stored = cloudDocument("old", 100, 600);
