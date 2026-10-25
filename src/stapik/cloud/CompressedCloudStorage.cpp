@@ -5,6 +5,7 @@
 #include "stapik/compression/Gzip.hpp"
 #include "stapik/log/Log.hpp"
 #include "stapik/text/Base64.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <format>
 #include <utility>
@@ -42,11 +43,11 @@ namespace stapik::cloud
 
     nlohmann::json CompressedCloudStorage::seal(const nlohmann::json& data, const std::string&) const
     {
-        const auto text = data.dump();
-        if (text.size() < m_thresholdBytes)
+        const auto serialized = text::dumpJson(data);
+        if (serialized.size() < m_thresholdBytes)
             return data;
 
-        const auto compressed = compression::gzipCompress(text);
+        const auto compressed = compression::gzipCompress(serialized);
         if (!compressed)
         {
             log::warning("Cannot compress the cloud data, sending it as is: {}", compression::describe(compressed.error()));
@@ -54,7 +55,7 @@ namespace stapik::cloud
         }
 
         const auto encoded = text::base64Encode(compressed.value());
-        if (encoded.size() >= text.size())
+        if (encoded.size() >= serialized.size())
             return data;
 
         return blobOf(encoded);
