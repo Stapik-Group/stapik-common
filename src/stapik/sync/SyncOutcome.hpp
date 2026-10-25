@@ -28,6 +28,7 @@ namespace stapik::sync
         std::string message;
         // Set when the cloud asked to wait before the next request (rate limit); the next attempt should not come sooner.
         std::optional<std::chrono::seconds> retryAfter;
+        bool discardedLocalChange = false;
 
         SyncOutcome(const SyncState outcomeState, DocumentType outcomeDocument, std::string outcomeMessage = {}, const std::optional<std::chrono::seconds> outcomeRetryAfter = std::nullopt) :
             state(outcomeState),

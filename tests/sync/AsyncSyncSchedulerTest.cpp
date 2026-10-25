@@ -47,7 +47,7 @@ namespace
             scheduler.signalStatusChanged().connect([this](const SyncStatus status) { m_statuses.push_back(status); });
             scheduler.signalOutcome().connect([this](const stapik::sync::SyncOutcome<Entry>& outcome)
             {
-                m_outcomes.push_back({ outcome.state, outcome.document });
+                m_outcomes.push_back({ outcome.state, outcome.document, outcome.discardedLocalChange });
             });
         }
 
@@ -65,6 +65,7 @@ namespace
         {
             SyncState state;
             Entry document;
+            bool discardedLocalChange;
         };
 
         AsyncSyncOptions m_options{ 30ms, 40ms, 160ms };
@@ -192,6 +193,31 @@ TEST_F(AsyncSyncSchedulerTest, SyncNowTakesTheNewerServerDocumentAndDropsQueuedC
 
     EXPECT_EQ(m_outcomes.front().state, SyncState::ServerWon);
     EXPECT_EQ(m_outcomes.front().document.text, "theirs");
+    EXPECT_FALSE(m_outcomes.front().discardedLocalChange);
+    EXPECT_EQ(m_fake.saveCalls, 0);
+    EXPECT_FALSE(scheduler.hasPendingWork());
+}
+
+TEST_F(AsyncSyncSchedulerTest, ChangeMadeWhileTheServerVersionIsBeingTakenIsReportedAsDiscarded)
+{
+    m_fake.stored = cloudDocument("theirs", 500, 600);
+    std::atomic<bool> loadStarted{ false };
+    m_fake.beforeLoad = [&loadStarted]
+    {
+        loadStarted = true;
+        std::this_thread::sleep_for(100ms);
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.syncNow(local("mine", 100));
+    ASSERT_TRUE(pumpUntil([&loadStarted] { return loadStarted.load(); }));
+    scheduler.documentChanged(local("typed meanwhile", 200));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(150ms);
+
+    EXPECT_EQ(m_outcomes.front().state, SyncState::ServerWon);
+    EXPECT_TRUE(m_outcomes.front().discardedLocalChange);
     EXPECT_EQ(m_fake.saveCalls, 0);
     EXPECT_FALSE(scheduler.hasPendingWork());
 }

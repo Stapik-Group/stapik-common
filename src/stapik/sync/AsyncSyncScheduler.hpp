@@ -142,7 +142,11 @@ namespace stapik::sync
                 return;
             }
 
-            const auto& outcome = *result;
+            auto& outcome = *result;
+            outcome.discardedLocalChange = outcome.replacesLocal() && m_job.has_value();
+            if (outcome.discardedLocalChange)
+                log::warning("A change made while {} was syncing is dropped because the cloud version replaces the document", partition().value_or("the main document"));
+
             m_signalOutcome.emit(outcome);
 
             switch (outcome.state)
