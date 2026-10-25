@@ -28,6 +28,13 @@ ctest --test-dir build-tsan --output-on-failure
 ThreadSanitizer is the one to run for code with threads: `BackgroundTaskRunner`, `AsyncSyncScheduler` and the
 `MainThread` hand-off. Use a separate build directory per sanitizer.
 
+## In CI
+
+The `sanitizers` and `coverage` jobs of `.github/workflows/ci.yml` run these configurations on every pull request from
+`develop`; see [ci](ci.md). The tests do not use POSIX only calls, so the same suite also runs on Windows. Test code
+creates directories with `stapik::test::createTemporaryDirectory()` and changes the environment with
+`stapik::test::setEnvironment()`, both from `tests/support`.
+
 ## Coverage
 
 ```bash
