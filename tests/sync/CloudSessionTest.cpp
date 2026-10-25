@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -291,6 +292,39 @@ TEST_F(CloudSessionTest, DestroyingTheSessionWithPendingChangesIsSafe)
 
     EXPECT_EQ(m_fake.saveCalls, 0);
     EXPECT_TRUE(m_baselines.empty());
+}
+
+TEST_F(CloudSessionTest, FlushAndWaitDeliversPendingChanges)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), { 10s, 40ms, 160ms });
+
+    session.pushChange(local("closing", 100));
+    session.flushAndWait();
+
+    EXPECT_EQ(storedText(), "closing");
+}
+
+TEST_F(CloudSessionTest, FlushAndWaitWithoutConnectionReturnsAtOnce)
+{
+    CloudSession<Entry> session(hooks(), m_options);
+
+    session.flushAndWait();
+
+    EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(CloudSessionTest, FlushAndWaitGivesUpAfterTheTimeout)
+{
+    m_storedConfig = validConfig();
+    m_fake.beforeSave = [] { std::this_thread::sleep_for(300ms); };
+    CloudSession<Entry> session(hooks(), { 10s, 40ms, 160ms });
+    session.pushChange(local("slow", 100));
+    const auto begin = std::chrono::steady_clock::now();
+
+    session.flushAndWait(40ms);
+
+    EXPECT_LT(std::chrono::steady_clock::now() - begin, 250ms);
 }
 
 TEST_F(CloudSessionTest, ExpiringApiKeyIsReportedOncePerReportedTime)

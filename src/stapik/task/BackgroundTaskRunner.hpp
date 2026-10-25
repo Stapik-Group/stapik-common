@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -23,6 +24,8 @@ namespace stapik::task
         BackgroundTaskRunner& operator=(const BackgroundTaskRunner&) = delete;
 
         void run(std::function<void()> work, std::function<void()> onFinished = {});
+
+        [[nodiscard]] bool waitUntilIdle(std::chrono::milliseconds timeout);
 
         template<typename Work, typename Handler>
         void submit(Work work, Handler onResult)

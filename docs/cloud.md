@@ -59,6 +59,10 @@ an application that has to work with one stays on an older stapik-common.
   ends with `CloudRequestCancelledException` (`AssetTransferCancelledException` for a file). A task of your own can poll
   `task::isCancellationRequested()` the same way, and `task::CancellationScope` lets a thread that is not run by a
   `BackgroundTaskRunner` hand it a `std::stop_token`.
+- Because destroying the session cancels what is still running, call `CloudSession::flushAndWait()` when the
+  application closes: it sends the pending changes of the document and of every partition at once and waits for them,
+  at most 3 s unless another timeout is passed. `AsyncSyncScheduler::drain()` does the same for one scheduler. The
+  outcome of that last send is not reported through the signals, since nothing is left to show it.
 
 ## Change feed
 

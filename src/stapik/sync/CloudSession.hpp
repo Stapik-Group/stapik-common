@@ -6,6 +6,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/task/BackgroundTaskRunner.hpp"
+#include "stapik/task/Deadline.hpp"
 #include "stapik/task/MainThread.hpp"
 
 #include <sigc++/signal.h>
@@ -27,6 +28,8 @@ namespace stapik::sync
     {
     public:
         using TimePoint = std::chrono::system_clock::time_point;
+
+        static constexpr std::chrono::milliseconds DRAIN_TIMEOUT{ 3000 };
 
         explicit CloudSession(CloudSessionHooks hooks, const AsyncSyncOptions &options = {}) :
             m_hooks(std::move(hooks)),
@@ -83,6 +86,11 @@ namespace stapik::sync
 
             for (auto& [key, entry] : m_partitions)
                 entry.scheduler->flush();
+        }
+
+        void flushAndWait(const std::chrono::milliseconds timeout = DRAIN_TIMEOUT)
+        {
+            drainAll(timeout);
         }
 
         void loadPartition(const std::string& partition, const DocumentType& currentDocument)
@@ -252,6 +260,17 @@ namespace stapik::sync
             });
 
             return m_partitions.emplace(partition, PartitionEntry{ .scheduler = std::move(scheduler) }).first->second;
+        }
+
+        void drainAll(const std::chrono::milliseconds timeout)
+        {
+            const task::Deadline deadline(timeout);
+
+            if (m_scheduler)
+                m_scheduler->drain(deadline.remaining());
+
+            for (auto& [key, entry] : m_partitions)
+                entry.scheduler->drain(deadline.remaining());
         }
 
         void scheduleReleaseOfForgottenPartitions()

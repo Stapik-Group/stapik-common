@@ -72,6 +72,12 @@ namespace stapik::task
         }
     }
 
+    bool BackgroundTaskRunner::waitUntilIdle(const std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(m_state->mutex);
+        return m_state->idle.wait_for(lock, timeout, [this] { return !m_state->draining; });
+    }
+
     void BackgroundTaskRunner::drain(const std::shared_ptr<State>& state)
     {
         while (true)

@@ -243,3 +243,44 @@ TEST(BackgroundTaskRunnerTest, TaskIsNotCancelledWhileItsRunnerLives)
     ASSERT_TRUE(pumpUntil([&cancelled] { return cancelled.has_value(); }));
     EXPECT_EQ(cancelled, std::optional<bool>{ false });
 }
+
+TEST(BackgroundTaskRunnerTest, WaitUntilIdleReturnsOnceTheTasksAreDone)
+{
+    BackgroundTaskRunner runner;
+    std::atomic<int> done{ 0 };
+
+    runner.run([&done]
+    {
+        std::this_thread::sleep_for(30ms);
+        ++done;
+    });
+    runner.run([&done] { ++done; });
+
+    EXPECT_TRUE(runner.waitUntilIdle(2000ms));
+    EXPECT_EQ(done.load(), 2);
+}
+
+TEST(BackgroundTaskRunnerTest, WaitUntilIdleOfAnIdleRunnerReturnsAtOnce)
+{
+    BackgroundTaskRunner runner;
+
+    EXPECT_TRUE(runner.waitUntilIdle(0ms));
+}
+
+TEST(BackgroundTaskRunnerTest, WaitUntilIdleTimesOutWhileATaskIsRunning)
+{
+    BackgroundTaskRunner runner;
+    std::atomic<bool> release{ false };
+
+    runner.run([&release]
+    {
+        while (!release.load())
+            std::this_thread::sleep_for(1ms);
+    });
+
+    EXPECT_FALSE(runner.waitUntilIdle(30ms));
+
+    release = true;
+
+    EXPECT_TRUE(runner.waitUntilIdle(2000ms));
+}
