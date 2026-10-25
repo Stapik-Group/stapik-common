@@ -131,10 +131,16 @@ namespace
 
 std::filesystem::path AppPaths::resourcesDir()
 {
-    if (const auto siblingResources = executableDir() / "resources"; std::filesystem::exists(siblingResources))
+    return resolveResourcesDir(executableDir());
+}
+
+std::filesystem::path AppPaths::resolveResourcesDir(const std::filesystem::path& executableDir)
+{
+    std::error_code errorCode;
+    if (const auto siblingResources = executableDir / "resources"; std::filesystem::exists(siblingResources, errorCode))
         return siblingResources;
 
-    return executableDir().parent_path() / "resources";
+    return executableDir.parent_path() / "resources";
 }
 
 std::filesystem::path AppPaths::commonResourcesDir()

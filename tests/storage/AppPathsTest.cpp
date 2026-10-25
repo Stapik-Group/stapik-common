@@ -167,3 +167,27 @@ TEST(AppPathsPortableTest, PortableRootLivesNextToTheExecutable)
 {
     EXPECT_EQ(AppPaths::portableRoot(), AppPaths::executableDir() / "portable");
 }
+
+TEST_F(CommonResourcesDirTest, ResourcesDirPrefersTheDirectoryNextToTheExecutable)
+{
+    fs::create_directories(m_executableDir / "resources");
+    fs::create_directories(m_root / "app" / "resources");
+
+    EXPECT_EQ(AppPaths::resolveResourcesDir(m_executableDir), m_executableDir / "resources");
+}
+
+TEST_F(CommonResourcesDirTest, ResourcesDirFallsBackToTheParentOfTheExecutableDirectory)
+{
+    EXPECT_EQ(AppPaths::resolveResourcesDir(m_executableDir), m_root / "app" / "resources");
+}
+
+TEST_F(CommonResourcesDirTest, ResourcesDirDoesNotThrowWhenTheExecutableDirectoryCannotBeSearched)
+{
+    fs::permissions(m_executableDir, fs::perms::none);
+
+    fs::path resolved;
+    EXPECT_NO_THROW(resolved = AppPaths::resolveResourcesDir(m_executableDir));
+
+    fs::permissions(m_executableDir, fs::perms::owner_all);
+    EXPECT_EQ(resolved, m_root / "app" / "resources");
+}

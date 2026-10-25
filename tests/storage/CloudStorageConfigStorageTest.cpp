@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -428,4 +429,15 @@ TEST_F(CloudStorageConfigStorageTest, MissingOrBrokenConfigFileReportsNoSecrets)
     writeConfigText("definitely not json");
 
     EXPECT_FALSE(CloudStorageConfigStorage::secretsKeptInConfigFile(APP_NAME).any());
+}
+
+TEST_F(CloudStorageConfigStorageTest, LoadDoesNotThrowWhenTheConfigDirectoryCannotBeSearched)
+{
+    fs::permissions(configPath().parent_path(), fs::perms::none);
+
+    std::optional<CloudStorageConfig> config;
+    EXPECT_NO_THROW(config = CloudStorageConfigStorage::load(APP_NAME, m_secretStore));
+
+    fs::permissions(configPath().parent_path(), fs::perms::owner_all);
+    EXPECT_FALSE(config.has_value());
 }

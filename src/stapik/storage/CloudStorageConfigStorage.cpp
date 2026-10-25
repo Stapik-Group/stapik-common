@@ -234,7 +234,12 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
     migrateLegacyConfig(appName);
 
     const auto path = configPath(appName);
-    if (!std::filesystem::exists(path))
+    std::error_code errorCode;
+    const bool configExists = std::filesystem::exists(path, errorCode);
+    if (errorCode)
+        stapik::log::warning("Cannot check {}: {}", stapik::storage::pathText(path), errorCode.message());
+
+    if (!configExists)
         return std::nullopt;
 
     restrictToOwner(path);
