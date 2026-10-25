@@ -28,7 +28,9 @@ an application that has to work with one stays on an older stapik-common.
   `AssetChecksumMismatchException` (422, the file was damaged on the way).
 - A file of 32 MiB or more is uploaded in 8 MiB chunks through `/asset-uploads` (`AssetChunking` changes both
   numbers). A chunk that did not arrive is found out by asking the cloud for the offset and sent again, at most three
-  interruptions in a row. A cancelled or failed upload is aborted in the cloud.
+  interruptions in a row. A cancelled or failed upload is aborted in the cloud. An upload stopped by a long
+  `CloudRateLimitedException` is kept: uploading the same file again continues from the offset the cloud reports,
+  or starts anew when the cloud no longer has the upload.
 - Downloads are limited to 64 MiB.
 
 ## Limits and warnings

@@ -447,7 +447,101 @@ TEST_F(CloudAssetClientTest, RateLimitedChunkIsNotTreatedAsAnInterruption)
 
     EXPECT_EQ(m_http.requests.front().method, Method::Post);
     EXPECT_EQ(m_http.requests[1].method, Method::Patch);
+    EXPECT_EQ(m_http.requests.size(), 2U);
+}
+
+TEST_F(CloudAssetClientTest, RateLimitedUploadContinuesFromTheOffsetTheCloudReports)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWithRetryAfter(429, 90s);
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), CloudRateLimitedException);
+
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+    const auto info = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(info.filename, "a.jpg");
+    ASSERT_EQ(m_http.requests.size(), 5U);
+    EXPECT_EQ(m_http.requests[3].method, Method::Get);
+    EXPECT_EQ(m_http.requests[3].url, UPLOADS_URL + "/" + UPLOAD_ID);
+    EXPECT_EQ(m_http.requests[4].method, Method::Patch);
+    EXPECT_EQ(m_http.requests[4].headers.at("Upload-Offset"), "3");
+    EXPECT_EQ(std::get<stapik::http::Bytes>(m_http.requests[4].body), (stapik::http::Bytes{ 0x80 }));
+}
+
+TEST_F(CloudAssetClientTest, RateLimitedUploadStartsAgainWhenTheCloudForgotIt)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWithRetryAfter(429, 90s);
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), CloudRateLimitedException);
+
+    m_http.respondWith(404);
+    m_http.respondWith(200, R"({"assets":[]})");
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+    const auto info = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(info.filename, "a.jpg");
+    ASSERT_EQ(m_http.requests.size(), 7U);
+    EXPECT_EQ(m_http.requests[4].method, Method::Post);
+    EXPECT_EQ(m_http.requests[5].headers.at("Upload-Offset"), "0");
+    EXPECT_EQ(m_http.requests[6].headers.at("Upload-Offset"), "3");
+}
+
+TEST_F(CloudAssetClientTest, RateLimitedUploadIsNotSentAgainWhenTheCloudAlreadyStoredTheFile)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWithRetryAfter(429, 90s);
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), CloudRateLimitedException);
+
+    m_http.respondWith(404);
+    m_http.respondWith(200, assetListWithChecksum(sha256Hex(BINARY_CONTENT)));
+    const auto info = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(info.filename, "a.jpg");
+    EXPECT_EQ(m_http.requests.size(), 4U);
+}
+
+TEST_F(CloudAssetClientTest, ChangedFileDoesNotContinueAnEarlierRateLimitedUpload)
+{
+    const AssetBytes changedContent{ 0x01, 0x02, 0x03, 0x04 };
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWithRetryAfter(429, 90s);
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), CloudRateLimitedException);
+
+    m_http.respondWith(204);
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+    std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", changedContent);
+
+    ASSERT_EQ(m_http.requests.size(), 6U);
+    EXPECT_EQ(m_http.requests[2].method, Method::Delete);
+    EXPECT_EQ(m_http.requests[2].url, UPLOADS_URL + "/" + UPLOAD_ID);
+    EXPECT_EQ(m_http.requests[3].method, Method::Post);
+    EXPECT_EQ(m_http.requests[4].headers.at("Upload-Offset"), "0");
+}
+
+TEST_F(CloudAssetClientTest, FailedUploadAfterARateLimitedOneIsAbortedAndForgotten)
+{
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWithRetryAfter(429, 90s);
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), CloudRateLimitedException);
+
+    m_http.respondWith(200, uploadState(0));
+    m_http.respondWith(403);
+    m_http.respondWith(204);
+    EXPECT_THROW(std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), CloudStorageException);
     EXPECT_EQ(m_http.requests.back().method, Method::Delete);
+
+    m_http.respondWith(201, uploadState(0));
+    m_http.respondWith(200, uploadState(3));
+    m_http.respondWith(200, uploadState(4, true));
+    std::ignore = m_chunkedClient.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
+
+    EXPECT_EQ(m_http.requests[m_http.requests.size() - 3].method, Method::Post);
 }
 
 TEST_F(CloudAssetClientTest, ExpiryOfTheApiKeyIsPassedToTheMonitor)
