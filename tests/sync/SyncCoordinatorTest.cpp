@@ -109,6 +109,49 @@ TEST_F(SyncCoordinatorTest, SubSecondDifferenceIsIgnored)
     EXPECT_EQ(m_fake.saveCalls, 0);
 }
 
+TEST_F(SyncCoordinatorTest, ConnectWithRejectedApiKeyKeepsLocalAndReportsIt)
+{
+    m_fake.beforeLoad = [] { throw CloudAuthRejectedException("API read failed with status 401"); };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::AuthRejected);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(outcome.message, "API read failed with status 401");
+    EXPECT_FALSE(outcome.retryAfter.has_value());
+}
+
+TEST_F(SyncCoordinatorTest, ConnectWithWrongPassphraseKeepsLocalAndReportsIt)
+{
+    m_fake.beforeLoad = [] { throw CloudDecryptionException("Cannot decrypt the cloud data"); };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::DecryptionFailed);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(outcome.message, "Cannot decrypt the cloud data");
+}
+
+TEST_F(SyncCoordinatorTest, PushWithRejectedApiKeyKeepsLocalAndReportsIt)
+{
+    m_fake.beforeSave = [] { throw CloudAuthRejectedException("API write failed with status 403"); };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::AuthRejected);
+    EXPECT_EQ(outcome.document.text, "mine");
+}
+
+TEST_F(SyncCoordinatorTest, PushOfATooLargeDocumentKeepsLocalAndReportsIt)
+{
+    m_fake.beforeSave = [] { throw CloudDocumentTooLargeException("API write failed with status 413"); };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::DocumentTooLarge);
+    EXPECT_EQ(outcome.document.text, "mine");
+}
+
 TEST_F(SyncCoordinatorTest, ConnectWhileOfflineKeepsLocal)
 {
     m_fake.unreachable = true;
@@ -130,6 +173,38 @@ TEST_F(SyncCoordinatorTest, ConnectWithUnreadableCloudDocumentOverwritesNothing)
     EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
     EXPECT_EQ(outcome.document.text, "mine");
     EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(SyncCoordinatorTest, ConnectWithAnInvalidCloudDateOverwritesNothing)
+{
+    m_fake.stored = CloudDocument{ .content = { { "lastUpdate", "yesterday" }, { "payload", { { "text", "theirs" } } } }, .updatedAt = at(600) };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(SyncCoordinatorTest, ConnectWithACloudDocumentWithoutADateOverwritesNothing)
+{
+    m_fake.stored = CloudDocument{ .content = { { "payload", { { "text", "theirs" } } } }, .updatedAt = at(600) };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 10));
+
+    EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
+    EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(SyncCoordinatorTest, PushRejectedBecauseOfAnInvalidCloudDateOverwritesNothing)
+{
+    m_fake.stored = CloudDocument{ .content = { { "lastUpdate", "yesterday" }, { "payload", { { "text", "theirs" } } } }, .updatedAt = at(600) };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("mine", 300, 100));
+
+    EXPECT_EQ(outcome.state, SyncState::RemoteUnreadable);
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(m_fake.stored->updatedAt, at(600));
 }
 
 TEST_F(SyncCoordinatorTest, ConnectLosingARaceToANewerWriterAcceptsTheServer)
@@ -165,7 +240,7 @@ TEST_F(SyncCoordinatorTest, ConflictWithOlderServerContentRetriesOnce)
     EXPECT_EQ(m_fake.stored->updatedAt, at(1000));
 }
 
-TEST_F(SyncCoordinatorTest, SecondConflictGivesUpAndAcceptsTheServer)
+TEST_F(SyncCoordinatorTest, SecondConflictWithOlderServerContentKeepsTheNewerLocalDocument)
 {
     m_fake.stored = cloudDocument("old", 100, 600);
     int writes = 0;
@@ -177,9 +252,47 @@ TEST_F(SyncCoordinatorTest, SecondConflictGivesUpAndAcceptsTheServer)
 
     const auto outcome = m_coordinator.resolveOnConnect(local("mine", 300));
 
+    EXPECT_EQ(outcome.state, SyncState::LostRaceKeptLocal);
+    EXPECT_FALSE(outcome.replacesLocal());
+    EXPECT_EQ(outcome.document.text, "mine");
+    EXPECT_EQ(outcome.document.cloudBaseline, std::optional<TimePoint>{ at(800) });
+    EXPECT_FALSE(outcome.message.empty());
+    EXPECT_EQ(m_fake.saveCalls, 2);
+}
+
+TEST_F(SyncCoordinatorTest, SecondConflictWithNewerServerContentAcceptsTheServer)
+{
+    m_fake.stored = cloudDocument("old", 100, 600);
+    int writes = 0;
+    m_fake.beforeSave = [this, &writes]
+    {
+        ++writes;
+        m_fake.stored = cloudDocument("racer" + std::to_string(writes), writes == 1 ? 150 : 400, 600 + writes * 100);
+    };
+
+    const auto outcome = m_coordinator.resolveOnConnect(local("mine", 300));
+
     EXPECT_EQ(outcome.state, SyncState::LostRaceAcceptedServer);
+    EXPECT_TRUE(outcome.replacesLocal());
     EXPECT_EQ(outcome.document.text, "racer2");
     EXPECT_EQ(m_fake.saveCalls, 2);
+}
+
+TEST_F(SyncCoordinatorTest, PushWithTwoConflictsKeepsTheNewerLocalDocument)
+{
+    m_fake.stored = cloudDocument("old", 100, 600);
+    int writes = 0;
+    m_fake.beforeSave = [this, &writes]
+    {
+        ++writes;
+        m_fake.stored = cloudDocument("racer" + std::to_string(writes), 150, 600 + writes * 100);
+    };
+
+    const auto outcome = m_coordinator.pushLocalChange(local("edited", 300, 600));
+
+    EXPECT_EQ(outcome.state, SyncState::LostRaceKeptLocal);
+    EXPECT_EQ(outcome.document.text, "edited");
+    EXPECT_EQ(outcome.document.cloudBaseline, std::optional<TimePoint>{ at(800) });
 }
 
 TEST_F(SyncCoordinatorTest, NetworkFailureDuringUploadKeepsLocal)

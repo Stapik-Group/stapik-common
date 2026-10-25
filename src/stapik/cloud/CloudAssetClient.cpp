@@ -2,10 +2,14 @@
 #include "CloudAssetProtocol.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/task/Cancellation.hpp"
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <format>
+#include <limits>
+#include <mutex>
 #include <tuple>
 #include <utility>
 
@@ -13,7 +17,7 @@ namespace stapik::cloud
 {
     namespace
     {
-        constexpr std::size_t MAX_RESPONSE_BYTES = 64U * 1024U * 1024U;
+        constexpr std::size_t DEFAULT_MAX_RESPONSE_BYTES = 64U * 1024U * 1024U;
         constexpr int HTTP_OK = 200;
         constexpr int HTTP_CREATED = 201;
         constexpr int HTTP_NO_CONTENT = 204;
@@ -29,6 +33,15 @@ namespace stapik::cloud
 
     namespace
     {
+        std::size_t maxResponseBytesFor(const AssetSizeLimit& slotLimit)
+        {
+            if (slotLimit.maxBytes <= 0)
+                return DEFAULT_MAX_RESPONSE_BYTES;
+
+            const auto slotLimitBytes = std::min<std::uint64_t>(static_cast<std::uint64_t>(slotLimit.maxBytes), std::numeric_limits<std::size_t>::max());
+            return std::max(DEFAULT_MAX_RESPONSE_BYTES, static_cast<std::size_t>(slotLimitBytes));
+        }
+
         // The statuses by which the server refuses a file as a whole, whichever way it was sent.
         void throwIfFileRefused(const int httpStatus, const http::Bytes& body, const std::string& filename)
         {
@@ -66,12 +79,13 @@ namespace stapik::cloud
     }
 
     CloudAssetClient::CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient, const AssetChunking chunking,
-                                     std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor) :
+                                     std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor, const AssetSizeLimit slotLimit) :
         m_config(std::move(config)),
         m_slotKey(std::move(slotKey)),
         m_http(httpClient),
         m_chunking(chunking),
-        m_expiryMonitor(std::move(expiryMonitor))
+        m_expiryMonitor(std::move(expiryMonitor)),
+        m_maxResponseBytes(maxResponseBytesFor(slotLimit))
     {
         m_chunking.chunkBytes = std::max<std::size_t>(m_chunking.chunkBytes, 1);
 
@@ -99,9 +113,9 @@ namespace stapik::cloud
             .headers = { { "x-api-key", m_config.apiKey } },
             .body = std::move(body),
             .timeout = http::NO_TIMEOUT,
-            .maxResponseBytes = MAX_RESPONSE_BYTES,
+            .maxResponseBytes = m_maxResponseBytes,
             .onProgress = std::move(onProgress),
-            .isCancelled = std::move(isCancelled)
+            .isCancelled = task::cancellationCheck(std::move(isCancelled))
         };
         request.headers.merge(std::move(extraHeaders));
 
@@ -180,9 +194,55 @@ namespace stapik::cloud
     AssetInfo CloudAssetClient::uploadInChunks(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const
     {
         const auto checksum = sha256Hex(content);
+        auto uploadUrl = pendingUploadUrl(filename, checksum);
 
+        try
+        {
+            std::optional<Resumption> resumption;
+            if (uploadUrl)
+            {
+                resumption = findUpload(*uploadUrl, filename, content.size(), checksum, hooks);
+                if (!resumption)
+                {
+                    forgetPendingUpload(filename);
+                    uploadUrl.reset();
+                }
+            }
+
+            if (resumption && resumption->stored)
+            {
+                forgetPendingUpload(filename);
+                return *resumption->stored;
+            }
+
+            if (!uploadUrl)
+            {
+                uploadUrl = startUpload(filename, mimeType, content.size(), checksum, hooks);
+                rememberPendingUpload(filename, checksum, *uploadUrl);
+            }
+
+            auto asset = sendChunks(*uploadUrl, filename, content, checksum, hooks, resumption ? resumption->offset : 0);
+            forgetPendingUpload(filename);
+            return asset;
+        }
+        catch (const CloudRateLimitedException&)
+        {
+            throw;
+        }
+        catch (...)
+        {
+            forgetPendingUpload(filename);
+            if (uploadUrl)
+                abortUpload(*uploadUrl);
+            throw;
+        }
+    }
+
+    std::string CloudAssetClient::startUpload(const std::string& filename, const std::string& mimeType, const std::size_t totalBytes, const std::string& checksum,
+                                              const AssetUploadHooks& hooks) const
+    {
         const auto start = perform(http::Method::Post, cloud::assetUploadsUrl(m_config.normalizedApiUrl()),
-                                   http::toBytes(buildAssetUploadRequest(m_slotKey, filename, static_cast<std::int64_t>(content.size()), mimeType, checksum)),
+                                   http::toBytes(buildAssetUploadRequest(m_slotKey, filename, static_cast<std::int64_t>(totalBytes), mimeType, checksum)),
                                    "API asset upload failed: ", {}, hooks.isCancelled, { { "Content-Type", "application/json" } });
 
         if (start.status == HTTP_PAYLOAD_TOO_LARGE)
@@ -191,26 +251,16 @@ namespace stapik::cloud
         if (start.status != HTTP_CREATED)
             throw CloudStorageException(std::format("API asset upload failed with status {}", start.status));
 
-        const auto uploadUrl = cloud::assetUploadUrl(m_config.normalizedApiUrl(), parseAssetUploadState(http::toText(start.body)).uploadId);
-
-        try
-        {
-            return sendChunks(uploadUrl, filename, content, checksum, hooks);
-        }
-        catch (...)
-        {
-            abortUpload(uploadUrl);
-            throw;
-        }
+        return cloud::assetUploadUrl(m_config.normalizedApiUrl(), parseAssetUploadState(http::toText(start.body)).uploadId);
     }
 
     AssetInfo CloudAssetClient::sendChunks(const std::string& uploadUrl, const std::string& filename, const AssetBytes& content, const std::string& checksum,
-                                           const AssetUploadHooks& hooks) const
+                                           const AssetUploadHooks& hooks, const std::size_t startOffset) const
     {
         const auto totalBytes = content.size();
         int interruptions = 0;
 
-        for (std::size_t offset = 0; offset < totalBytes;)
+        for (std::size_t offset = startOffset; offset < totalBytes;)
         {
             if (hooks.isCancelled && hooks.isCancelled())
                 throw AssetTransferCancelledException("Asset transfer cancelled");
@@ -289,6 +339,15 @@ namespace stapik::cloud
     auto CloudAssetClient::resumeUpload(const std::string& uploadUrl, const std::string& filename, const std::size_t totalBytes, const std::string& checksum,
                                         const AssetUploadHooks& hooks) const -> Resumption
     {
+        if (const auto found = findUpload(uploadUrl, filename, totalBytes, checksum, hooks))
+            return *found;
+
+        throw CloudStorageException(std::format("The cloud lost the upload of '{}'", filename));
+    }
+
+    auto CloudAssetClient::findUpload(const std::string& uploadUrl, const std::string& filename, const std::size_t totalBytes, const std::string& checksum,
+                                      const AssetUploadHooks& hooks) const -> std::optional<Resumption>
+    {
         const auto [httpStatus, body, retryAfter, headers] = perform(http::Method::Get, uploadUrl, http::NoBody{}, "API asset upload failed: ", {}, hooks.isCancelled);
 
         if (httpStatus == HTTP_OK)
@@ -318,7 +377,7 @@ namespace stapik::cloud
                 return Resumption{ .stored = asset };
         }
 
-        throw CloudStorageException(std::format("The cloud lost the upload of '{}'", filename));
+        return std::nullopt;
     }
 
     void CloudAssetClient::abortUpload(const std::string& uploadUrl) const
@@ -331,6 +390,38 @@ namespace stapik::cloud
         {
             log::debug("Cannot abort the upload in the cloud: {}", exception.what());
         }
+    }
+
+    std::optional<std::string> CloudAssetClient::pendingUploadUrl(const std::string& filename, const std::string& checksum) const
+    {
+        std::optional<PendingUpload> pending;
+        {
+            const std::lock_guard lock(m_pendingUploadsMutex);
+            if (const auto found = m_pendingUploads.find(filename); found != m_pendingUploads.end())
+                pending = found->second;
+        }
+
+        if (!pending)
+            return std::nullopt;
+
+        if (pending->checksum == checksum)
+            return pending->uploadUrl;
+
+        forgetPendingUpload(filename);
+        abortUpload(pending->uploadUrl);
+        return std::nullopt;
+    }
+
+    void CloudAssetClient::rememberPendingUpload(const std::string& filename, const std::string& checksum, const std::string& uploadUrl) const
+    {
+        const std::lock_guard lock(m_pendingUploadsMutex);
+        m_pendingUploads.insert_or_assign(filename, PendingUpload{ .checksum = checksum, .uploadUrl = uploadUrl });
+    }
+
+    void CloudAssetClient::forgetPendingUpload(const std::string& filename) const
+    {
+        const std::lock_guard lock(m_pendingUploadsMutex);
+        m_pendingUploads.erase(filename);
     }
 
     bool CloudAssetClient::deleteAsset(const std::string& filename) const

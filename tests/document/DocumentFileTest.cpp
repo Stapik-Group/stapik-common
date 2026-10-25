@@ -1,6 +1,7 @@
 #include "stapik/document/DocumentFile.hpp"
 
 #include "support/FakeClock.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -60,9 +61,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-document-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-document");
             m_path = m_directory / "data" / "note.json";
         }
 
@@ -610,4 +609,16 @@ TEST_F(DocumentFileTest, DeserializeReportsInvalidTextWithoutTouchingTheManagedF
 
     EXPECT_EQ(readText(m_path), before);
     EXPECT_TRUE(quarantinedFiles().empty());
+}
+
+TEST_F(DocumentFileTest, SaveReplacesInvalidUtf8InsteadOfFailing)
+{
+    DocumentFile<Note> file(m_path, 1);
+
+    ASSERT_TRUE(file.save(Note{ "bad\xff title", 1 }));
+    const auto result = file.load();
+
+    ASSERT_EQ(result.status, LoadStatus::Loaded);
+    ASSERT_TRUE(result.document.has_value());
+    EXPECT_EQ(result.document->title, "bad\xEF\xBF\xBD title");
 }

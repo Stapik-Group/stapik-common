@@ -64,7 +64,7 @@ namespace stapik::sync
             }
             catch (const CloudStorageException& exception)
             {
-                return offline(localDocument, exception);
+                return failed(localDocument, exception);
             }
         }
 
@@ -76,7 +76,7 @@ namespace stapik::sync
             }
             catch (const CloudStorageException& exception)
             {
-                return offline(localDocument, exception);
+                return failed(localDocument, exception);
             }
         }
 
@@ -128,6 +128,30 @@ namespace stapik::sync
             }
         }
 
+        static std::optional<SyncState> permanentFailure(const CloudStorageException& exception)
+        {
+            if (dynamic_cast<const CloudAuthRejectedException*>(&exception))
+                return SyncState::AuthRejected;
+
+            if (dynamic_cast<const CloudDecryptionException*>(&exception))
+                return SyncState::DecryptionFailed;
+
+            if (dynamic_cast<const CloudDocumentTooLargeException*>(&exception))
+                return SyncState::DocumentTooLarge;
+
+            return std::nullopt;
+        }
+
+        static SyncOutcome<DocumentType> failed(const DocumentType& localDocument, const CloudStorageException& exception)
+        {
+            const auto state = permanentFailure(exception);
+            if (!state)
+                return offline(localDocument, exception);
+
+            log::warning("The cloud refused the sync and retrying will not help: {}", exception.what());
+            return { *state, localDocument, exception.what() };
+        }
+
         static SyncOutcome<DocumentType> offline(const DocumentType& localDocument, const CloudStorageException& exception)
         {
             log::info("Cloud unavailable, keeping the local document: {}", exception.what());
@@ -172,9 +196,13 @@ namespace stapik::sync
                 if (!remote)
                     return remoteUnreadable(localDocument);
 
-                if (const bool localStillNewer = localTime > remote->contentTime; !localStillNewer || !canRetry)
-                {
+                if (localTime <= remote->contentTime)
                     return { SyncState::LostRaceAcceptedServer, remote->document.withLastKnownCloudUpdate(remote->cloudUpdatedAt) };
+
+                if (!canRetry)
+                {
+                    log::info("The cloud changed again during the upload, keeping the newer local document for a retry");
+                    return { SyncState::LostRaceKeptLocal, localDocument.withLastKnownCloudUpdate(remote->cloudUpdatedAt), "The cloud changed again during the upload" };
                 }
 
                 baseline = remote->cloudUpdatedAt;

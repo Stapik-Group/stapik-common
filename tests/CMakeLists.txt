@@ -47,6 +47,7 @@ add_executable(stapikcommon_tests
         domain/YearMonthRangeTest.cpp
         domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
+        http/CurlHttpClientTest.cpp
         http/HttpMessageTest.cpp
         http/ProxyListTest.cpp
         http/RetryAfterTest.cpp
@@ -77,6 +78,7 @@ add_executable(stapikcommon_tests
         storage/DirectoryLockTest.cpp
         storage/FileErrorTest.cpp
         storage/PathTextTest.cpp
+        storage/QuarantineTest.cpp
         sync/AsyncSyncSchedulerPartitionTest.cpp
         sync/AsyncSyncSchedulerTest.cpp
         sync/CloudSessionPartitionTest.cpp
@@ -85,12 +87,16 @@ add_executable(stapikcommon_tests
         sync/PartitionedSyncServiceTest.cpp
         sync/SyncCoordinatorPartitionTest.cpp
         sync/SyncCoordinatorTest.cpp
+        sync/SyncEnvelopeTest.cpp
         sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
         task/BackgroundTaskRunnerTest.cpp
+        task/CancellationTest.cpp
         task/DebouncedActionTest.cpp
+        task/ThreadPoolTest.cpp
         text/Base64Test.cpp
         text/CollationTest.cpp
+        text/JsonTextTest.cpp
         text/TextFoldingTest.cpp
         text/TrimTest.cpp
         theme/FontChoiceTest.cpp

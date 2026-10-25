@@ -3,16 +3,20 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/storage/Quarantine.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <algorithm>
 #include <fstream>
+#include <optional>
 #include <utility>
 
 namespace stapik::settings
 {
-    SettingsStore::SettingsStore(std::filesystem::path filePath, const int schemaVersion) :
+    SettingsStore::SettingsStore(std::filesystem::path filePath, const int schemaVersion, const time::IClock& clock) :
         m_filePath(std::move(filePath)),
-        m_schemaVersion(schemaVersion)
+        m_schemaVersion(schemaVersion),
+        m_clock(&clock)
     {}
 
     LoadStatus SettingsStore::load()
@@ -22,22 +26,29 @@ namespace stapik::settings
         if (std::error_code errorCode; !std::filesystem::exists(m_filePath, errorCode))
             return LoadStatus::Missing;
 
-        std::ifstream file(m_filePath);
-        if (!file.is_open())
+        nlohmann::json root;
+        std::optional<std::string> parseError;
+
         {
-            log::warning("Cannot open settings file {}", storage::pathText(m_filePath));
-            return LoadStatus::Missing;
+            std::ifstream file(m_filePath);
+            if (!file.is_open())
+            {
+                log::warning("Cannot open settings file {}", storage::pathText(m_filePath));
+                return LoadStatus::Missing;
+            }
+
+            try
+            {
+                root = nlohmann::json::parse(file);
+            }
+            catch (const nlohmann::json::exception& exception)
+            {
+                parseError = exception.what();
+            }
         }
 
-        nlohmann::json root;
-        try
-        {
-            root = nlohmann::json::parse(file);
-        }
-        catch (const nlohmann::json::exception& exception)
-        {
-            return quarantineCorruptedFile(exception.what());
-        }
+        if (parseError)
+            return quarantineCorruptedFile(parseError->c_str());
 
         if (!hasSettingsStructure(root))
             return quarantineCorruptedFile("unexpected structure");
@@ -58,7 +69,7 @@ namespace stapik::settings
             { "settings", m_values }
         };
 
-        return root.dump(2) + "\n";
+        return text::dumpJson(root, 2) + "\n";
     }
 
     bool SettingsStore::replaceFromText(const std::string_view text)
@@ -152,21 +163,17 @@ namespace stapik::settings
 
     LoadStatus SettingsStore::quarantineCorruptedFile(const char* reason) const
     {
-        auto quarantinePath = m_filePath;
-        quarantinePath += ".corrupt";
+        const auto quarantined = storage::quarantineFile(m_filePath, m_clock->now());
 
-        std::error_code errorCode;
-        std::filesystem::rename(m_filePath, quarantinePath, errorCode);
-
-        if (errorCode)
+        if (!quarantined)
         {
             log::warning("Settings file {} is corrupted ({}) and could not be moved aside: {}",
-                storage::pathText(m_filePath), reason, errorCode.message());
+                storage::pathText(m_filePath), reason, quarantined.error().code.message());
         }
         else
         {
             log::warning("Settings file {} is corrupted ({}); moved to {}",
-                storage::pathText(m_filePath), reason, storage::pathText(quarantinePath));
+                storage::pathText(m_filePath), reason, storage::pathText(*quarantined));
         }
 
         return LoadStatus::Corrupted;

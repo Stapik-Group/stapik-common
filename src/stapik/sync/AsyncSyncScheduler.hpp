@@ -4,15 +4,19 @@
 #include "SyncCoordinator.hpp"
 #include "SyncStatus.hpp"
 
+#include "stapik/log/Log.hpp"
 #include "stapik/task/BackgroundTaskRunner.hpp"
 #include "stapik/task/DebouncedAction.hpp"
+#include "stapik/task/Deadline.hpp"
 
 #include <sigc++/signal.h>
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 
 namespace stapik::sync
@@ -72,6 +76,32 @@ namespace stapik::sync
                 startJob();
         }
 
+        void drain(const std::chrono::milliseconds timeout)
+        {
+            const task::Deadline deadline(timeout);
+
+            m_debounce.cancel();
+            m_retry.cancel();
+            ++m_generation;
+
+            std::ignore = m_runner.waitUntilIdle(deadline.remaining());
+            m_inFlight = false;
+            m_runningDocument.reset();
+
+            if (!m_job)
+                return;
+
+            auto job = std::move(*m_job);
+            m_job.reset();
+
+            m_runner.run([coordinator = &m_coordinator, job = std::move(job)]
+            {
+                static_cast<void>(execute(*coordinator, job));
+            });
+
+            std::ignore = m_runner.waitUntilIdle(deadline.remaining());
+        }
+
         [[nodiscard]] SyncStatus status() const
         {
             return m_status;
@@ -105,6 +135,13 @@ namespace stapik::sync
             DocumentType document;
         };
 
+        static SyncOutcome<DocumentType> execute(const SyncCoordinator<DocumentType>& coordinator, const Job& job)
+        {
+            return job.kind == JobKind::Resolve
+                ? coordinator.resolveOnConnect(job.document)
+                : coordinator.pushLocalChange(job.document);
+        }
+
         void startJob()
         {
             if (m_inFlight || !m_job)
@@ -114,32 +151,37 @@ namespace stapik::sync
             m_job.reset();
             m_inFlight = true;
             m_runningKind = job.kind;
+            m_runningDocument = job.document;
             setStatus(SyncStatus::Syncing);
 
             m_runner.submit(
                 [coordinator = &m_coordinator, job = std::move(job)]
                 {
-                    return job.kind == JobKind::Resolve
-                        ? coordinator->resolveOnConnect(job.document)
-                        : coordinator->pushLocalChange(job.document);
+                    return execute(*coordinator, job);
                 },
-                [this](std::optional<SyncOutcome<DocumentType>> result)
+                [this, generation = m_generation](std::optional<SyncOutcome<DocumentType>> result)
                 {
-                    onJobFinished(std::move(result));
+                    if (generation == m_generation)
+                        onJobFinished(std::move(result));
                 });
         }
 
         void onJobFinished(std::optional<SyncOutcome<DocumentType>> result)
         {
             m_inFlight = false;
+            auto runningDocument = std::exchange(m_runningDocument, std::nullopt);
 
             if (!result)
             {
-                setStatus(SyncStatus::Error);
+                onJobFailed(std::move(runningDocument));
                 return;
             }
 
-            const auto& outcome = *result;
+            auto& outcome = *result;
+            outcome.discardedLocalChange = outcome.replacesLocal() && m_job.has_value();
+            if (outcome.discardedLocalChange)
+                log::warning("A change made while {} was syncing is dropped because the cloud version replaces the document", partition().value_or("the main document"));
+
             m_signalOutcome.emit(outcome);
 
             switch (outcome.state)
@@ -158,7 +200,14 @@ namespace stapik::sync
                 case OfflineKeptLocal:
                     requeueForRetry(outcome.document, outcome.retryAfter);
                     break;
+                case LostRaceKeptLocal:
+                    rebaseQueuedJob(outcome.document);
+                    requeueForRetry(outcome.document, outcome.retryAfter);
+                    break;
                 case RemoteUnreadable:
+                case AuthRejected:
+                case DecryptionFailed:
+                case DocumentTooLarge:
                 default:
                     break;
             }
@@ -168,6 +217,17 @@ namespace stapik::sync
             const bool canContinue = outcome.state == SyncState::Synchronized;
             if (canContinue && m_job && !m_debounce.pending())
                 startJob();
+        }
+
+        void onJobFailed(std::optional<DocumentType> failedDocument)
+        {
+            if (failedDocument)
+                requeueForRetry(*failedDocument, std::nullopt);
+
+            log::error("Sync of {} failed unexpectedly, keeping the change for a retry (consecutive failures: {})",
+                partition().value_or("the main document"), m_consecutiveFailures);
+
+            setStatus(SyncStatus::Error);
         }
 
         void rebaseQueuedJob(const DocumentType& synchronized)
@@ -213,7 +273,9 @@ namespace stapik::sync
         std::optional<Job> m_job;
         bool m_inFlight = false;
         JobKind m_runningKind = JobKind::Push;
+        std::optional<DocumentType> m_runningDocument;
         int m_consecutiveFailures = 0;
+        std::uint64_t m_generation = 0;
         SyncStatus m_status = SyncStatus::Idle;
         sigc::signal<void(SyncStatus)> m_signalStatusChanged;
         sigc::signal<void(const SyncOutcome<DocumentType>&)> m_signalOutcome;

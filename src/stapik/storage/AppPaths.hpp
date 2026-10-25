@@ -8,6 +8,7 @@ class AppPaths
 {
 public:
     static std::filesystem::path resourcesDir();
+    [[nodiscard]] static std::filesystem::path resolveResourcesDir(const std::filesystem::path& executableDir);
 
     [[nodiscard]] static std::filesystem::path commonResourcesDir();
     [[nodiscard]] static std::filesystem::path resolveCommonResourcesDir(

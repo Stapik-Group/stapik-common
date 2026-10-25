@@ -10,10 +10,13 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -22,26 +25,118 @@ namespace stapik::http
 {
     namespace
     {
-        // curl_easy_init() would initialize libcurl by itself on the first call, which is not thread-safe, and
-        // the first requests of an application come from several background threads at once.
         void initializeCurl()
         {
             static const bool initialized = curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK;
             (void)initialized;
         }
 
+        class ThreadCurlHandle
+        {
+        public:
+            ThreadCurlHandle() = default;
+
+            ~ThreadCurlHandle()
+            {
+                curl_easy_cleanup(m_handle);
+            }
+
+            ThreadCurlHandle(const ThreadCurlHandle &) = delete;
+
+            ThreadCurlHandle &operator=(const ThreadCurlHandle &) = delete;
+
+            [[nodiscard]] CURL *acquire()
+            {
+                if (m_busy)
+                    return nullptr;
+
+                if (m_handle == nullptr)
+                {
+                    initializeCurl();
+                    m_handle = curl_easy_init();
+                }
+
+                m_busy = m_handle != nullptr;
+                return m_handle;
+            }
+
+            void release()
+            {
+                m_busy = false;
+            }
+
+            [[nodiscard]] bool owns(const CURL *handle) const { return handle == m_handle; }
+
+        private:
+            CURL *m_handle = nullptr;
+            bool m_busy = false;
+        };
+
+        ThreadCurlHandle &threadCurlHandle()
+        {
+            thread_local ThreadCurlHandle handle;
+            return handle;
+        }
+
+        struct MimeSource
+        {
+            std::span<const std::uint8_t> content;
+            std::size_t position = 0;
+        };
+
+        std::size_t readMimeSource(char *buffer, const std::size_t size, const std::size_t count, void *source)
+        {
+            auto &[content, position] = *static_cast<MimeSource *>(source);
+            const auto length = std::min(size * count, content.size() - position);
+            std::copy_n(content.begin() + static_cast<std::ptrdiff_t>(position), length, reinterpret_cast<std::uint8_t *>(buffer));
+            position += length;
+            return length;
+        }
+
+        int seekMimeSource(void *source, const curl_off_t offset, const int origin)
+        {
+            auto &[content, position] = *static_cast<MimeSource *>(source);
+
+            curl_off_t base = 0;
+            if (origin == SEEK_CUR)
+                base = static_cast<curl_off_t>(position);
+            else if (origin == SEEK_END)
+                base = static_cast<curl_off_t>(content.size());
+            else if (origin != SEEK_SET)
+                return CURL_SEEKFUNC_FAIL;
+
+            const auto target = base + offset;
+            if (target < 0 || static_cast<std::size_t>(target) > content.size())
+                return CURL_SEEKFUNC_FAIL;
+
+            position = static_cast<std::size_t>(target);
+            return CURL_SEEKFUNC_OK;
+        }
+
         class CurlTransfer
         {
         public:
-            CurlTransfer() : m_handle((initializeCurl(), curl_easy_init()))
+            CurlTransfer() : m_handle(threadCurlHandle().acquire())
             {
+                if (m_handle == nullptr)
+                {
+                    initializeCurl();
+                    m_handle = curl_easy_init();
+                }
             }
 
             ~CurlTransfer()
             {
-                curl_easy_cleanup(m_handle);
+                if (m_handle != nullptr)
+                    curl_easy_reset(m_handle);
+
                 curl_mime_free(m_mime);
                 curl_slist_free_all(m_headers);
+
+                if (threadCurlHandle().owns(m_handle))
+                    threadCurlHandle().release();
+                else
+                    curl_easy_cleanup(m_handle);
             }
 
             CurlTransfer(const CurlTransfer &) = delete;
@@ -63,16 +158,24 @@ namespace stapik::http
                 return m_mime;
             }
 
+            [[nodiscard]] MimeSource &holdMimeSource(const std::span<const std::uint8_t> content)
+            {
+                m_mimeSource = MimeSource{ .content = content };
+                return m_mimeSource;
+            }
+
         private:
             CURL *m_handle;
             curl_slist *m_headers = nullptr;
             curl_mime *m_mime = nullptr;
+            MimeSource m_mimeSource;
         };
 
         struct ResponseSink
         {
             Bytes body;
             std::size_t limit = std::numeric_limits<std::size_t>::max();
+            bool limitExceeded = false;
         };
 
         struct ResponseHeaders
@@ -120,14 +223,17 @@ namespace stapik::http
 
         std::size_t collectBody(const char *data, const std::size_t size, const std::size_t count, void *destination)
         {
-            auto &[body, limit] = *static_cast<ResponseSink *>(destination);
+            auto &sink = *static_cast<ResponseSink *>(destination);
             const auto length = size * count;
 
-            if (length > limit - body.size())
+            if (length > sink.limit - sink.body.size())
+            {
+                sink.limitExceeded = true;
                 return 0;
+            }
 
             const auto *bytes = reinterpret_cast<const std::uint8_t *>(data);
-            body.insert(body.end(), bytes, bytes + length);
+            sink.body.insert(sink.body.end(), bytes, bytes + length);
             return length;
         }
 
@@ -182,8 +288,11 @@ namespace stapik::http
             curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &request);
         }
 
-        TransportError transportErrorOf(const CURLcode code)
+        TransportError transportErrorOf(const CURLcode code, const ResponseSink &sink)
         {
+            if (code == CURLE_WRITE_ERROR && sink.limitExceeded)
+                return TransportError{ .message = std::format("The response is larger than the limit of {} bytes", sink.limit) };
+
             return TransportError{ .message = curl_easy_strerror(code), .cancelled = code == CURLE_ABORTED_BY_CALLBACK };
         }
 
@@ -222,7 +331,8 @@ namespace stapik::http
             curl_mime_name(part, file.fieldName.c_str());
             curl_mime_filename(part, file.filename.c_str());
             curl_mime_type(part, file.mimeType.c_str());
-            curl_mime_data(part, reinterpret_cast<const char *>(file.content.data()), file.content.size());
+            curl_mime_data_cb(part, static_cast<curl_off_t>(file.content.size()), readMimeSource, seekMimeSource, nullptr,
+                              &transfer.holdMimeSource(file.content));
             curl_easy_setopt(transfer.handle(), CURLOPT_MIMEPOST, mime);
         }
 
@@ -271,7 +381,7 @@ namespace stapik::http
         applyProgress(curl, request);
 
         if (const auto result = curl_easy_perform(curl); result != CURLE_OK)
-            return Failure(transportErrorOf(result));
+            return Failure(transportErrorOf(result, sink));
 
         long status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);

@@ -1,4 +1,5 @@
 #include "stapik/cloud/CloudStorageClient.hpp"
+#include "stapik/task/Cancellation.hpp"
 
 #include "support/FakeHttpClient.hpp"
 #include "support/ThrownMessage.hpp"
@@ -10,8 +11,10 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <tuple>
+#include <typeinfo>
 
 namespace
 {
@@ -139,11 +142,79 @@ TEST_F(CloudStorageClientTest, UnexpectedStatusOnLoadIsReported)
     EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.loadDocument(); }), "API read failed with status 500");
 }
 
+TEST_F(CloudStorageClientTest, RejectedApiKeyOnLoadIsReportedAsAuthRejection)
+{
+    for (const int status : { 401, 403 })
+    {
+        m_http.respondWith(status);
+
+        EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudAuthRejectedException) << status;
+    }
+}
+
+TEST_F(CloudStorageClientTest, RejectedApiKeyOnSaveIsReportedAsAuthRejection)
+{
+    respondWithCurrentDocument();
+    m_http.respondWith(403);
+
+    EXPECT_THROW(std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME), CloudAuthRejectedException);
+}
+
+TEST_F(CloudStorageClientTest, TooLargeDocumentOnSaveIsReportedAsSuch)
+{
+    respondWithCurrentDocument();
+    m_http.respondWith(413);
+
+    EXPECT_EQ(thrownMessage<CloudDocumentTooLargeException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME); }), "API write failed with status 413");
+}
+
+TEST_F(CloudStorageClientTest, RejectedApiKeyOnPartitionListAndChangeListIsReportedAsAuthRejection)
+{
+    m_http.respondWith(401);
+    EXPECT_THROW(std::ignore = m_client.listPartitions(), CloudAuthRejectedException);
+
+    m_http.respondWith(403);
+    EXPECT_THROW(std::ignore = m_client.listChanges(SERVER_TIME), CloudAuthRejectedException);
+}
+
+TEST_F(CloudStorageClientTest, ServerErrorStaysAPlainCloudFailure)
+{
+    m_http.respondWith(503);
+
+    try
+    {
+        std::ignore = m_client.loadDocument();
+        FAIL() << "expected an exception";
+    }
+    catch (const CloudStorageException& exception)
+    {
+        EXPECT_EQ(typeid(exception), typeid(CloudStorageException));
+    }
+}
+
 TEST_F(CloudStorageClientTest, TransportFailureOnLoadIsReportedWithTheReason)
 {
     m_http.failWith("Timeout was reached");
 
     EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.loadDocument(); }), "API read failed: Timeout was reached");
+}
+
+TEST_F(CloudStorageClientTest, RequestIsCancelledWhenTheRunningTaskIsCancelled)
+{
+    m_http.progressReports.push_back({});
+    std::stop_source source;
+    source.request_stop();
+    const stapik::task::CancellationScope scope(source.get_token());
+
+    EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudRequestCancelledException);
+}
+
+TEST_F(CloudStorageClientTest, RequestIsNotCancelledOutsideACancelledTask)
+{
+    m_http.progressReports.push_back({});
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+
+    EXPECT_TRUE(m_client.loadDocument().has_value());
 }
 
 TEST_F(CloudStorageClientTest, MalformedResponseOnLoadIsReportedAsCloudError)
@@ -580,4 +651,16 @@ TEST_F(CloudStorageClientTest, UnconfiguredClientHasNoChanges)
     EXPECT_TRUE(list.changes.empty());
     EXPECT_EQ(list.serverTime, SERVER_TIME);
     EXPECT_TRUE(m_http.requests.empty());
+}
+
+TEST_F(CloudStorageClientTest, InvalidUtf8IsReplacedInsteadOfFailingTheSave)
+{
+    m_http.respondWith(404);
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+
+    std::ignore = m_client.saveDocument(nlohmann::json{ { "title", std::string("bad\xff title") } }, {});
+
+    ASSERT_EQ(m_http.requests.size(), 2U);
+    const auto payload = nlohmann::json::parse(bodyText(m_http.requests.back()));
+    EXPECT_EQ(nlohmann::json::parse(payload.at("content").get<std::string>()), (nlohmann::json{ { "title", "bad\xEF\xBF\xBD title" } }));
 }

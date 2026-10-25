@@ -4,12 +4,15 @@
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <fstream>
 #include <glib.h>
+#include <optional>
 #include <sstream>
+#include <utility>
 
 namespace
 {
@@ -88,7 +91,59 @@ namespace
         if (!secrets.encryptionPassphrase.empty())
             json["encryptionPassphrase"] = secrets.encryptionPassphrase;
 
-        return stapik::storage::writeFileAtomically(path, json.dump(2), stapik::storage::OWNER_READ_WRITE);
+        return stapik::storage::writeFileAtomically(path, stapik::text::dumpJson(json, 2), stapik::storage::OWNER_READ_WRITE);
+    }
+
+    struct ConfigFileContent
+    {
+        std::string apiUrl;
+        FileSecrets secrets;
+    };
+
+    std::optional<ConfigFileContent> readConfigFile(const std::filesystem::path& path)
+    {
+        std::ifstream file(path);
+        if (!file.is_open())
+        {
+            stapik::log::warning("Cannot open the cloud config {}", stapik::storage::pathText(path));
+            return std::nullopt;
+        }
+
+        try
+        {
+            const auto json = nlohmann::json::parse(file);
+            return ConfigFileContent{
+                .apiUrl = json.at("apiUrl").get<std::string>(),
+                .secrets = {
+                    .apiKey = json.value("apiKey", std::string{}),
+                    .encryptionPassphrase = json.value("encryptionPassphrase", std::string{})
+                }
+            };
+        }
+        catch (const nlohmann::json::exception& exception)
+        {
+            stapik::log::warning("The cloud config {} cannot be used: {}", stapik::storage::pathText(path), exception.what());
+            return std::nullopt;
+        }
+    }
+
+    struct ResolvedSecret
+    {
+        std::string value;
+        bool unreadable = false;
+    };
+
+    ResolvedSecret resolveSecret(
+        stapik::storage::ISecretStore& secretStore,
+        const std::string& appName,
+        const char* account,
+        const std::string& secretFromFile)
+    {
+        if (!secretFromFile.empty())
+            return { secretFromFile, false };
+
+        const auto lookup = secretStore.lookup(appName, account);
+        return { lookup.secret, lookup.isFailed() };
     }
 
     std::string secretToKeepInFile(
@@ -96,11 +151,13 @@ namespace
         const std::string& appName,
         const char* account,
         const std::string& secret,
-        const char* description)
+        const char* description,
+        const bool secretStoreWasUnreadable)
     {
         if (secret.empty())
         {
-            secretStore.remove(appName, account);
+            if (!secretStoreWasUnreadable)
+                secretStore.remove(appName, account);
             return {};
         }
 
@@ -155,16 +212,35 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
     return load(appName, stapik::storage::platformSecretStore());
 }
 
+stapik::storage::FileResult CloudStorageConfigStorage::clear(const std::string& appName)
+{
+    return clear(appName, stapik::storage::platformSecretStore());
+}
+
 stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName, stapik::storage::ISecretStore& secretStore)
 {
     migrateLegacyConfig(appName);
 
     const FileSecrets secretsInFile{
-        .apiKey = secretToKeepInFile(secretStore, appName, API_KEY_ACCOUNT, config.apiKey, "cloud API key"),
-        .encryptionPassphrase = secretToKeepInFile(secretStore, appName, ENCRYPTION_PASSPHRASE_ACCOUNT, config.encryptionPassphrase, "cloud encryption passphrase")
+        .apiKey = secretToKeepInFile(secretStore, appName, API_KEY_ACCOUNT, config.apiKey, "cloud API key", config.secretsUnreadable),
+        .encryptionPassphrase = secretToKeepInFile(secretStore, appName, ENCRYPTION_PASSPHRASE_ACCOUNT, config.encryptionPassphrase, "cloud encryption passphrase", config.secretsUnreadable)
     };
 
     return writeConfigFile(configPath(appName), config.apiUrl, secretsInFile);
+}
+
+CloudSecretsInConfigFile CloudStorageConfigStorage::secretsKeptInConfigFile(const std::string& appName)
+{
+    const auto path = configPath(appName);
+    std::error_code errorCode;
+    if (!std::filesystem::exists(path, errorCode))
+        return {};
+
+    const auto content = readConfigFile(path);
+    if (!content)
+        return {};
+
+    return { .apiKey = !content->secrets.apiKey.empty(), .encryptionPassphrase = !content->secrets.encryptionPassphrase.empty() };
 }
 
 std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::string& appName, stapik::storage::ISecretStore& secretStore)
@@ -172,37 +248,52 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
     migrateLegacyConfig(appName);
 
     const auto path = configPath(appName);
-    if (!std::filesystem::exists(path))
+    std::error_code errorCode;
+    const bool configExists = std::filesystem::exists(path, errorCode);
+    if (errorCode)
+        stapik::log::warning("Cannot check {}: {}", stapik::storage::pathText(path), errorCode.message());
+
+    if (!configExists)
         return std::nullopt;
 
     restrictToOwner(path);
 
-    std::ifstream file(path);
-    if (!file.is_open())
+    const auto content = readConfigFile(path);
+    if (!content)
         return std::nullopt;
 
     CloudStorageConfig config;
-    FileSecrets secretsInFile;
-    try
-    {
-        const auto json = nlohmann::json::parse(file);
-        config.apiUrl = json.at("apiUrl").get<std::string>();
-        secretsInFile.apiKey = json.value("apiKey", std::string{});
-        secretsInFile.encryptionPassphrase = json.value("encryptionPassphrase", std::string{});
-    }
-    catch (const nlohmann::json::exception&)
-    {
-        return std::nullopt;
-    }
+    config.apiUrl = content->apiUrl;
+    const auto& secretsInFile = content->secrets;
 
     moveFileSecretsToSecretStore(path, config.apiUrl, secretsInFile, appName, secretStore);
 
-    config.apiKey = secretsInFile.apiKey.empty()
-        ? secretStore.lookup(appName, API_KEY_ACCOUNT).value_or(std::string{})
-        : secretsInFile.apiKey;
-    config.encryptionPassphrase = secretsInFile.encryptionPassphrase.empty()
-        ? secretStore.lookup(appName, ENCRYPTION_PASSPHRASE_ACCOUNT).value_or(std::string{})
-        : secretsInFile.encryptionPassphrase;
+    auto apiKey = resolveSecret(secretStore, appName, API_KEY_ACCOUNT, secretsInFile.apiKey);
+    auto encryptionPassphrase = resolveSecret(secretStore, appName, ENCRYPTION_PASSPHRASE_ACCOUNT, secretsInFile.encryptionPassphrase);
+
+    config.apiKey = std::move(apiKey.value);
+    config.encryptionPassphrase = std::move(encryptionPassphrase.value);
+    config.secretsUnreadable = apiKey.unreadable || encryptionPassphrase.unreadable;
 
     return config;
+}
+
+stapik::storage::FileResult CloudStorageConfigStorage::clear(const std::string& appName, stapik::storage::ISecretStore& secretStore)
+{
+    secretStore.remove(appName, API_KEY_ACCOUNT);
+    secretStore.remove(appName, ENCRYPTION_PASSPHRASE_ACCOUNT);
+
+    for (const auto& path : { configPath(appName), legacyConfigPath(appName) })
+    {
+        std::error_code errorCode;
+        std::filesystem::remove(path, errorCode);
+
+        if (errorCode)
+        {
+            stapik::log::warning("Cannot remove {}: {}", stapik::storage::pathText(path), errorCode.message());
+            return stapik::Failure(stapik::storage::FileError{ .path = path, .step = "remove", .code = errorCode });
+        }
+    }
+
+    return {};
 }

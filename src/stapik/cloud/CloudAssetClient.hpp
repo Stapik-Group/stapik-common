@@ -2,6 +2,7 @@
 
 #include "CloudStorageConfig.hpp"
 #include "ApiKeyExpiry.hpp"
+#include "AssetSizeLimit.hpp"
 #include "IAssetStorage.hpp"
 
 #include "stapik/http/IHttpClient.hpp"
@@ -9,6 +10,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -32,7 +34,7 @@ namespace stapik::cloud
     {
     public:
         CloudAssetClient(CloudStorageConfig config, std::string slotKey, const http::IHttpClient& httpClient = http::defaultHttpClient(), AssetChunking chunking = {},
-                         std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor = {});
+                         std::shared_ptr<ApiKeyExpiryMonitor> expiryMonitor = {}, AssetSizeLimit slotLimit = {});
 
         [[nodiscard]] std::vector<AssetInfo> listAssets() const override;
         [[nodiscard]] std::optional<AssetBytes> downloadAsset(const std::string& filename) const override;
@@ -53,17 +55,33 @@ namespace stapik::cloud
             std::optional<AssetInfo> stored;
         };
 
+        struct PendingUpload
+        {
+            std::string checksum;
+            std::string uploadUrl;
+        };
+
         [[nodiscard]] AssetInfo uploadInChunks(const std::string& filename, const std::string& mimeType, const AssetBytes& content, const AssetUploadHooks& hooks) const;
+        [[nodiscard]] std::string startUpload(const std::string& filename, const std::string& mimeType, std::size_t totalBytes, const std::string& checksum,
+                                              const AssetUploadHooks& hooks) const;
         [[nodiscard]] AssetInfo sendChunks(const std::string& uploadUrl, const std::string& filename, const AssetBytes& content, const std::string& checksum,
-                                           const AssetUploadHooks& hooks) const;
+                                           const AssetUploadHooks& hooks, std::size_t startOffset) const;
+        [[nodiscard]] std::optional<Resumption> findUpload(const std::string& uploadUrl, const std::string& filename, std::size_t totalBytes, const std::string& checksum,
+                                                           const AssetUploadHooks& hooks) const;
         [[nodiscard]] Resumption resumeUpload(const std::string& uploadUrl, const std::string& filename, std::size_t totalBytes, const std::string& checksum,
                                               const AssetUploadHooks& hooks) const;
         void abortUpload(const std::string& uploadUrl) const;
+        [[nodiscard]] std::optional<std::string> pendingUploadUrl(const std::string& filename, const std::string& checksum) const;
+        void rememberPendingUpload(const std::string& filename, const std::string& checksum, const std::string& uploadUrl) const;
+        void forgetPendingUpload(const std::string& filename) const;
 
         CloudStorageConfig m_config;
         std::string m_slotKey;
         const http::IHttpClient& m_http;
         AssetChunking m_chunking;
         std::shared_ptr<ApiKeyExpiryMonitor> m_expiryMonitor;
+        std::size_t m_maxResponseBytes;
+        mutable std::mutex m_pendingUploadsMutex;
+        mutable std::map<std::string, PendingUpload> m_pendingUploads;
     };
 }

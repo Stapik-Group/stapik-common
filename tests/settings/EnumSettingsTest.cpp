@@ -1,5 +1,6 @@
 #include "stapik/settings/ObservableSetting.hpp"
 #include "stapik/theme/ThemeJson.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -29,9 +30,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-enum-settings-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-enum-settings");
             m_path = m_directory / "settings.json";
         }
 

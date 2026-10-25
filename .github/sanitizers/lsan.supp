@@ -1,0 +1,10 @@
+leak:libfontconfig
+leak:libpango
+leak:libpangocairo
+leak:libpangoft2
+leak:libcairo
+leak:libharfbuzz
+leak:libfreetype
+leak:libgdk_pixbuf
+leak:libgtk-4
+leak:libX11

@@ -57,6 +57,10 @@ namespace stapik::sync
             case SyncState::OfflineKeptLocal: return SyncStatus::Offline;
             case SyncState::LostRaceAcceptedServer: return SyncStatus::Conflict;
             case SyncState::RemoteUnreadable: return SyncStatus::Error;
+            case SyncState::AuthRejected: return SyncStatus::Error;
+            case SyncState::DecryptionFailed: return SyncStatus::Error;
+            case SyncState::DocumentTooLarge: return SyncStatus::Error;
+            case SyncState::LostRaceKeptLocal: return SyncStatus::Syncing;
         }
 
         return SyncStatus::Error;

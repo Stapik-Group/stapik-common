@@ -1,5 +1,7 @@
 #include "stapik/cloud/EncryptedCloudStorage.hpp"
 
+#include "stapik/cloud/CompressedBlob.hpp"
+
 #include "support/FakeCloudStorage.hpp"
 #include "support/ForwardingCloudStorage.hpp"
 
@@ -228,4 +230,66 @@ TEST_F(EncryptedCloudStorageTest, ChangeFeedGoesThroughToTheServerUntouched)
     ASSERT_EQ(list.changes.size(), 1U);
     EXPECT_EQ(list.changes.front().partition, std::optional<std::string>{ "2025" });
     EXPECT_EQ(m_server.changeQueries, std::vector<TimePoint>{ TimePoint{} + std::chrono::seconds{ 10 } });
+}
+
+TEST_F(EncryptedCloudStorageTest, InvalidUtf8IsReplacedInsteadOfFailingTheSave)
+{
+    const auto cloud = storage();
+
+    [[maybe_unused]] const auto result = cloud->saveDocument(documentWithTitle("bad\xff title"), TimePoint{});
+    const auto loaded = cloud->loadDocument();
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->content, documentWithTitle("bad\xEF\xBF\xBD title"));
+}
+
+TEST_F(EncryptedCloudStorageTest, CompressedBlobIsEncryptedAsRawGzipStream)
+{
+    const auto blob = stapik::cloud::compressedBlobOf(std::string("\x1f\x8b\x08\x00\xff\xfe\x00stream", 14));
+
+    [[maybe_unused]] const auto result = storage()->saveDocument(blob, TimePoint{});
+
+    ASSERT_TRUE(m_server.stored.has_value());
+    EXPECT_TRUE(PayloadCipher::isEncrypted(m_server.stored->content));
+    EXPECT_EQ(m_server.stored->content.at("version"), 2);
+}
+
+TEST_F(EncryptedCloudStorageTest, CompressedBlobComesBackUnchanged)
+{
+    const auto blob = stapik::cloud::compressedBlobOf(std::string("\x1f\x8b\x08\x00\xff\xfe\x00stream", 14));
+    const auto cloud = storage();
+
+    [[maybe_unused]] const auto result = cloud->saveDocument(blob, TimePoint{});
+    const auto loaded = cloud->loadDocument();
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->content, blob);
+}
+
+TEST_F(EncryptedCloudStorageTest, DocumentThatOnlyLooksCompressedIsEncryptedAsText)
+{
+    auto lookalike = documentWithTitle("not a real blob");
+    lookalike["format"] = "stapik-gzip";
+    lookalike["version"] = 7;
+    lookalike["data"] = "QQ==";
+    const auto cloud = storage();
+
+    [[maybe_unused]] const auto result = cloud->saveDocument(lookalike, TimePoint{});
+    const auto loaded = cloud->loadDocument();
+
+    EXPECT_EQ(m_server.stored->content.at("version"), 1);
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->content, lookalike);
+}
+
+TEST_F(EncryptedCloudStorageTest, CompressedPartitionBlobRoundTrips)
+{
+    const auto blob = stapik::cloud::compressedBlobOf("partition stream");
+    const auto cloud = storage();
+
+    [[maybe_unused]] const auto result = cloud->savePartition("2025", blob, TimePoint{});
+    const auto loaded = cloud->loadPartition("2025");
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->content, blob);
 }

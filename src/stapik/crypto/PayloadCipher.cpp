@@ -19,7 +19,8 @@ namespace stapik::crypto
     namespace
     {
         constexpr std::string_view FORMAT = "stapik-e2e";
-        constexpr int VERSION = 1;
+        constexpr int TEXT_VERSION = 1;
+        constexpr int GZIP_STREAM_VERSION = 2;
         constexpr std::size_t MAX_CACHED_KEYS = 8;
         constexpr int BASE64_VARIANT = sodium_base64_VARIANT_ORIGINAL;
 
@@ -94,9 +95,25 @@ namespace stapik::crypto
             return fromBase64(found->get<std::string>());
         }
 
-        std::string associatedData(const std::string_view context)
+        int versionOf(const PayloadEncoding encoding)
         {
-            return std::format("{}/{}/{}", FORMAT, VERSION, context);
+            return encoding == PayloadEncoding::GzipStream ? GZIP_STREAM_VERSION : TEXT_VERSION;
+        }
+
+        std::optional<PayloadEncoding> encodingOf(const int version)
+        {
+            if (version == TEXT_VERSION)
+                return PayloadEncoding::Text;
+
+            if (version == GZIP_STREAM_VERSION)
+                return PayloadEncoding::GzipStream;
+
+            return std::nullopt;
+        }
+
+        std::string associatedData(const int version, const std::string_view context)
+        {
+            return std::format("{}/{}/{}", FORMAT, version, context);
         }
 
         const unsigned char* asBytes(const std::string_view text)
@@ -155,13 +172,14 @@ namespace stapik::crypto
             return keys.emplace(id, derive(salt)).first->second;
         }
 
-        [[nodiscard]] nlohmann::json encrypt(const std::string_view plaintext, const std::string_view context)
+        [[nodiscard]] nlohmann::json encrypt(const std::string_view plaintext, const std::string_view context, const PayloadEncoding encoding)
         {
             std::array<unsigned char, NONCE_BYTES> nonce{};
             randombytes_buf(nonce.data(), nonce.size());
 
             const auto key = keyFor(writeSalt);
-            const auto aad = associatedData(context);
+            const auto version = versionOf(encoding);
+            const auto aad = associatedData(version, context);
 
             std::string ciphertext(plaintext.size() + TAG_BYTES, '\0');
             unsigned long long ciphertextLength = 0;
@@ -174,14 +192,14 @@ namespace stapik::crypto
 
             return {
                 { "format", std::string(FORMAT) },
-                { "version", VERSION },
+                { "version", version },
                 { "salt", toBase64(writeSalt) },
                 { "nonce", toBase64(nonce) },
                 { "ciphertext", toBase64(std::span(asBytes(ciphertext), ciphertext.size())) }
             };
         }
 
-        [[nodiscard]] Result<std::string, DecryptionError> decrypt(const nlohmann::json& blob, const std::string_view context)
+        [[nodiscard]] Result<DecryptedPayload, DecryptionError> decrypt(const nlohmann::json& blob, const std::string_view context)
         {
             if (!isEncrypted(blob))
                 return Failure(DecryptionError::NotEncrypted);
@@ -190,7 +208,8 @@ namespace stapik::crypto
             if (version == blob.end() || !version->is_number_integer())
                 return Failure(DecryptionError::Malformed);
 
-            if (version->get<int>() != VERSION)
+            const auto encoding = encodingOf(version->get<int>());
+            if (!encoding)
                 return Failure(DecryptionError::UnsupportedVersion);
 
             const auto salt = bytesField(blob, "salt");
@@ -201,7 +220,7 @@ namespace stapik::crypto
                 return Failure(DecryptionError::Malformed);
 
             const auto key = keyFor(*salt);
-            const auto aad = associatedData(context);
+            const auto aad = associatedData(version->get<int>(), context);
 
             std::string plaintext(ciphertext->size() - TAG_BYTES, '\0');
             unsigned long long plaintextLength = 0;
@@ -214,7 +233,7 @@ namespace stapik::crypto
                 return Failure(DecryptionError::AuthenticationFailed);
 
             plaintext.resize(plaintextLength);
-            return plaintext;
+            return DecryptedPayload{ .bytes = std::move(plaintext), .encoding = *encoding };
         }
 
         std::string passphrase;
@@ -250,12 +269,24 @@ namespace stapik::crypto
 
     PayloadCipher::~PayloadCipher() = default;
 
-    nlohmann::json PayloadCipher::encrypt(const std::string_view plaintext, const std::string_view context) const
+    nlohmann::json PayloadCipher::encrypt(const std::string_view plaintext, const std::string_view context, const PayloadEncoding encoding) const
     {
-        return m_impl->encrypt(plaintext, context);
+        return m_impl->encrypt(plaintext, context, encoding);
     }
 
     Result<std::string, DecryptionError> PayloadCipher::decrypt(const nlohmann::json& blob, const std::string_view context) const
+    {
+        auto payload = m_impl->decrypt(blob, context);
+        if (!payload)
+            return Failure(payload.error());
+
+        if (payload.value().encoding != PayloadEncoding::Text)
+            return Failure(DecryptionError::UnsupportedVersion);
+
+        return std::move(payload.value().bytes);
+    }
+
+    Result<DecryptedPayload, DecryptionError> PayloadCipher::decryptPayload(const nlohmann::json& blob, const std::string_view context) const
     {
         return m_impl->decrypt(blob, context);
     }

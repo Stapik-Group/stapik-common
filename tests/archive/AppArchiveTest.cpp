@@ -3,6 +3,7 @@
 
 #include "support/FakeAssetStorage.hpp"
 #include "support/FakeClock.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
@@ -48,9 +49,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-archive-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-archive");
             m_archivePath = m_directory / "backups" / "app.zip";
         }
 
@@ -436,4 +435,16 @@ TEST_F(AppArchiveTest, ExportDoesNotTouchTheDataFiles)
     exportFrom(installation, Note{ "unsaved edit", 3 });
 
     EXPECT_EQ(readText(m_directory / "source" / "data" / "note.json"), before);
+}
+
+TEST_F(AppArchiveTest, ExportReplacesInvalidUtf8InTheManifestInsteadOfFailing)
+{
+    auto installation = source();
+    installation.assets.put("c.txt", "third file", "text/bad\xff");
+
+    exportFrom(installation);
+
+    const auto zip = ZipReader::open(m_archivePath);
+    ASSERT_TRUE(zip) << zip.error().message();
+    EXPECT_NE(zip->readText("manifest.json").valueOr("").find("text/bad\xEF\xBF\xBD"), std::string::npos);
 }

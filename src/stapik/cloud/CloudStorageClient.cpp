@@ -5,13 +5,32 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/sync/Timestamp.hpp"
+#include "stapik/task/Cancellation.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <format>
 #include <glib.h>
+#include <string_view>
 
 namespace
 {
+    constexpr int HTTP_UNAUTHORIZED = 401;
+    constexpr int HTTP_FORBIDDEN = 403;
+    constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
     constexpr int HTTP_TOO_MANY_REQUESTS = 429;
+
+    [[noreturn]] void throwUnexpectedStatus(const std::string_view operation, const int status)
+    {
+        const auto message = std::format("API {} failed with status {}", operation, status);
+
+        if (status == HTTP_UNAUTHORIZED || status == HTTP_FORBIDDEN)
+            throw CloudAuthRejectedException(message);
+
+        if (status == HTTP_PAYLOAD_TOO_LARGE)
+            throw CloudDocumentTooLargeException(message);
+
+        throw CloudStorageException(message);
+    }
 }
 
 CloudStorageClient::CloudStorageClient(CloudStorageConfig config, std::string slotKey, const stapik::http::IHttpClient& httpClient,
@@ -38,13 +57,21 @@ stapik::http::Response CloudStorageClient::perform(const stapik::http::Method me
         .url = url,
         .headers = { { "x-api-key", m_config.apiKey }, { "Content-Type", "application/json" } },
         .body = std::move(body),
-        .timeout = TIMEOUT
+        .timeout = TIMEOUT,
+        .isCancelled = stapik::task::cancellationCheck()
     };
     request.headers.merge(std::move(extraHeaders));
 
     auto result = m_http.send(request);
     if (!result)
-        throw CloudStorageException(std::string(failureLabel) + result.error().message);
+    {
+        const auto message = std::string(failureLabel) + result.error().message;
+
+        if (result.error().cancelled)
+            throw CloudRequestCancelledException(message);
+
+        throw CloudStorageException(message);
+    }
 
     if (m_expiryMonitor)
         m_expiryMonitor->observe(result.value());
@@ -120,7 +147,7 @@ std::optional<CloudDocument> CloudStorageClient::readDocument(const std::string&
     }
 
     if (response.status != 200)
-        throw CloudStorageException(std::format("API read failed with status {}", response.status));
+        throwUnexpectedStatus("read", response.status);
     try
     {
         auto document = parseDocumentResponse(response);
@@ -151,12 +178,12 @@ CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const
         ifMatch = current->etag;
     }
 
-    const nlohmann::json payload = { { "content", data.dump() } };
+    const nlohmann::json payload = { { "content", stapik::text::dumpJson(data) } };
 
-    const auto response = performPut(url, payload.dump(), ifMatch);
+    const auto response = performPut(url, stapik::text::dumpJson(payload), ifMatch);
 
     if (response.status != 200 && response.status != 409)
-        throw CloudStorageException(std::format("API write failed with status {}", response.status));
+        throwUnexpectedStatus("write", response.status);
 
     try
     {
@@ -203,7 +230,7 @@ std::vector<CloudPartitionInfo> CloudStorageClient::listPartitions() const
         return {};
 
     if (httpStatus != 200)
-        throw CloudStorageException(std::format("API partition list failed with status {}", httpStatus));
+        throwUnexpectedStatus("partition list", httpStatus);
 
     return stapik::cloud::parsePartitionList(stapik::http::toText(body));
 }
@@ -241,7 +268,7 @@ bool CloudStorageClient::deletePartition(const std::string& partition) const
     if (httpStatus == 404)
         return false;
 
-    throw CloudStorageException(std::format("API partition delete failed with status {}", httpStatus));
+    throwUnexpectedStatus("partition delete", httpStatus);
 }
 
 CloudChangeList CloudStorageClient::listChanges(const std::chrono::system_clock::time_point since) const
@@ -252,7 +279,7 @@ CloudChangeList CloudStorageClient::listChanges(const std::chrono::system_clock:
     const auto [httpStatus, body, retryAfter, headers] = performGet(stapik::cloud::changesUrl(m_config.normalizedApiUrl(), since));
 
     if (httpStatus != 200)
-        throw CloudStorageException(std::format("API change list failed with status {}", httpStatus));
+        throwUnexpectedStatus("change list", httpStatus);
 
     return stapik::cloud::parseChangeList(stapik::http::toText(body));
 }

@@ -19,7 +19,7 @@ TEST(PathTextTest, EmptyPathGivesEmptyText)
 
 TEST(PathTextTest, NonAsciiCharactersComeOutAsUtf8)
 {
-    const std::filesystem::path path = std::filesystem::path(u8"/home/zażółć") / u8"gęślą.json";
+    const std::filesystem::path path(u8"/home/zażółć/gęślą.json");
 
     EXPECT_EQ(pathText(path), "/home/zażółć/gęślą.json");
 }

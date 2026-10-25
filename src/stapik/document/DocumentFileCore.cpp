@@ -3,6 +3,8 @@
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/storage/Quarantine.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -171,32 +173,17 @@ namespace stapik::document
             { "document", document }
         };
 
-        return root.dump(2) + "\n";
+        return text::dumpJson(root, 2) + "\n";
     }
 
     void DocumentFileCore::quarantineFile() const
     {
-        const auto stamp = std::format(
-            "{:%Y%m%d-%H%M%S}",
-            std::chrono::floor<std::chrono::seconds>(m_clock->now()));
+        const auto quarantined = storage::quarantineFile(m_filePath, m_clock->now());
 
-        std::error_code errorCode;
-        auto target = m_filePath;
-        target += std::format(".corrupt-{}", stamp);
-
-        int suffix = 2;
-        while (std::filesystem::exists(target, errorCode))
-        {
-            target = m_filePath;
-            target += std::format(".corrupt-{}-{}", stamp, suffix++);
-        }
-
-        std::filesystem::rename(m_filePath, target, errorCode);
-
-        if (errorCode)
-            log::warning("Cannot move corrupted document {} aside: {}", storage::pathText(m_filePath), errorCode.message());
+        if (!quarantined)
+            log::warning("Cannot move corrupted document {} aside: {}", storage::pathText(m_filePath), quarantined.error().code.message());
         else
-            log::warning("Corrupted document moved to {}", storage::pathText(target));
+            log::warning("Corrupted document moved to {}", storage::pathText(*quarantined));
     }
 
     std::filesystem::path DocumentFileCore::backupPath(const int index) const

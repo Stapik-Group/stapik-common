@@ -1,13 +1,14 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <thread>
+#include <stop_token>
 #include <type_traits>
 #include <utility>
 
@@ -23,6 +24,8 @@ namespace stapik::task
         BackgroundTaskRunner& operator=(const BackgroundTaskRunner&) = delete;
 
         void run(std::function<void()> work, std::function<void()> onFinished = {});
+
+        [[nodiscard]] bool waitUntilIdle(std::chrono::milliseconds timeout);
 
         template<typename Work, typename Handler>
         void submit(Work work, Handler onResult)
@@ -49,12 +52,18 @@ namespace stapik::task
             std::function<void()> onFinished;
         };
 
-        void workerLoop(const std::stop_token& stopToken);
+        struct State
+        {
+            std::mutex mutex;
+            std::condition_variable idle;
+            std::deque<Task> tasks;
+            bool draining = false;
+            std::atomic<bool> alive{ true };
+            std::stop_source stop;
+        };
 
-        std::shared_ptr<std::atomic<bool>> m_alive;
-        std::mutex m_mutex;
-        std::condition_variable_any m_wake;
-        std::deque<Task> m_tasks;
-        std::jthread m_worker;
+        static void drain(const std::shared_ptr<State>& state);
+
+        std::shared_ptr<State> m_state;
     };
 }

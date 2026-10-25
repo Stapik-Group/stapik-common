@@ -25,6 +25,7 @@ namespace stapik::task
 
     private:
         static gboolean onTimeout(gpointer data);
+        void runAction() const;
 
         std::chrono::milliseconds m_delay;
         std::function<void()> m_action;

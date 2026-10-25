@@ -220,3 +220,10 @@ TEST(CloudAssetProtocolTest, MalformedUploadStateIsACloudStorageException)
     EXPECT_THROW(std::ignore = parseAssetUploadState(R"({"uploadId":"u-1"})"), CloudStorageException);
     EXPECT_THROW(std::ignore = parseAssetUploadState(R"({"uploadId":"u-1","filename":"a","sizeBytes":1,"offset":0,"expiresAt":"tomorrow"})"), CloudStorageException);
 }
+
+TEST(CloudAssetProtocolTest, UploadRequestReplacesInvalidUtf8InTheFilename)
+{
+    const auto request = nlohmann::json::parse(buildAssetUploadRequest("covers", "bad\xff.jpg", 1, "", ""));
+
+    EXPECT_EQ(request.at("filename"), "bad\xEF\xBF\xBD.jpg");
+}

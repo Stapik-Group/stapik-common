@@ -57,3 +57,23 @@ the builds run with read access.
 
 The tests run before packaging; a failing test stops the release assets from being published. The version of the
 packages is the `VERSION` in the application's `CMakeLists.txt`, so bump it before the tag is created.
+
+## CI of stapik-common
+
+`.github/workflows/ci.yml` checks the library itself, on pull requests from `develop` to `main` / `master` and on
+release tags:
+
+| Job             | What it does                                                                                   |
+|-----------------|------------------------------------------------------------------------------------------------|
+| `test`          | build with warnings and `ctest` on Ubuntu                                                      |
+| `windows-build` | build and `ctest` on Windows (MSYS2 UCRT64), so the Windows specific code is covered by tests  |
+| `sanitizers`    | `ctest` of a build with AddressSanitizer and UBSan, and of a build with ThreadSanitizer        |
+| `coverage`      | `ctest` of an instrumented build; the `gcovr` report is uploaded as the `coverage-report` artifact |
+| `release`       | packages the library once `test` has passed (tags only)                                        |
+
+The sanitizer jobs use the options described in [quality](quality.md). Leaks reported from the graphics stack
+(fontconfig, pango, cairo, gtk) are ignored through `.github/sanitizers/lsan.supp`. ThreadSanitizer is the job that
+watches the threads of `BackgroundTaskRunner`, `AsyncSyncScheduler` and the `MainThread` hand-off.
+
+An application gets the same checks by passing the options in `cmake-args` of `build.yml`, for example
+`-DSTAPIK_ENABLE_ASAN=ON -DSTAPIK_ENABLE_UBSAN=ON`, from a separate caller workflow.

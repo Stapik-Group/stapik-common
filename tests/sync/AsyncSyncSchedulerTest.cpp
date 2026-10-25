@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <new>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -45,7 +47,7 @@ namespace
             scheduler.signalStatusChanged().connect([this](const SyncStatus status) { m_statuses.push_back(status); });
             scheduler.signalOutcome().connect([this](const stapik::sync::SyncOutcome<Entry>& outcome)
             {
-                m_outcomes.push_back({ outcome.state, outcome.document });
+                m_outcomes.push_back({ outcome.state, outcome.document, outcome.discardedLocalChange });
             });
         }
 
@@ -63,6 +65,7 @@ namespace
         {
             SyncState state;
             Entry document;
+            bool discardedLocalChange;
         };
 
         AsyncSyncOptions m_options{ 30ms, 40ms, 160ms };
@@ -190,8 +193,56 @@ TEST_F(AsyncSyncSchedulerTest, SyncNowTakesTheNewerServerDocumentAndDropsQueuedC
 
     EXPECT_EQ(m_outcomes.front().state, SyncState::ServerWon);
     EXPECT_EQ(m_outcomes.front().document.text, "theirs");
+    EXPECT_FALSE(m_outcomes.front().discardedLocalChange);
     EXPECT_EQ(m_fake.saveCalls, 0);
     EXPECT_FALSE(scheduler.hasPendingWork());
+}
+
+TEST_F(AsyncSyncSchedulerTest, ChangeMadeWhileTheServerVersionIsBeingTakenIsReportedAsDiscarded)
+{
+    m_fake.stored = cloudDocument("theirs", 500, 600);
+    std::atomic<bool> loadStarted{ false };
+    m_fake.beforeLoad = [&loadStarted]
+    {
+        loadStarted = true;
+        std::this_thread::sleep_for(100ms);
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.syncNow(local("mine", 100));
+    ASSERT_TRUE(pumpUntil([&loadStarted] { return loadStarted.load(); }));
+    scheduler.documentChanged(local("typed meanwhile", 200));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(150ms);
+
+    EXPECT_EQ(m_outcomes.front().state, SyncState::ServerWon);
+    EXPECT_TRUE(m_outcomes.front().discardedLocalChange);
+    EXPECT_EQ(m_fake.saveCalls, 0);
+    EXPECT_FALSE(scheduler.hasPendingWork());
+}
+
+TEST_F(AsyncSyncSchedulerTest, RaceLostWhileTheLocalDocumentIsNewerIsRetriedWithTheNewBaseline)
+{
+    m_fake.stored = cloudDocument("old", 100, 600);
+    std::atomic<int> raced{ 0 };
+    m_fake.beforeSave = [this, &raced]
+    {
+        if (const int count = ++raced; count <= 2)
+            m_fake.stored = cloudDocument("racer" + std::to_string(count), 150, 600 + count * 100);
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("mine", 300, 600));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty() && m_outcomes.back().state == SyncState::Synchronized; }));
+
+    EXPECT_EQ(m_outcomes.front().state, SyncState::LostRaceKeptLocal);
+    EXPECT_EQ(m_fake.saveCalls, 3);
+    EXPECT_EQ(m_fake.receivedBaselines.back(), at(800));
+    EXPECT_EQ(storedText(), "mine");
+    EXPECT_FALSE(sawStatus(SyncStatus::Conflict));
+    EXPECT_EQ(scheduler.status(), SyncStatus::Idle);
 }
 
 TEST_F(AsyncSyncSchedulerTest, SyncNowUploadsANewerLocalDocument)
@@ -242,6 +293,95 @@ TEST_F(AsyncSyncSchedulerTest, RateLimitedSyncWaitsAtLeastAsLongAsTheCloudAsked)
     EXPECT_EQ(m_fake.loadCalls.load(), callsAfterFirstAttempt);
 }
 
+TEST_F(AsyncSyncSchedulerTest, UnexpectedFailureKeepsTheChangeAndRetriesIt)
+{
+    std::atomic<int> uploads{ 0 };
+    m_fake.beforeSave = [&uploads]
+    {
+        if (uploads++ == 0)
+            throw std::runtime_error("crypto failure");
+    };
+
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("edit", 100));
+    ASSERT_TRUE(pumpUntil([this] { return sawStatus(SyncStatus::Error); }));
+    EXPECT_TRUE(scheduler.hasPendingWork());
+
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+
+    EXPECT_EQ(m_outcomes.back().state, SyncState::Synchronized);
+    EXPECT_EQ(m_statuses, (std::vector<SyncStatus>{ SyncStatus::Syncing, SyncStatus::Error, SyncStatus::Syncing, SyncStatus::Idle }));
+    EXPECT_EQ(m_fake.saveCalls, 2);
+    EXPECT_EQ(storedText(), "edit");
+}
+
+TEST_F(AsyncSyncSchedulerTest, RepeatedUnexpectedFailuresBackOff)
+{
+    m_fake.beforeSave = [] { throw std::runtime_error("always failing"); };
+
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("edit", 100));
+    ASSERT_TRUE(pumpUntil([this] { return m_fake.saveCalls >= 2; }));
+    pumpFor(500ms);
+
+    // A fixed 40 ms retry would have made about a dozen attempts by now; the backoff (40, 80, then 160 ms) makes five.
+    EXPECT_LE(m_fake.saveCalls, 8);
+    EXPECT_TRUE(sawStatus(SyncStatus::Error));
+    EXPECT_TRUE(scheduler.hasPendingWork());
+}
+
+TEST_F(AsyncSyncSchedulerTest, UnexpectedFailureOfSyncNowIsRetriedAsAReconciliation)
+{
+    m_fake.stored = cloudDocument("theirs", 500, 600);
+    std::atomic<int> loads{ 0 };
+    m_fake.beforeLoad = [&loads]
+    {
+        if (loads++ == 0)
+            throw std::runtime_error("broken JSON");
+    };
+
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.syncNow(local("mine", 100));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+
+    EXPECT_EQ(m_outcomes.front().state, SyncState::ServerWon);
+    EXPECT_EQ(m_outcomes.front().document.text, "theirs");
+    EXPECT_EQ(m_fake.saveCalls, 0);
+}
+
+TEST_F(AsyncSyncSchedulerTest, ChangeMadeDuringAnUnexpectedFailureIsUploadedInsteadOfTheFailedOne)
+{
+    std::atomic<bool> uploadStarted{ false };
+    std::atomic<int> uploads{ 0 };
+    m_fake.beforeSave = [&uploadStarted, &uploads]
+    {
+        if (uploads++ == 0)
+        {
+            uploadStarted = true;
+            std::this_thread::sleep_for(100ms);
+            throw std::bad_alloc();
+        }
+    };
+
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("A", 100));
+    ASSERT_TRUE(pumpUntil([&uploadStarted] { return uploadStarted.load(); }));
+    scheduler.documentChanged(local("B", 200));
+
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+
+    EXPECT_EQ(m_fake.saveCalls, 2);
+    EXPECT_EQ(storedText(), "B");
+}
+
 TEST_F(AsyncSyncSchedulerTest, UnreadableCloudDocumentIsReportedAndNotRetried)
 {
     m_fake.stored = CloudDocument{ .content = nlohmann::json::object(), .updatedAt = at(5000) };
@@ -256,6 +396,76 @@ TEST_F(AsyncSyncSchedulerTest, UnreadableCloudDocumentIsReportedAndNotRetried)
     EXPECT_EQ(m_outcomes.front().state, SyncState::RemoteUnreadable);
     EXPECT_EQ(scheduler.status(), SyncStatus::Error);
     EXPECT_EQ(m_fake.saveCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, RejectedApiKeyIsReportedAndNotRetried)
+{
+    m_fake.beforeSave = [] { throw CloudAuthRejectedException("API write failed with status 401"); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("x", 10));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(250ms);
+
+    ASSERT_EQ(m_outcomes.size(), 1U);
+    EXPECT_EQ(m_outcomes.front().state, SyncState::AuthRejected);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Error);
+    EXPECT_EQ(m_fake.saveCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, WrongPassphraseIsReportedAndNotRetried)
+{
+    m_fake.stored = cloudDocument("theirs", 500, 600);
+    m_fake.beforeLoad = [] { throw CloudDecryptionException("Cannot decrypt the cloud data"); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.syncNow(local("mine", 100));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(250ms);
+
+    ASSERT_EQ(m_outcomes.size(), 1U);
+    EXPECT_EQ(m_outcomes.front().state, SyncState::DecryptionFailed);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Error);
+    EXPECT_EQ(m_fake.loadCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, TooLargeDocumentIsReportedAndNotRetried)
+{
+    m_fake.beforeSave = [] { throw CloudDocumentTooLargeException("API write failed with status 413"); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("x", 10));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    pumpFor(250ms);
+
+    ASSERT_EQ(m_outcomes.size(), 1U);
+    EXPECT_EQ(m_outcomes.front().state, SyncState::DocumentTooLarge);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Error);
+    EXPECT_EQ(m_fake.saveCalls, 1);
+}
+
+TEST_F(AsyncSyncSchedulerTest, ChangeMadeAfterARejectionIsUploadedAgain)
+{
+    std::atomic<int> uploads{ 0 };
+    m_fake.beforeSave = [&uploads]
+    {
+        if (uploads++ == 0)
+            throw CloudAuthRejectedException("API write failed with status 403");
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+
+    scheduler.documentChanged(local("A", 100));
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    scheduler.documentChanged(local("B", 200));
+    ASSERT_TRUE(pumpUntil([this] { return m_outcomes.size() == 2; }));
+
+    EXPECT_EQ(m_outcomes.back().state, SyncState::Synchronized);
+    EXPECT_EQ(scheduler.status(), SyncStatus::Idle);
+    EXPECT_EQ(storedText(), "B");
 }
 
 TEST_F(AsyncSyncSchedulerTest, FlushUploadsWithoutWaitingForTheDebounceDelay)
@@ -305,6 +515,77 @@ TEST_F(AsyncSyncSchedulerTest, DestroyingTheSchedulerDuringAnUploadIsSafe)
     pumpFor(150ms);
 
     EXPECT_EQ(notifications, 0);
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainUploadsAPendingChangeAndWaitsForIt)
+{
+    AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });
+    scheduler.documentChanged(local("last words", 100));
+
+    scheduler.drain(2000ms);
+
+    EXPECT_EQ(m_fake.saveCalls, 1);
+    EXPECT_EQ(storedText(), "last words");
+    EXPECT_FALSE(scheduler.hasPendingWork());
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainDoesNotReportTheWorkItSent)
+{
+    AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });
+    watch(scheduler);
+    scheduler.documentChanged(local("last words", 100));
+
+    scheduler.drain(2000ms);
+    pumpFor(100ms);
+
+    EXPECT_TRUE(m_outcomes.empty());
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainWaitsForAnUploadInFlightAndSendsTheChangeQueuedBehindIt)
+{
+    std::atomic<int> started{ 0 };
+    m_fake.beforeSave = [&started]
+    {
+        ++started;
+        std::this_thread::sleep_for(60ms);
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+    scheduler.documentChanged(local("first", 100));
+    ASSERT_TRUE(pumpUntil([&started] { return started.load() > 0; }));
+    scheduler.documentChanged(local("second", 200));
+
+    scheduler.drain(3000ms);
+    pumpFor(100ms);
+
+    EXPECT_EQ(storedText(), "second");
+    EXPECT_TRUE(m_outcomes.empty());
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainGivesUpWhenTheCloudIsTooSlow)
+{
+    m_fake.beforeSave = [] { std::this_thread::sleep_for(300ms); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });
+    scheduler.documentChanged(local("slow", 100));
+    const auto begin = std::chrono::steady_clock::now();
+
+    scheduler.drain(40ms);
+
+    EXPECT_LT(std::chrono::steady_clock::now() - begin, 250ms);
+}
+
+TEST_F(AsyncSyncSchedulerTest, SchedulerKeepsWorkingAfterADrain)
+{
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+    scheduler.documentChanged(local("before", 100));
+    scheduler.drain(2000ms);
+
+    scheduler.documentChanged(local("after", 200));
+
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    EXPECT_EQ(m_outcomes.back().state, SyncState::Synchronized);
+    EXPECT_EQ(storedText(), "after");
 }
 
 TEST(BackoffTest, DelayDoublesUpToTheMaximum)

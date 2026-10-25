@@ -24,6 +24,8 @@ if (!response)
   not cut off.
 - `onProgress` receives the bytes sent and received so far, and `isCancelled` is polled during the transfer; returning
   `true` aborts it with a `TransportError` whose `cancelled` is set. Both run on the thread that called `send()`.
+  The cloud clients fill `isCancelled` themselves, so a request ends early when the `BackgroundTaskRunner` it runs on
+  is destroyed (see [cloud.md](cloud.md)).
 - `Response::retryAfter` is the parsed `Retry-After` header (seconds, or an HTTP date turned into a delay).
   `defaultHttpClient()` honours it: on 429 or 503 it waits for the requested time and sends the request again, at most
   twice and only when the wait is 30 s or less, otherwise the response is returned as it is. A `POST` or `PATCH` is
@@ -36,7 +38,13 @@ if (!response)
   the fixed proxy per scheme, with the bypass list. The `<local>` entry of the bypass list has no libcurl equivalent
   and is ignored. NTLM and Negotiate proxies are signed in to with the current Windows user. The answer is cached
   for a minute per host.
-- `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`.
+- Every thread keeps one libcurl handle and resets it after each request, so consecutive requests of a thread reuse
+  the connection, the TLS session and the DNS answer. The requests of the shared background pool (see
+  [cloud.md](cloud.md)) therefore talk to the cloud over a few warm connections instead of a new handshake each. A
+  request made while the thread's handle is busy (from inside a progress callback) gets a handle of its own.
+- `RequestBody` is `NoBody`, raw `Bytes` or one `MultipartFile`. `MultipartFile::content` is a view: libcurl reads
+  the upload straight from the caller's buffer through a read callback instead of copying it, so the buffer has to
+  stay alive until `send()` returns, and a recorded request must not outlive it.
 - `defaultHttpClient()` is libcurl restricted to `http` and `https`, TLS 1.2 or newer, without redirects.
 - It identifies itself with `User-Agent: <internalName>/<version>` taken from `AppInfo` (see `app::userAgentOf()`),
   or `stapik-common` before `AppContext` is initialized. A `User-Agent` header set on the request takes precedence.

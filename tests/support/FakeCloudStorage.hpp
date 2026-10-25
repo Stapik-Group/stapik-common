@@ -23,6 +23,7 @@ namespace stapik::test
         std::optional<CloudDocument> stored;
         std::map<std::string, CloudDocument> partitions;
         std::function<void()> beforeSave;
+        std::function<void()> beforeLoad;
 
         std::atomic<bool> unreachable{ false };
 
@@ -49,6 +50,9 @@ namespace stapik::test
         [[nodiscard]] std::optional<CloudDocument> loadDocument() const override
         {
             ++loadCalls;
+            if (beforeLoad)
+                beforeLoad();
+
             throwIfRateLimited();
             if (unreachable)
                 throw CloudStorageException("network unreachable");

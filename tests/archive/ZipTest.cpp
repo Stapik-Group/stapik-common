@@ -2,13 +2,16 @@
 #include "stapik/archive/ZipWriter.hpp"
 
 #include "support/FakeClock.hpp"
+#include "support/TemporaryDirectory.hpp"
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -42,9 +45,7 @@ namespace
     protected:
         void SetUp() override
         {
-            auto pattern = (fs::temp_directory_path() / "stapik-zip-XXXXXX").string();
-            ASSERT_NE(mkdtemp(pattern.data()), nullptr);
-            m_directory = pattern;
+            m_directory = stapik::test::createTemporaryDirectory("stapik-zip");
             m_path = m_directory / "nested" / "test.zip";
         }
 
@@ -166,6 +167,37 @@ TEST_F(ZipTest, RejectsAFileThatIsNotAnArchive)
     const auto reader = ZipReader::open(m_path);
     ASSERT_FALSE(reader);
     EXPECT_EQ(reader.error().kind, ArchiveErrorKind::NotAnArchive);
+}
+
+TEST_F(ZipTest, RejectsALargeFileThatIsNotAnArchiveWithoutDelay)
+{
+    fs::create_directories(m_path.parent_path());
+    writeBytes(m_path, randomBytes(200000));
+
+    const auto started = std::chrono::steady_clock::now();
+    const auto reader = ZipReader::open(m_path);
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+
+    ASSERT_FALSE(reader);
+    EXPECT_EQ(reader.error().kind, ArchiveErrorKind::NotAnArchive);
+    EXPECT_LT(elapsed, std::chrono::seconds(1));
+}
+
+TEST_F(ZipTest, OpensAnArchiveWithManyEntriesWithoutDelay)
+{
+    constexpr int ENTRY_COUNT = 5000;
+    std::vector<std::pair<std::string, std::vector<std::uint8_t>>> files;
+    for (int index = 0; index < ENTRY_COUNT; ++index)
+        files.push_back({ "entries/file-" + std::to_string(index) + ".txt", { 'x' } });
+    writeArchive(files);
+
+    const auto started = std::chrono::steady_clock::now();
+    const auto reader = ZipReader::open(m_path);
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+
+    ASSERT_TRUE(reader) << reader.error().message();
+    EXPECT_EQ(reader->entries().size(), static_cast<std::size_t>(ENTRY_COUNT));
+    EXPECT_LT(elapsed, std::chrono::seconds(1));
 }
 
 TEST_F(ZipTest, RejectsATruncatedArchive)

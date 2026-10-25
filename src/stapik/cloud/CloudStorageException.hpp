@@ -20,6 +20,24 @@ public:
     using CloudStorageException::CloudStorageException;
 };
 
+class CloudRequestCancelledException : public CloudStorageException
+{
+public:
+    using CloudStorageException::CloudStorageException;
+};
+
+class CloudAuthRejectedException : public CloudStorageException
+{
+public:
+    using CloudStorageException::CloudStorageException;
+};
+
+class CloudDocumentTooLargeException : public CloudStorageException
+{
+public:
+    using CloudStorageException::CloudStorageException;
+};
+
 // The cloud refused a request because the API key sent too many of them (HTTP 429) and the wait it asked for was
 // too long, or too many attempts were used up, to be waited out in place.
 class CloudRateLimitedException : public CloudStorageException

@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 4.2)
-project(stapikcommon VERSION 1.5.6 LANGUAGES CXX)
+project(stapikcommon VERSION 1.6.0 LANGUAGES CXX)
 
-set(stapikcommon_VERSION_SUFFIX "")
-set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}_${stapikcommon_VERSION_SUFFIX}")
+set(stapikcommon_VERSION_SUFFIX "dev")
+set(stapikcommon_VERSION_FULL "${stapikcommon_VERSION}")
+if(stapikcommon_VERSION_SUFFIX)
+    string(APPEND stapikcommon_VERSION_FULL "_${stapikcommon_VERSION_SUFFIX}")
+endif()
 message(STATUS "Building: ${PROJECT_NAME} version: ${stapikcommon_VERSION_FULL}")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -71,6 +74,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp
+        src/stapik/cloud/CompressedBlob.cpp
         src/stapik/cloud/CompressedCloudStorage.cpp
         src/stapik/cloud/ConnectionCheck.cpp
         src/stapik/cloud/EncryptedCloudStorage.cpp
@@ -162,6 +166,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/storage/AtomicFile.cpp
         src/stapik/storage/CloudStorageConfigStorage.cpp
         src/stapik/storage/DirectoryLock.cpp
+        src/stapik/storage/Quarantine.cpp
         src/stapik/storage/SecretStore.cpp
 )
 
@@ -173,8 +178,10 @@ target_sources(stapikcommon PRIVATE
 
 target_sources(stapikcommon PRIVATE
         src/stapik/task/BackgroundTaskRunner.cpp
+        src/stapik/task/Cancellation.cpp
         src/stapik/task/DebouncedAction.cpp
         src/stapik/task/MainThread.cpp
+        src/stapik/task/ThreadPool.cpp
 )
 
 target_sources(stapikcommon PRIVATE

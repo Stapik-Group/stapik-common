@@ -6,11 +6,14 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/task/BackgroundTaskRunner.hpp"
+#include "stapik/task/Deadline.hpp"
+#include "stapik/task/MainThread.hpp"
 
 #include <sigc++/signal.h>
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>
@@ -25,6 +28,8 @@ namespace stapik::sync
     {
     public:
         using TimePoint = std::chrono::system_clock::time_point;
+
+        static constexpr std::chrono::milliseconds DRAIN_TIMEOUT{ 3000 };
 
         explicit CloudSession(CloudSessionHooks hooks, const AsyncSyncOptions &options = {}) :
             m_hooks(std::move(hooks)),
@@ -62,6 +67,19 @@ namespace stapik::sync
             return activate(config);
         }
 
+        void disconnect()
+        {
+            const bool wasConnected = isConnected();
+
+            resetConnection();
+
+            if (m_hooks.clearConfig)
+                m_hooks.clearConfig();
+
+            if (wasConnected)
+                m_signalStatusChanged.emit(SyncStatus::Idle);
+        }
+
         void syncNow(const DocumentType& currentDocument)
         {
             if (m_scheduler)
@@ -81,6 +99,11 @@ namespace stapik::sync
 
             for (auto& [key, entry] : m_partitions)
                 entry.scheduler->flush();
+        }
+
+        void flushAndWait(const std::chrono::milliseconds timeout = DRAIN_TIMEOUT)
+        {
+            drainAll(timeout);
         }
 
         void loadPartition(const std::string& partition, const DocumentType& currentDocument)
@@ -103,8 +126,13 @@ namespace stapik::sync
 
         void forgetPartition(const std::string& partition)
         {
-            if (const auto found = m_partitions.find(partition); found != m_partitions.end())
-                found->second.loaded = false;
+            const auto found = m_partitions.find(partition);
+            if (found == m_partitions.end())
+                return;
+
+            found->second.loaded = false;
+            found->second.forgotten = true;
+            scheduleReleaseOfForgottenPartitions();
         }
 
         void fetchAvailableYears()
@@ -134,6 +162,11 @@ namespace stapik::sync
         {
             const auto found = m_partitions.find(partition);
             return found != m_partitions.end() && found->second.loaded;
+        }
+
+        [[nodiscard]] std::size_t trackedPartitionCount() const
+        {
+            return m_partitions.size();
         }
 
         [[nodiscard]] bool isConnected() const
@@ -216,12 +249,16 @@ namespace stapik::sync
         {
             std::unique_ptr<AsyncSyncScheduler<DocumentType>> scheduler;
             bool loaded = false;
+            bool forgotten = false;
         };
 
         PartitionEntry& partitionEntry(const std::string& partition)
         {
             if (const auto found = m_partitions.find(partition); found != m_partitions.end())
+            {
+                found->second.forgotten = false;
                 return found->second;
+            }
 
             auto scheduler = std::make_unique<AsyncSyncScheduler<DocumentType>>(*m_storage, m_options, partition);
 
@@ -238,14 +275,45 @@ namespace stapik::sync
             return m_partitions.emplace(partition, PartitionEntry{ .scheduler = std::move(scheduler) }).first->second;
         }
 
+        void drainAll(const std::chrono::milliseconds timeout)
+        {
+            const task::Deadline deadline(timeout);
+
+            if (m_scheduler)
+                m_scheduler->drain(deadline.remaining());
+
+            for (auto& [key, entry] : m_partitions)
+                entry.scheduler->drain(deadline.remaining());
+        }
+
+        void scheduleReleaseOfForgottenPartitions()
+        {
+            task::postToMainThread([lifetime = std::weak_ptr<bool>(m_lifetime), this]
+            {
+                if (!lifetime.expired())
+                    releaseForgottenPartitions();
+            });
+        }
+
+        void releaseForgottenPartitions()
+        {
+            std::erase_if(m_partitions, [](const auto& item)
+            {
+                return item.second.forgotten && !item.second.scheduler->hasPendingWork();
+            });
+        }
+
         void onPartitionOutcome(const std::string& partition, const SyncOutcome<DocumentType>& outcome)
         {
             reportApiKeyExpiry();
 
-            if (const auto found = m_partitions.find(partition); found != m_partitions.end()
-                && (outcome.state == SyncState::Synchronized || outcome.replacesLocal()))
+            if (const auto found = m_partitions.find(partition); found != m_partitions.end())
             {
-                found->second.loaded = true;
+                if (outcome.state == SyncState::Synchronized || outcome.replacesLocal())
+                    found->second.loaded = true;
+
+                if (found->second.forgotten)
+                    scheduleReleaseOfForgottenPartitions();
             }
 
             m_signalPartitionOutcome.emit(partition, outcome);
@@ -261,8 +329,10 @@ namespace stapik::sync
                 m_signalPartitionBaselineChanged.emit(partition, *baseline);
         }
 
-        bool activate(const CloudStorageConfig& config)
+        void resetConnection()
         {
+            drainAll(DRAIN_TIMEOUT);
+
             m_partitions.clear();
             m_yearsRunner.reset();
             m_scheduler.reset();
@@ -271,6 +341,11 @@ namespace stapik::sync
             m_reportedApiKeyExpiry.reset();
             if (m_hooks.expiryMonitor)
                 m_hooks.expiryMonitor->reset();
+        }
+
+        bool activate(const CloudStorageConfig& config)
+        {
+            resetConnection();
 
             if (!m_hooks.createStorage)
                 return false;
@@ -325,6 +400,7 @@ namespace stapik::sync
                 m_signalBaselineChanged.emit(*baseline);
         }
 
+        std::shared_ptr<bool> m_lifetime = std::make_shared<bool>(true);
         CloudSessionHooks m_hooks;
         AsyncSyncOptions m_options;
         std::optional<CloudStorageConfig> m_config;
