@@ -2,6 +2,7 @@
 
 #include "stapik/app/AppContext.hpp"
 #include "stapik/cloud/CloudStorageFactory.hpp"
+#include "stapik/log/Log.hpp"
 #include "stapik/storage/CloudStorageConfigStorage.hpp"
 
 #include <memory>
@@ -24,6 +25,12 @@ namespace stapik::sync
         hooks.saveConfig = [appName](const CloudStorageConfig& config)
         {
             return CloudStorageConfigStorage::save(config, appName).hasValue();
+        };
+
+        hooks.clearConfig = [appName]
+        {
+            if (const auto result = CloudStorageConfigStorage::clear(appName); !result)
+                log::warning("Cannot remove the saved cloud configuration: {}", result.error().message());
         };
 
         hooks.createStorage = [slotKey = std::move(slotKey), monitor = hooks.expiryMonitor](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>

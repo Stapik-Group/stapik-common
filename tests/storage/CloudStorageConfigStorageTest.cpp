@@ -160,6 +160,52 @@ TEST_F(CloudStorageConfigStorageTest, LoadWithoutStoredKeyReturnsEmptyApiKey)
     EXPECT_TRUE(config->apiKey.empty());
 }
 
+TEST_F(CloudStorageConfigStorageTest, ClearRemovesTheConfigFileAndTheSecrets)
+{
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key", "passphrase" }, APP_NAME, m_secretStore));
+
+    EXPECT_TRUE(CloudStorageConfigStorage::clear(APP_NAME, m_secretStore));
+
+    EXPECT_FALSE(fs::exists(configPath()));
+    EXPECT_FALSE(m_secretStore.contains(APP_NAME, API_KEY_ACCOUNT));
+    EXPECT_FALSE(m_secretStore.contains(APP_NAME, PASSPHRASE_ACCOUNT));
+    EXPECT_FALSE(CloudStorageConfigStorage::load(APP_NAME, m_secretStore).has_value());
+}
+
+TEST_F(CloudStorageConfigStorageTest, ClearRemovesSecretsKeptInTheConfigFileWithTheFile)
+{
+    m_secretStore.available = false;
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key" }, APP_NAME, m_secretStore));
+    ASSERT_NE(configText().find("secret-key"), std::string::npos);
+
+    EXPECT_TRUE(CloudStorageConfigStorage::clear(APP_NAME, m_secretStore));
+
+    EXPECT_FALSE(fs::exists(configPath()));
+}
+
+TEST_F(CloudStorageConfigStorageTest, ClearRemovesTheLegacyFileToo)
+{
+    writeLegacyConfigText(R"({"apiUrl":"https://cloud.example","apiKey":"old-key"})");
+
+    EXPECT_TRUE(CloudStorageConfigStorage::clear(APP_NAME, m_secretStore));
+
+    EXPECT_FALSE(fs::exists(legacyConfigPath()));
+}
+
+TEST_F(CloudStorageConfigStorageTest, ClearWithoutAnyConfigurationSucceeds)
+{
+    EXPECT_TRUE(CloudStorageConfigStorage::clear(APP_NAME, m_secretStore));
+}
+
+TEST_F(CloudStorageConfigStorageTest, ClearLeavesTheConfigurationOfAnotherApplication)
+{
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "secret-key" }, "other", m_secretStore));
+
+    EXPECT_TRUE(CloudStorageConfigStorage::clear(APP_NAME, m_secretStore));
+
+    EXPECT_TRUE(CloudStorageConfigStorage::load("other", m_secretStore).has_value());
+}
+
 TEST_F(CloudStorageConfigStorageTest, LoadWithoutConfigFileReturnsNothing)
 {
     EXPECT_FALSE(CloudStorageConfigStorage::load(APP_NAME, m_secretStore).has_value());

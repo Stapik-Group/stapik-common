@@ -249,6 +249,19 @@ TEST_F(CloudSessionPartitionTest, FlushAndWaitDeliversPendingPartitionChanges)
     EXPECT_EQ(SyncEnvelope::fromJson(m_fake.partitions.at("2026").content).payload.at("text").get<std::string>(), "v1");
 }
 
+TEST_F(CloudSessionPartitionTest, DisconnectSendsPendingPartitionChangesAndForgetsThePartitions)
+{
+    CloudSession<Entry> session(m_hooks, { 10s, 40ms, 160ms });
+    session.pushPartitionChange("2026", local("v1", 100));
+
+    session.disconnect();
+
+    ASSERT_TRUE(m_fake.partitions.contains("2026"));
+    EXPECT_EQ(session.trackedPartitionCount(), 0U);
+    EXPECT_FALSE(session.isPartitionLoaded("2026"));
+    EXPECT_FALSE(session.isConnected());
+}
+
 TEST_F(CloudSessionPartitionTest, FetchAvailableYearsReportsSortedYears)
 {
     m_fake.partitions["2025"] = cloudDocument("a", 1, 1);

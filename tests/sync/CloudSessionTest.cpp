@@ -75,6 +75,7 @@ namespace
                 m_savedConfigs.push_back(config);
                 return m_saveSucceeds;
             };
+            result.clearConfig = [this] { ++m_configClears; };
             result.expiryMonitor = m_expiryMonitor;
             result.createStorage = [this](const CloudStorageConfig& config) -> std::unique_ptr<ICloudStorage>
             {
@@ -106,6 +107,7 @@ namespace
         FakeCloudStorage m_fake;
         std::optional<CloudStorageConfig> m_storedConfig;
         bool m_saveSucceeds = true;
+        int m_configClears = 0;
         std::vector<CloudStorageConfig> m_savedConfigs;
         std::vector<CloudStorageConfig> m_createdFor;
         std::vector<Entry> m_replaced;
@@ -325,6 +327,83 @@ TEST_F(CloudSessionTest, FlushAndWaitGivesUpAfterTheTimeout)
     session.flushAndWait(40ms);
 
     EXPECT_LT(std::chrono::steady_clock::now() - begin, 250ms);
+}
+
+TEST_F(CloudSessionTest, DisconnectForgetsTheConnectionAndTheSavedConfiguration)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), m_options);
+    watch(session);
+
+    session.disconnect();
+
+    EXPECT_FALSE(session.isConnected());
+    EXPECT_FALSE(session.config().has_value());
+    EXPECT_EQ(m_configClears, 1);
+    ASSERT_FALSE(m_statuses.empty());
+    EXPECT_EQ(m_statuses.back(), SyncStatus::Idle);
+}
+
+TEST_F(CloudSessionTest, DisconnectedSessionIgnoresRequests)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), m_options);
+    session.disconnect();
+
+    session.pushChange(local("x", 100));
+    session.syncNow(local("x", 100));
+    session.flush();
+    pumpFor(100ms);
+
+    EXPECT_EQ(m_fake.saveCalls, 0);
+    EXPECT_EQ(m_fake.loadCalls, 0);
+    EXPECT_FALSE(session.hasPendingWork());
+}
+
+TEST_F(CloudSessionTest, DisconnectingASessionThatWasNotConnectedStillClearsTheConfiguration)
+{
+    CloudSession<Entry> session(hooks(), m_options);
+    watch(session);
+
+    session.disconnect();
+
+    EXPECT_EQ(m_configClears, 1);
+    EXPECT_TRUE(m_statuses.empty());
+}
+
+TEST_F(CloudSessionTest, DisconnectWorksWithoutAClearConfigHook)
+{
+    m_storedConfig = validConfig();
+    auto withoutClearing = hooks();
+    withoutClearing.clearConfig = nullptr;
+    CloudSession<Entry> session(withoutClearing, m_options);
+
+    session.disconnect();
+
+    EXPECT_FALSE(session.isConnected());
+    EXPECT_EQ(m_configClears, 0);
+}
+
+TEST_F(CloudSessionTest, DisconnectSendsPendingChangesFirst)
+{
+    m_storedConfig = validConfig();
+    CloudSession<Entry> session(hooks(), { 10s, 40ms, 160ms });
+    session.pushChange(local("last words", 100));
+
+    session.disconnect();
+
+    EXPECT_EQ(storedText(), "last words");
+}
+
+TEST_F(CloudSessionTest, ConnectingAgainSendsPendingChangesToTheEarlierStorageFirst)
+{
+    m_storedConfig = validConfig("https://first.example.com");
+    CloudSession<Entry> session(hooks(), { 10s, 40ms, 160ms });
+    session.pushChange(local("pending", 100));
+
+    EXPECT_TRUE(session.connectWith(validConfig("https://second.example.com"), local("pending", 100)));
+
+    EXPECT_EQ(storedText(), "pending");
 }
 
 TEST_F(CloudSessionTest, ExpiringApiKeyIsReportedOncePerReportedTime)

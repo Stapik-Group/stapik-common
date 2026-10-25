@@ -23,9 +23,11 @@ class CloudStorageConfigStorage
 public:
     static stapik::storage::FileResult save(const CloudStorageConfig& config, const std::string& appName);
     static std::optional<CloudStorageConfig> load(const std::string& appName);
+    static stapik::storage::FileResult clear(const std::string& appName);
 
     static CloudSecretsInConfigFile secretsKeptInConfigFile(const std::string& appName);
 
     static stapik::storage::FileResult save(const CloudStorageConfig& config, const std::string& appName, stapik::storage::ISecretStore& secretStore);
     static std::optional<CloudStorageConfig> load(const std::string& appName, stapik::storage::ISecretStore& secretStore);
+    static stapik::storage::FileResult clear(const std::string& appName, stapik::storage::ISecretStore& secretStore);
 };

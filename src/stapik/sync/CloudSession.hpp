@@ -67,6 +67,19 @@ namespace stapik::sync
             return activate(config);
         }
 
+        void disconnect()
+        {
+            const bool wasConnected = isConnected();
+
+            resetConnection();
+
+            if (m_hooks.clearConfig)
+                m_hooks.clearConfig();
+
+            if (wasConnected)
+                m_signalStatusChanged.emit(SyncStatus::Idle);
+        }
+
         void syncNow(const DocumentType& currentDocument)
         {
             if (m_scheduler)
@@ -316,8 +329,10 @@ namespace stapik::sync
                 m_signalPartitionBaselineChanged.emit(partition, *baseline);
         }
 
-        bool activate(const CloudStorageConfig& config)
+        void resetConnection()
         {
+            drainAll(DRAIN_TIMEOUT);
+
             m_partitions.clear();
             m_yearsRunner.reset();
             m_scheduler.reset();
@@ -326,6 +341,11 @@ namespace stapik::sync
             m_reportedApiKeyExpiry.reset();
             if (m_hooks.expiryMonitor)
                 m_hooks.expiryMonitor->reset();
+        }
+
+        bool activate(const CloudStorageConfig& config)
+        {
+            resetConnection();
 
             if (!m_hooks.createStorage)
                 return false;

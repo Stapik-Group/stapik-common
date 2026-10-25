@@ -45,6 +45,16 @@ an application that has to work with one stays on an older stapik-common.
   `ApiKeyExpiryMonitor` records it, and `CloudSession::signalApiKeyExpiring` reports it once per date. The text to show
   is the translation key `cloud.apiKeyExpiring` with the argument `{date}`.
 
+## Connecting and disconnecting
+
+- `CloudSession::connectWith()` and `connectPartitionsOnly()` save the configuration through `hooks.saveConfig` and
+  connect. `disconnect()` is the way back: it forgets the connection and calls `hooks.clearConfig`, which in
+  `defaultCloudSessionHooks()` removes the saved configuration, the API key and the passphrase
+  (`CloudStorageConfigStorage::clear()`), so the next start does not connect again. Local documents are not touched.
+- A new connection and `disconnect()` first send what is still pending to the storage they leave, waiting at most
+  `CloudSession::DRAIN_TIMEOUT` (3 s). What could not be sent in that time stays in the local document, which the sync
+  reconciles with the cloud on the next connection.
+
 ## Background work
 
 - Sync jobs, the fetch of the available years and every other `BackgroundTaskRunner` task run on one pool of at most
