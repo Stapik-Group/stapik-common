@@ -45,6 +45,35 @@ an application that has to work with one stays on an older stapik-common.
   `ApiKeyExpiryMonitor` records it, and `CloudSession::signalApiKeyExpiring` reports it once per date. The text to show
   is the translation key `cloud.apiKeyExpiring` with the argument `{date}`.
 
+## Connecting and disconnecting
+
+- `CloudSession::connectWith()` and `connectPartitionsOnly()` save the configuration through `hooks.saveConfig` and
+  connect. `disconnect()` is the way back: it forgets the connection and calls `hooks.clearConfig`, which in
+  `defaultCloudSessionHooks()` removes the saved configuration, the API key and the passphrase
+  (`CloudStorageConfigStorage::clear()`), so the next start does not connect again. Local documents are not touched.
+- A new connection and `disconnect()` first send what is still pending to the storage they leave, waiting at most
+  `CloudSession::DRAIN_TIMEOUT` (3 s). What could not be sent in that time stays in the local document, which the sync
+  reconciles with the cloud on the next connection.
+
+## Background work
+
+- Sync jobs, the fetch of the available years and every other `BackgroundTaskRunner` task run on one pool of at most
+  four threads shared by the whole process. A scheduler per partition therefore does not mean a thread per partition:
+  an idle scheduler holds no thread, and jobs of many partitions wait for a free one. `CloudSession::forgetPartition()`
+  also releases the scheduler of the partition as soon as it has nothing left to send.
+- A `BackgroundTaskRunner` still runs its own tasks one after another, in the order they were submitted, and drops the
+  ones that have not started when it is destroyed.
+- Destroying a `BackgroundTaskRunner`, and so an `AsyncSyncScheduler` or a `CloudSession`, also asks the running task
+  to stop instead of waiting for it. `CloudStorageClient` and `CloudAssetClient` poll `task::isCancellationRequested()`
+  during a request, so closing the application or connecting again does not wait for a request to time out: the request
+  ends with `CloudRequestCancelledException` (`AssetTransferCancelledException` for a file). A task of your own can poll
+  `task::isCancellationRequested()` the same way, and `task::CancellationScope` lets a thread that is not run by a
+  `BackgroundTaskRunner` hand it a `std::stop_token`.
+- Because destroying the session cancels what is still running, call `CloudSession::flushAndWait()` when the
+  application closes: it sends the pending changes of the document and of every partition at once and waits for them,
+  at most 3 s unless another timeout is passed. `AsyncSyncScheduler::drain()` does the same for one scheduler. The
+  outcome of that last send is not reported through the signals, since nothing is left to show it.
+
 ## Change feed
 
 `ICloudStorage::listChanges(since)` returns what changed in any slot of the key's extension after `since`, deleted

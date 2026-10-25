@@ -212,6 +212,11 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
     return load(appName, stapik::storage::platformSecretStore());
 }
 
+stapik::storage::FileResult CloudStorageConfigStorage::clear(const std::string& appName)
+{
+    return clear(appName, stapik::storage::platformSecretStore());
+}
+
 stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageConfig& config, const std::string& appName, stapik::storage::ISecretStore& secretStore)
 {
     migrateLegacyConfig(appName);
@@ -271,4 +276,24 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
     config.secretsUnreadable = apiKey.unreadable || encryptionPassphrase.unreadable;
 
     return config;
+}
+
+stapik::storage::FileResult CloudStorageConfigStorage::clear(const std::string& appName, stapik::storage::ISecretStore& secretStore)
+{
+    secretStore.remove(appName, API_KEY_ACCOUNT);
+    secretStore.remove(appName, ENCRYPTION_PASSPHRASE_ACCOUNT);
+
+    for (const auto& path : { configPath(appName), legacyConfigPath(appName) })
+    {
+        std::error_code errorCode;
+        std::filesystem::remove(path, errorCode);
+
+        if (errorCode)
+        {
+            stapik::log::warning("Cannot remove {}: {}", stapik::storage::pathText(path), errorCode.message());
+            return stapik::Failure(stapik::storage::FileError{ .path = path, .step = "remove", .code = errorCode });
+        }
+    }
+
+    return {};
 }

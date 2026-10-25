@@ -5,6 +5,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/sync/Timestamp.hpp"
+#include "stapik/task/Cancellation.hpp"
 #include "stapik/text/JsonText.hpp"
 
 #include <format>
@@ -56,13 +57,21 @@ stapik::http::Response CloudStorageClient::perform(const stapik::http::Method me
         .url = url,
         .headers = { { "x-api-key", m_config.apiKey }, { "Content-Type", "application/json" } },
         .body = std::move(body),
-        .timeout = TIMEOUT
+        .timeout = TIMEOUT,
+        .isCancelled = stapik::task::cancellationCheck()
     };
     request.headers.merge(std::move(extraHeaders));
 
     auto result = m_http.send(request);
     if (!result)
-        throw CloudStorageException(std::string(failureLabel) + result.error().message);
+    {
+        const auto message = std::string(failureLabel) + result.error().message;
+
+        if (result.error().cancelled)
+            throw CloudRequestCancelledException(message);
+
+        throw CloudStorageException(message);
+    }
 
     if (m_expiryMonitor)
         m_expiryMonitor->observe(result.value());

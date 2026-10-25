@@ -1,6 +1,8 @@
 #include "stapik/cloud/CompressedCloudStorage.hpp"
 
 #include "stapik/cloud/EncryptedCloudStorage.hpp"
+#include "stapik/compression/Gzip.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include "support/FakeCloudStorage.hpp"
 #include "support/ForwardingCloudStorage.hpp"
@@ -217,4 +219,19 @@ TEST_F(CompressedCloudStorageTest, InvalidUtf8IsReplacedInsteadOfFailingTheSave)
     EXPECT_TRUE(CompressedCloudStorage::isCompressed(m_server.stored->content));
     ASSERT_TRUE(loaded.has_value());
     EXPECT_EQ(loaded->content.at("title"), "bad\xEF\xBF\xBD title");
+}
+
+TEST_F(CompressedCloudStorageTest, EncryptedAndCompressedDocumentIsBase64EncodedOnlyOnce)
+{
+    const auto cloud = std::make_unique<CompressedCloudStorage>(
+        std::make_unique<EncryptedCloudStorage>(std::make_unique<ForwardingCloudStorage>(m_server), "passphrase", "budget"),
+        THRESHOLD);
+    const auto document = largeDocument();
+    const auto gzipSize = stapik::compression::gzipCompress(stapik::text::dumpJson(document)).value().size();
+
+    [[maybe_unused]] const auto written = cloud->saveDocument(document, TimePoint{});
+
+    const auto ciphertextSize = m_server.stored->content.at("ciphertext").get<std::string>().size();
+    EXPECT_LT(ciphertextSize, gzipSize * 4 / 3 + 64);
+    EXPECT_EQ(cloud->loadDocument()->content, document);
 }

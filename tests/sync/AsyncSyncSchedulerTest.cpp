@@ -517,6 +517,77 @@ TEST_F(AsyncSyncSchedulerTest, DestroyingTheSchedulerDuringAnUploadIsSafe)
     EXPECT_EQ(notifications, 0);
 }
 
+TEST_F(AsyncSyncSchedulerTest, DrainUploadsAPendingChangeAndWaitsForIt)
+{
+    AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });
+    scheduler.documentChanged(local("last words", 100));
+
+    scheduler.drain(2000ms);
+
+    EXPECT_EQ(m_fake.saveCalls, 1);
+    EXPECT_EQ(storedText(), "last words");
+    EXPECT_FALSE(scheduler.hasPendingWork());
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainDoesNotReportTheWorkItSent)
+{
+    AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });
+    watch(scheduler);
+    scheduler.documentChanged(local("last words", 100));
+
+    scheduler.drain(2000ms);
+    pumpFor(100ms);
+
+    EXPECT_TRUE(m_outcomes.empty());
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainWaitsForAnUploadInFlightAndSendsTheChangeQueuedBehindIt)
+{
+    std::atomic<int> started{ 0 };
+    m_fake.beforeSave = [&started]
+    {
+        ++started;
+        std::this_thread::sleep_for(60ms);
+    };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+    scheduler.documentChanged(local("first", 100));
+    ASSERT_TRUE(pumpUntil([&started] { return started.load() > 0; }));
+    scheduler.documentChanged(local("second", 200));
+
+    scheduler.drain(3000ms);
+    pumpFor(100ms);
+
+    EXPECT_EQ(storedText(), "second");
+    EXPECT_TRUE(m_outcomes.empty());
+}
+
+TEST_F(AsyncSyncSchedulerTest, DrainGivesUpWhenTheCloudIsTooSlow)
+{
+    m_fake.beforeSave = [] { std::this_thread::sleep_for(300ms); };
+    AsyncSyncScheduler<Entry> scheduler(m_fake, { 5000ms, 40ms, 160ms });
+    scheduler.documentChanged(local("slow", 100));
+    const auto begin = std::chrono::steady_clock::now();
+
+    scheduler.drain(40ms);
+
+    EXPECT_LT(std::chrono::steady_clock::now() - begin, 250ms);
+}
+
+TEST_F(AsyncSyncSchedulerTest, SchedulerKeepsWorkingAfterADrain)
+{
+    AsyncSyncScheduler<Entry> scheduler(m_fake, m_options);
+    watch(scheduler);
+    scheduler.documentChanged(local("before", 100));
+    scheduler.drain(2000ms);
+
+    scheduler.documentChanged(local("after", 200));
+
+    ASSERT_TRUE(pumpUntil([this] { return !m_outcomes.empty(); }));
+    EXPECT_EQ(m_outcomes.back().state, SyncState::Synchronized);
+    EXPECT_EQ(storedText(), "after");
+}
+
 TEST(BackoffTest, DelayDoublesUpToTheMaximum)
 {
     EXPECT_EQ(backoffDelay(40ms, 160ms, 0), 40ms);

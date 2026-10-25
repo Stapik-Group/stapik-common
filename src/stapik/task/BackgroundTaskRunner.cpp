@@ -1,54 +1,23 @@
 #include "BackgroundTaskRunner.hpp"
 
+#include "Cancellation.hpp"
 #include "MainThread.hpp"
+#include "ThreadPool.hpp"
 
 #include "stapik/log/Log.hpp"
 
 #include <exception>
+#include <utility>
 
 namespace stapik::task
 {
-    BackgroundTaskRunner::BackgroundTaskRunner() :
-        m_alive(std::make_shared<std::atomic<bool>>(true)),
-        m_worker([this](const std::stop_token &stopToken) { workerLoop(stopToken); })
-    {}
-
-    BackgroundTaskRunner::~BackgroundTaskRunner()
+    namespace
     {
-        m_alive->store(false);
-        m_worker.request_stop();
-    }
-
-    void BackgroundTaskRunner::run(std::function<void()> work, std::function<void()> onFinished)
-    {
+        void execute(const std::function<void()>& work)
         {
-            const std::lock_guard lock(m_mutex);
-            m_tasks.emplace_back(std::move(work), std::move(onFinished));
-        }
-
-        m_wake.notify_one();
-    }
-
-    void BackgroundTaskRunner::workerLoop(const std::stop_token& stopToken)
-    {
-        while (true)
-        {
-            Task task;
-
-            {
-                std::unique_lock lock(m_mutex);
-                m_wake.wait(lock, stopToken, [this] { return !m_tasks.empty(); });
-
-                if (stopToken.stop_requested())
-                    return;
-
-                task = std::move(m_tasks.front());
-                m_tasks.pop_front();
-            }
-
             try
             {
-                task.work();
+                work();
             }
             catch (const std::exception& exception)
             {
@@ -58,12 +27,86 @@ namespace stapik::task
             {
                 log::warning("Background task failed with an unknown exception");
             }
+        }
+    }
+
+    BackgroundTaskRunner::BackgroundTaskRunner() :
+        m_state(std::make_shared<State>())
+    {}
+
+    BackgroundTaskRunner::~BackgroundTaskRunner()
+    {
+        std::unique_lock lock(m_state->mutex);
+        m_state->alive.store(false);
+        m_state->tasks.clear();
+        m_state->stop.request_stop();
+        m_state->idle.wait(lock, [this] { return !m_state->draining; });
+    }
+
+    void BackgroundTaskRunner::run(std::function<void()> work, std::function<void()> onFinished)
+    {
+        bool startDraining = false;
+
+        {
+            const std::lock_guard lock(m_state->mutex);
+            m_state->tasks.emplace_back(std::move(work), std::move(onFinished));
+            startDraining = !std::exchange(m_state->draining, true);
+        }
+
+        if (!startDraining)
+            return;
+
+        try
+        {
+            ThreadPool::shared().post([state = m_state] { drain(state); });
+        }
+        catch (...)
+        {
+            {
+                const std::lock_guard lock(m_state->mutex);
+                m_state->draining = false;
+            }
+
+            m_state->idle.notify_all();
+            throw;
+        }
+    }
+
+    bool BackgroundTaskRunner::waitUntilIdle(const std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(m_state->mutex);
+        return m_state->idle.wait_for(lock, timeout, [this] { return !m_state->draining; });
+    }
+
+    void BackgroundTaskRunner::drain(const std::shared_ptr<State>& state)
+    {
+        while (true)
+        {
+            Task task;
+
+            {
+                const std::lock_guard lock(state->mutex);
+                if (state->tasks.empty())
+                {
+                    state->draining = false;
+                    state->idle.notify_all();
+                    return;
+                }
+
+                task = std::move(state->tasks.front());
+                state->tasks.pop_front();
+            }
+
+            {
+                const CancellationScope scope(state->stop.get_token());
+                execute(task.work);
+            }
 
             if (task.onFinished)
             {
-                postToMainThread([alive = m_alive, onFinished = std::move(task.onFinished)]
+                postToMainThread([state, onFinished = std::move(task.onFinished)]
                 {
-                    if (alive->load())
+                    if (state->alive.load())
                         onFinished();
                 });
             }

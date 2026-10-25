@@ -47,6 +47,7 @@ add_executable(stapikcommon_tests
         domain/YearMonthRangeTest.cpp
         domain/YearRangeTest.cpp
         document/SchemaMigratorTest.cpp
+        http/CurlHttpClientTest.cpp
         http/HttpMessageTest.cpp
         http/ProxyListTest.cpp
         http/RetryAfterTest.cpp
@@ -90,7 +91,9 @@ add_executable(stapikcommon_tests
         sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
         task/BackgroundTaskRunnerTest.cpp
+        task/CancellationTest.cpp
         task/DebouncedActionTest.cpp
+        task/ThreadPoolTest.cpp
         text/Base64Test.cpp
         text/CollationTest.cpp
         text/JsonTextTest.cpp

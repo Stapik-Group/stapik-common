@@ -74,6 +74,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp
+        src/stapik/cloud/CompressedBlob.cpp
         src/stapik/cloud/CompressedCloudStorage.cpp
         src/stapik/cloud/ConnectionCheck.cpp
         src/stapik/cloud/EncryptedCloudStorage.cpp
@@ -177,8 +178,10 @@ target_sources(stapikcommon PRIVATE
 
 target_sources(stapikcommon PRIVATE
         src/stapik/task/BackgroundTaskRunner.cpp
+        src/stapik/task/Cancellation.cpp
         src/stapik/task/DebouncedAction.cpp
         src/stapik/task/MainThread.cpp
+        src/stapik/task/ThreadPool.cpp
 )
 
 target_sources(stapikcommon PRIVATE
