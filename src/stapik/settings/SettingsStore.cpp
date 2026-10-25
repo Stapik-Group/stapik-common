@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <optional>
 #include <utility>
 
 namespace stapik::settings
@@ -25,22 +26,29 @@ namespace stapik::settings
         if (std::error_code errorCode; !std::filesystem::exists(m_filePath, errorCode))
             return LoadStatus::Missing;
 
-        std::ifstream file(m_filePath);
-        if (!file.is_open())
+        nlohmann::json root;
+        std::optional<std::string> parseError;
+
         {
-            log::warning("Cannot open settings file {}", storage::pathText(m_filePath));
-            return LoadStatus::Missing;
+            std::ifstream file(m_filePath);
+            if (!file.is_open())
+            {
+                log::warning("Cannot open settings file {}", storage::pathText(m_filePath));
+                return LoadStatus::Missing;
+            }
+
+            try
+            {
+                root = nlohmann::json::parse(file);
+            }
+            catch (const nlohmann::json::exception& exception)
+            {
+                parseError = exception.what();
+            }
         }
 
-        nlohmann::json root;
-        try
-        {
-            root = nlohmann::json::parse(file);
-        }
-        catch (const nlohmann::json::exception& exception)
-        {
-            return quarantineCorruptedFile(exception.what());
-        }
+        if (parseError)
+            return quarantineCorruptedFile(parseError->c_str());
 
         if (!hasSettingsStructure(root))
             return quarantineCorruptedFile("unexpected structure");
