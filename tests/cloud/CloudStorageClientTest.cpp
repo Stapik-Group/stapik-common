@@ -632,3 +632,15 @@ TEST_F(CloudStorageClientTest, UnconfiguredClientHasNoChanges)
     EXPECT_EQ(list.serverTime, SERVER_TIME);
     EXPECT_TRUE(m_http.requests.empty());
 }
+
+TEST_F(CloudStorageClientTest, InvalidUtf8IsReplacedInsteadOfFailingTheSave)
+{
+    m_http.respondWith(404);
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+
+    std::ignore = m_client.saveDocument(nlohmann::json{ { "title", std::string("bad\xff title") } }, {});
+
+    ASSERT_EQ(m_http.requests.size(), 2U);
+    const auto payload = nlohmann::json::parse(bodyText(m_http.requests.back()));
+    EXPECT_EQ(nlohmann::json::parse(payload.at("content").get<std::string>()), (nlohmann::json{ { "title", "bad\xEF\xBF\xBD title" } }));
+}

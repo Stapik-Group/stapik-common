@@ -5,6 +5,7 @@
 
 #include "stapik/log/Log.hpp"
 #include "stapik/sync/Timestamp.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <format>
 #include <glib.h>
@@ -168,9 +169,9 @@ CloudWriteResult CloudStorageClient::writeDocument(const std::string& url, const
         ifMatch = current->etag;
     }
 
-    const nlohmann::json payload = { { "content", data.dump() } };
+    const nlohmann::json payload = { { "content", stapik::text::dumpJson(data) } };
 
-    const auto response = performPut(url, payload.dump(), ifMatch);
+    const auto response = performPut(url, stapik::text::dumpJson(payload), ifMatch);
 
     if (response.status != 200 && response.status != 409)
         throwUnexpectedStatus("write", response.status);

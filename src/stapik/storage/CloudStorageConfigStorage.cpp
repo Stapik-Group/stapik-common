@@ -4,6 +4,7 @@
 #include "stapik/storage/AtomicFile.hpp"
 #include "stapik/log/Log.hpp"
 #include "stapik/storage/PathText.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <nlohmann/json.hpp>
 #include <filesystem>
@@ -88,7 +89,7 @@ namespace
         if (!secrets.encryptionPassphrase.empty())
             json["encryptionPassphrase"] = secrets.encryptionPassphrase;
 
-        return stapik::storage::writeFileAtomically(path, json.dump(2), stapik::storage::OWNER_READ_WRITE);
+        return stapik::storage::writeFileAtomically(path, stapik::text::dumpJson(json, 2), stapik::storage::OWNER_READ_WRITE);
     }
 
     std::string secretToKeepInFile(

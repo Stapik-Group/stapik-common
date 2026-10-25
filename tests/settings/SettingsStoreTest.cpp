@@ -282,3 +282,15 @@ TEST_F(SettingsStoreTest, ReplaceFromTextKeepsTheNewerSchemaVersionOfTheText)
 
     EXPECT_EQ(store.schemaVersion(), 4);
 }
+
+TEST_F(SettingsStoreTest, SaveReplacesInvalidUtf8InsteadOfFailing)
+{
+    SettingsStore writer(m_path);
+    writer.set<std::string>("lastFolder", "bad\xff name");
+
+    ASSERT_TRUE(writer.save());
+
+    SettingsStore reader(m_path);
+    ASSERT_EQ(reader.load(), LoadStatus::Loaded);
+    EXPECT_EQ(reader.get<std::string>("lastFolder", ""), "bad\xEF\xBF\xBD name");
+}

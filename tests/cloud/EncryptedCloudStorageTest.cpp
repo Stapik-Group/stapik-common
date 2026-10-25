@@ -229,3 +229,14 @@ TEST_F(EncryptedCloudStorageTest, ChangeFeedGoesThroughToTheServerUntouched)
     EXPECT_EQ(list.changes.front().partition, std::optional<std::string>{ "2025" });
     EXPECT_EQ(m_server.changeQueries, std::vector<TimePoint>{ TimePoint{} + std::chrono::seconds{ 10 } });
 }
+
+TEST_F(EncryptedCloudStorageTest, InvalidUtf8IsReplacedInsteadOfFailingTheSave)
+{
+    const auto cloud = storage();
+
+    [[maybe_unused]] const auto result = cloud->saveDocument(documentWithTitle("bad\xff title"), TimePoint{});
+    const auto loaded = cloud->loadDocument();
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->content, documentWithTitle("bad\xEF\xBF\xBD title"));
+}

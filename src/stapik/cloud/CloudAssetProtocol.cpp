@@ -2,6 +2,7 @@
 #include "CloudPartitionProtocol.hpp"
 
 #include "stapik/sync/Timestamp.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -190,7 +191,7 @@ namespace stapik::cloud
         if (!checksumSha256.empty())
             request["checksumSha256"] = checksumSha256;
 
-        return request.dump();
+        return text::dumpJson(request);
     }
 
     AssetUploadState parseAssetUploadState(const std::string& body)

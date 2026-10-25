@@ -1,6 +1,7 @@
 #include "EncryptedCloudStorage.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <format>
 #include <utility>
@@ -20,7 +21,7 @@ namespace stapik::cloud
 
     nlohmann::json EncryptedCloudStorage::seal(const nlohmann::json& data, const std::string& context) const
     {
-        return m_cipher.encrypt(data.dump(), scoped(context));
+        return m_cipher.encrypt(text::dumpJson(data), scoped(context));
     }
 
     CloudDocument EncryptedCloudStorage::open(CloudDocument document, const std::string& context) const

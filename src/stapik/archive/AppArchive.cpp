@@ -5,6 +5,7 @@
 #include "stapik/cloud/CloudAssetProtocol.hpp"
 #include "stapik/log/Log.hpp"
 #include "stapik/sync/Timestamp.hpp"
+#include "stapik/text/JsonText.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -133,7 +134,7 @@ namespace stapik::archive
             {"assets", manifestAssets}
         };
 
-        if (auto added = (*writer)->addText(MANIFEST_ENTRY, manifest.dump(2) + "\n"); !added)
+        if (auto added = (*writer)->addText(MANIFEST_ENTRY, text::dumpJson(manifest, 2) + "\n"); !added)
             return Failure(std::move(added).error());
 
         if (auto finished = (*writer)->finish(); !finished)

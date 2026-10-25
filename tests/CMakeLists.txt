@@ -92,6 +92,7 @@ add_executable(stapikcommon_tests
         task/DebouncedActionTest.cpp
         text/Base64Test.cpp
         text/CollationTest.cpp
+        text/JsonTextTest.cpp
         text/TextFoldingTest.cpp
         text/TrimTest.cpp
         theme/FontChoiceTest.cpp

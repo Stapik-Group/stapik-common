@@ -203,3 +203,18 @@ TEST_F(CompressedCloudStorageTest, CompressionHappensBeforeEncryption)
     ASSERT_TRUE(loaded.has_value());
     EXPECT_EQ(loaded->content, document);
 }
+
+TEST_F(CompressedCloudStorageTest, InvalidUtf8IsReplacedInsteadOfFailingTheSave)
+{
+    auto document = largeDocument();
+    document["title"] = std::string("bad\xff title");
+    const auto cloud = storage();
+
+    [[maybe_unused]] const auto result = cloud->saveDocument(document, TimePoint{});
+    const auto loaded = cloud->loadDocument();
+
+    ASSERT_TRUE(m_server.stored.has_value());
+    EXPECT_TRUE(CompressedCloudStorage::isCompressed(m_server.stored->content));
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->content.at("title"), "bad\xEF\xBF\xBD title");
+}

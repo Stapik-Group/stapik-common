@@ -301,3 +301,15 @@ TEST_F(CloudStorageConfigStorageTest, LoadWithoutStoredPassphraseReturnsEmptyPas
     ASSERT_TRUE(loaded.has_value());
     EXPECT_FALSE(loaded->isEndToEndEncrypted());
 }
+
+TEST_F(CloudStorageConfigStorageTest, SaveReplacesInvalidUtf8InsteadOfFailing)
+{
+    m_secretStore.available = false;
+
+    ASSERT_TRUE(CloudStorageConfigStorage::save({ "https://cloud.example", "bad\xffkey" }, APP_NAME, m_secretStore));
+    const auto loaded = CloudStorageConfigStorage::load(APP_NAME, m_secretStore);
+
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->apiUrl, "https://cloud.example");
+    EXPECT_EQ(loaded->apiKey, "bad\xEF\xBF\xBD" "key");
+}
