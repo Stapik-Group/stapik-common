@@ -64,17 +64,6 @@ namespace stapik::archive
 
             return content;
         }
-
-        std::vector<std::byte> toBytes(const std::vector<std::uint8_t> &data)
-        {
-            std::vector<std::byte> result;
-            result.reserve(data.size());
-
-            for (const auto byte: data)
-                result.push_back(static_cast<std::byte>(byte));
-
-            return result;
-        }
     }
 
     ZipReader::ZipReader(std::filesystem::path source, const std::uint64_t fileSize,
@@ -116,10 +105,10 @@ namespace stapik::archive
         std::size_t endPosition = tail.size();
         for (std::size_t position = tail.size() - END_OF_DIRECTORY_SIZE + 1; position-- > 0;)
         {
-            if (readLe32(toBytes(tail), position) != END_OF_DIRECTORY_SIGNATURE)
+            if (readLe32(tail, position) != END_OF_DIRECTORY_SIGNATURE)
                 continue;
 
-            if (const auto commentLength = readLe16(toBytes(tail), position + 20);
+            if (const auto commentLength = readLe16(tail, position + 20);
                 position + END_OF_DIRECTORY_SIZE + commentLength == tail.size())
             {
                 endPosition = position;
@@ -130,12 +119,12 @@ namespace stapik::archive
         if (endPosition == tail.size())
             return notAnArchive();
 
-        const auto diskNumber = readLe16(toBytes(tail), endPosition + 4);
-        const auto directoryDisk = readLe16(toBytes(tail), endPosition + 6);
-        const auto entriesOnDisk = readLe16(toBytes(tail), endPosition + 8);
-        const auto entryCount = readLe16(toBytes(tail), endPosition + 10);
-        const auto directorySize = readLe32(toBytes(tail), endPosition + 12);
-        const auto directoryOffset = readLe32(toBytes(tail), endPosition + 16);
+        const auto diskNumber = readLe16(tail, endPosition + 4);
+        const auto directoryDisk = readLe16(tail, endPosition + 6);
+        const auto entriesOnDisk = readLe16(tail, endPosition + 8);
+        const auto entryCount = readLe16(tail, endPosition + 10);
+        const auto directorySize = readLe32(tail, endPosition + 12);
+        const auto directoryOffset = readLe32(tail, endPosition + 16);
 
         if (entryCount == ZIP64_MARKER_16 || directorySize == ZIP64_MARKER_32 || directoryOffset == ZIP64_MARKER_32)
             return archiveFailure(ArchiveErrorKind::Unsupported, "ZIP64 archives are not supported");
@@ -161,14 +150,14 @@ namespace stapik::archive
                                       "The directory of " + storage::pathText(source) + " is damaged");
             };
 
-            if (position + CENTRAL_HEADER_SIZE > directory.size() || readLe32(toBytes(directory), position) !=
+            if (position + CENTRAL_HEADER_SIZE > directory.size() || readLe32(directory, position) !=
                 CENTRAL_HEADER_SIGNATURE)
                 return corrupted();
 
-            const auto flags = readLe16(toBytes(directory), position + 8);
-            const auto nameLength = readLe16(toBytes(directory), position + 28);
-            const auto extraLength = readLe16(toBytes(directory), position + 30);
-            const auto commentLength = readLe16(toBytes(directory), position + 32);
+            const auto flags = readLe16(directory, position + 8);
+            const auto nameLength = readLe16(directory, position + 28);
+            const auto extraLength = readLe16(directory, position + 30);
+            const auto commentLength = readLe16(directory, position + 32);
             const auto recordSize = CENTRAL_HEADER_SIZE + nameLength + extraLength + commentLength;
             if (position + recordSize > directory.size())
                 return corrupted();
@@ -176,11 +165,11 @@ namespace stapik::archive
             ZipEntry entry;
             entry.name.assign(reinterpret_cast<const char *>(directory.data()) + position + CENTRAL_HEADER_SIZE,
                               nameLength);
-            entry.method = readLe16(toBytes(directory), position + 10);
-            entry.crc32 = readLe32(toBytes(directory), position + 16);
-            entry.compressedSize = readLe32(toBytes(directory), position + 20);
-            entry.size = readLe32(toBytes(directory), position + 24);
-            entry.localHeaderOffset = readLe32(toBytes(directory), position + 42);
+            entry.method = readLe16(directory, position + 10);
+            entry.crc32 = readLe32(directory, position + 16);
+            entry.compressedSize = readLe32(directory, position + 20);
+            entry.size = readLe32(directory, position + 24);
+            entry.localHeaderOffset = readLe32(directory, position + 42);
             position += recordSize;
 
             if (entry.compressedSize == ZIP64_MARKER_32 || entry.size == ZIP64_MARKER_32 || entry.localHeaderOffset ==
@@ -251,12 +240,12 @@ namespace stapik::archive
 
         std::vector<std::uint8_t> localHeader(LOCAL_HEADER_SIZE);
         if (!readAt(file, entry.localHeaderOffset, localHeader.data(), localHeader.size())
-            || readLe32(toBytes(localHeader), 0) != LOCAL_HEADER_SIGNATURE)
+            || readLe32(localHeader, 0) != LOCAL_HEADER_SIGNATURE)
             return damaged();
 
         // The lengths of the name and the extra field may differ from the ones in the directory.
         const std::uint64_t dataOffset = static_cast<std::uint64_t>(entry.localHeaderOffset) + LOCAL_HEADER_SIZE
-                                         + readLe16(toBytes(localHeader), 26) + readLe16(toBytes(localHeader), 28);
+                                         + readLe16(localHeader, 26) + readLe16(localHeader, 28);
         if (dataOffset + entry.compressedSize > m_fileSize)
             return damaged();
 
