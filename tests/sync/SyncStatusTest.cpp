@@ -32,6 +32,9 @@ TEST(SyncStatusTest, OutcomesMapToStatuses)
     EXPECT_EQ(statusFor(SyncState::OfflineKeptLocal), SyncStatus::Offline);
     EXPECT_EQ(statusFor(SyncState::LostRaceAcceptedServer), SyncStatus::Conflict);
     EXPECT_EQ(statusFor(SyncState::RemoteUnreadable), SyncStatus::Error);
+    EXPECT_EQ(statusFor(SyncState::AuthRejected), SyncStatus::Error);
+    EXPECT_EQ(statusFor(SyncState::DecryptionFailed), SyncStatus::Error);
+    EXPECT_EQ(statusFor(SyncState::DocumentTooLarge), SyncStatus::Error);
 }
 
 TEST(SyncStatusTest, EveryStatusHasADistinctCssClass)

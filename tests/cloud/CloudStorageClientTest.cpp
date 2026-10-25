@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <typeinfo>
 
 namespace
 {
@@ -137,6 +138,56 @@ TEST_F(CloudStorageClientTest, UnexpectedStatusOnLoadIsReported)
     m_http.respondWith(500);
 
     EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.loadDocument(); }), "API read failed with status 500");
+}
+
+TEST_F(CloudStorageClientTest, RejectedApiKeyOnLoadIsReportedAsAuthRejection)
+{
+    for (const int status : { 401, 403 })
+    {
+        m_http.respondWith(status);
+
+        EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudAuthRejectedException) << status;
+    }
+}
+
+TEST_F(CloudStorageClientTest, RejectedApiKeyOnSaveIsReportedAsAuthRejection)
+{
+    respondWithCurrentDocument();
+    m_http.respondWith(403);
+
+    EXPECT_THROW(std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME), CloudAuthRejectedException);
+}
+
+TEST_F(CloudStorageClientTest, TooLargeDocumentOnSaveIsReportedAsSuch)
+{
+    respondWithCurrentDocument();
+    m_http.respondWith(413);
+
+    EXPECT_EQ(thrownMessage<CloudDocumentTooLargeException>([&] { std::ignore = m_client.saveDocument(nlohmann::json::object(), SERVER_TIME); }), "API write failed with status 413");
+}
+
+TEST_F(CloudStorageClientTest, RejectedApiKeyOnPartitionListAndChangeListIsReportedAsAuthRejection)
+{
+    m_http.respondWith(401);
+    EXPECT_THROW(std::ignore = m_client.listPartitions(), CloudAuthRejectedException);
+
+    m_http.respondWith(403);
+    EXPECT_THROW(std::ignore = m_client.listChanges(SERVER_TIME), CloudAuthRejectedException);
+}
+
+TEST_F(CloudStorageClientTest, ServerErrorStaysAPlainCloudFailure)
+{
+    m_http.respondWith(503);
+
+    try
+    {
+        std::ignore = m_client.loadDocument();
+        FAIL() << "expected an exception";
+    }
+    catch (const CloudStorageException& exception)
+    {
+        EXPECT_EQ(typeid(exception), typeid(CloudStorageException));
+    }
 }
 
 TEST_F(CloudStorageClientTest, TransportFailureOnLoadIsReportedWithTheReason)
