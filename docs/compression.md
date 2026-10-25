@@ -7,7 +7,9 @@ at least 32 KiB is gzipped and sent as a small JSON blob; smaller documents are 
 { "format": "stapik-gzip", "version": 1, "data": "<base64 of the gzip stream>" }
 ```
 
-- Compression runs before [encryption](encryption.md): encrypted data does not compress. The stack is
+- Compression runs before [encryption](encryption.md): encrypted data does not compress. When both are on, the
+  encryption layer takes the gzip stream out of the blob and encrypts it directly, and puts the blob back after
+  decrypting, so the stream is base64 encoded only once, in the encrypted blob. The stack is
   `CompressedCloudStorage` -> `EncryptedCloudStorage` (when a passphrase is set) -> `CloudStorageClient`.
 - A document that would not get smaller (the base64 blob is not shorter than the text) is sent as it is.
 - Partitions are handled like the main document.

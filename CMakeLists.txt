@@ -74,6 +74,7 @@ target_sources(stapikcommon PRIVATE
         src/stapik/cloud/CloudPartitionProtocol.cpp
         src/stapik/cloud/CloudStorageClient.cpp
         src/stapik/cloud/CloudStorageFactory.cpp
+        src/stapik/cloud/CompressedBlob.cpp
         src/stapik/cloud/CompressedCloudStorage.cpp
         src/stapik/cloud/ConnectionCheck.cpp
         src/stapik/cloud/EncryptedCloudStorage.cpp

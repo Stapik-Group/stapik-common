@@ -1,5 +1,7 @@
 #include "EncryptedCloudStorage.hpp"
 
+#include "CompressedBlob.hpp"
+
 #include "stapik/log/Log.hpp"
 #include "stapik/text/JsonText.hpp"
 
@@ -21,6 +23,12 @@ namespace stapik::cloud
 
     nlohmann::json EncryptedCloudStorage::seal(const nlohmann::json& data, const std::string& context) const
     {
+        if (data.is_object() && data.size() == COMPRESSED_BLOB_MEMBERS)
+        {
+            if (const auto stream = gzipStreamOf(data))
+                return m_cipher.encrypt(*stream, scoped(context), crypto::PayloadEncoding::GzipStream);
+        }
+
         return m_cipher.encrypt(text::dumpJson(data), scoped(context));
     }
 
@@ -35,13 +43,19 @@ namespace stapik::cloud
             return document;
         }
 
-        const auto plaintext = m_cipher.decrypt(document.content, scoped(context));
-        if (!plaintext)
-            throw CloudDecryptionException(std::format("Cannot decrypt the cloud data: {}", crypto::describe(plaintext.error())));
+        auto payload = m_cipher.decryptPayload(document.content, scoped(context));
+        if (!payload)
+            throw CloudDecryptionException(std::format("Cannot decrypt the cloud data: {}", crypto::describe(payload.error())));
+
+        if (payload.value().encoding == crypto::PayloadEncoding::GzipStream)
+        {
+            document.content = compressedBlobOf(payload.value().bytes);
+            return document;
+        }
 
         try
         {
-            document.content = nlohmann::json::parse(plaintext.value());
+            document.content = nlohmann::json::parse(payload.value().bytes);
         }
         catch (const nlohmann::json::exception&)
         {

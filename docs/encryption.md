@@ -41,6 +41,10 @@ if (CloudStorageConfigStorage::secretsKeptInConfigFile(appName).any())
 { "format": "stapik-e2e", "version": 1, "salt": "...", "nonce": "...", "ciphertext": "..." }
 ```
 
+- `version` tells what the decrypted bytes are: `1` is the JSON text of the document, `2` is a raw gzip stream (see
+  [compression.md](compression.md)). The version is part of the authenticated data, so it cannot be switched without
+  failing authentication.
+
 - The key comes from the passphrase with Argon2id (libsodium, interactive limits) and the `salt` of the blob.
 - The payload is sealed with XChaCha20-Poly1305. Any change to the blob, a wrong passphrase or a wrong context fails
   authentication.
@@ -57,4 +61,9 @@ if (CloudStorageConfigStorage::secretsKeptInConfigFile(appName).any())
 - The passphrase cannot be recovered. Losing it means losing the cloud copy; the local document is not affected.
 - Changing the passphrase on one device re-encrypts the cloud copy with the new one on that device's next write; the
   other devices cannot read it until they are given the same passphrase.
+- Large documents are compressed before they are encrypted, and the gzip stream is encrypted as it is instead of as
+  base64 text, so the data is base64 encoded once (about 1.33 times the gzip size) and not twice (about 1.78 times).
+- An application built with an older stapik-common reports `version` 2 as data from a newer version of the
+  application. Only large documents are affected (small ones keep `version` 1), but update all devices before
+  turning on encryption for a large budget.
 - Files sent through `CloudAssetClient` are not encrypted.
