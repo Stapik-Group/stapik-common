@@ -11,6 +11,7 @@
 #include <fstream>
 #include <glib.h>
 #include <sstream>
+#include <utility>
 
 namespace
 {
@@ -92,16 +93,37 @@ namespace
         return stapik::storage::writeFileAtomically(path, stapik::text::dumpJson(json, 2), stapik::storage::OWNER_READ_WRITE);
     }
 
+    struct ResolvedSecret
+    {
+        std::string value;
+        bool unreadable = false;
+    };
+
+    ResolvedSecret resolveSecret(
+        stapik::storage::ISecretStore& secretStore,
+        const std::string& appName,
+        const char* account,
+        const std::string& secretFromFile)
+    {
+        if (!secretFromFile.empty())
+            return { secretFromFile, false };
+
+        const auto lookup = secretStore.lookup(appName, account);
+        return { lookup.secret, lookup.isFailed() };
+    }
+
     std::string secretToKeepInFile(
         stapik::storage::ISecretStore& secretStore,
         const std::string& appName,
         const char* account,
         const std::string& secret,
-        const char* description)
+        const char* description,
+        const bool secretStoreWasUnreadable)
     {
         if (secret.empty())
         {
-            secretStore.remove(appName, account);
+            if (!secretStoreWasUnreadable)
+                secretStore.remove(appName, account);
             return {};
         }
 
@@ -161,8 +183,8 @@ stapik::storage::FileResult CloudStorageConfigStorage::save(const CloudStorageCo
     migrateLegacyConfig(appName);
 
     const FileSecrets secretsInFile{
-        .apiKey = secretToKeepInFile(secretStore, appName, API_KEY_ACCOUNT, config.apiKey, "cloud API key"),
-        .encryptionPassphrase = secretToKeepInFile(secretStore, appName, ENCRYPTION_PASSPHRASE_ACCOUNT, config.encryptionPassphrase, "cloud encryption passphrase")
+        .apiKey = secretToKeepInFile(secretStore, appName, API_KEY_ACCOUNT, config.apiKey, "cloud API key", config.secretsUnreadable),
+        .encryptionPassphrase = secretToKeepInFile(secretStore, appName, ENCRYPTION_PASSPHRASE_ACCOUNT, config.encryptionPassphrase, "cloud encryption passphrase", config.secretsUnreadable)
     };
 
     return writeConfigFile(configPath(appName), config.apiUrl, secretsInFile);
@@ -198,12 +220,12 @@ std::optional<CloudStorageConfig> CloudStorageConfigStorage::load(const std::str
 
     moveFileSecretsToSecretStore(path, config.apiUrl, secretsInFile, appName, secretStore);
 
-    config.apiKey = secretsInFile.apiKey.empty()
-        ? secretStore.lookup(appName, API_KEY_ACCOUNT).value_or(std::string{})
-        : secretsInFile.apiKey;
-    config.encryptionPassphrase = secretsInFile.encryptionPassphrase.empty()
-        ? secretStore.lookup(appName, ENCRYPTION_PASSPHRASE_ACCOUNT).value_or(std::string{})
-        : secretsInFile.encryptionPassphrase;
+    auto apiKey = resolveSecret(secretStore, appName, API_KEY_ACCOUNT, secretsInFile.apiKey);
+    auto encryptionPassphrase = resolveSecret(secretStore, appName, ENCRYPTION_PASSPHRASE_ACCOUNT, secretsInFile.encryptionPassphrase);
+
+    config.apiKey = std::move(apiKey.value);
+    config.encryptionPassphrase = std::move(encryptionPassphrase.value);
+    config.secretsUnreadable = apiKey.unreadable || encryptionPassphrase.unreadable;
 
     return config;
 }

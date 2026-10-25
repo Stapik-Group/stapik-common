@@ -12,6 +12,13 @@ auto storage = stapik::cloud::createCloudStorage(config, "budget");
 `defaultCloudSessionHooks()` already goes through `createCloudStorage()`, so applications using `CloudSession` need no
 changes.
 
+## Where the secrets are kept
+
+`CloudStorageConfigStorage` keeps the API key and the passphrase in the system secret store. When the store cannot be
+read, `load()` returns the config with empty secrets and `secretsUnreadable` set, so the application can tell a locked
+or unavailable keyring from a key that was never saved. Saving such a config leaves the stored secrets alone: a failed
+read cannot delete them. A key the user types in the meantime still replaces the stored one.
+
 ## What the server sees
 
 | Visible to the server                     | Hidden from the server                                                       |
