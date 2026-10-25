@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stapik/storage/FileError.hpp"
+#include "stapik/time/Clock.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -20,7 +21,7 @@ namespace stapik::settings
     class SettingsStore
     {
     public:
-        explicit SettingsStore(std::filesystem::path filePath, int schemaVersion = 1);
+        explicit SettingsStore(std::filesystem::path filePath, int schemaVersion = 1, const time::IClock& clock = time::systemClock());
 
         LoadStatus load();
 
@@ -67,6 +68,7 @@ namespace stapik::settings
 
         std::filesystem::path m_filePath;
         int m_schemaVersion;
+        const time::IClock* m_clock;
         nlohmann::json m_values = nlohmann::json::object();
     };
 }

@@ -1,5 +1,7 @@
 #include "stapik/settings/SettingsStore.hpp"
 
+#include "support/FakeClock.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cstdlib>
@@ -45,8 +47,14 @@ namespace
             fs::remove_all(m_directory, errorCode);
         }
 
+        [[nodiscard]] fs::path quarantinedPath(const std::string& suffix = "") const
+        {
+            return fs::path(m_path.string() + ".corrupt-20260115-103000" + suffix);
+        }
+
         fs::path m_directory;
         fs::path m_path;
+        stapik::test::FakeClock m_clock;
     };
 }
 
@@ -129,11 +137,11 @@ TEST_F(SettingsStoreTest, CorruptedJsonIsMovedAsideAndStoreStartsEmpty)
 {
     writeText(m_path, "{ this is not json");
 
-    SettingsStore store(m_path);
+    SettingsStore store(m_path, 1, m_clock);
 
     EXPECT_EQ(store.load(), LoadStatus::Corrupted);
     EXPECT_FALSE(fs::exists(m_path));
-    EXPECT_EQ(readText(fs::path(m_path.string() + ".corrupt")), "{ this is not json");
+    EXPECT_EQ(readText(quarantinedPath()), "{ this is not json");
     EXPECT_FALSE(store.contains("anything"));
 }
 
@@ -141,23 +149,37 @@ TEST_F(SettingsStoreTest, UnexpectedStructureIsTreatedAsCorrupted)
 {
     writeText(m_path, R"({"version": 1, "settings": [1, 2, 3]})");
 
-    SettingsStore store(m_path);
+    SettingsStore store(m_path, 1, m_clock);
 
     EXPECT_EQ(store.load(), LoadStatus::Corrupted);
-    EXPECT_TRUE(fs::exists(fs::path(m_path.string() + ".corrupt")));
+    EXPECT_TRUE(fs::exists(quarantinedPath()));
 }
 
 TEST_F(SettingsStoreTest, SavingAfterCorruptionDoesNotDestroyTheOriginal)
 {
     writeText(m_path, "garbage");
 
-    SettingsStore store(m_path);
+    SettingsStore store(m_path, 1, m_clock);
     ASSERT_EQ(store.load(), LoadStatus::Corrupted);
     store.set<int>("fresh", 1);
     ASSERT_TRUE(store.save());
 
-    EXPECT_EQ(readText(fs::path(m_path.string() + ".corrupt")), "garbage");
+    EXPECT_EQ(readText(quarantinedPath()), "garbage");
     EXPECT_TRUE(fs::exists(m_path));
+}
+
+TEST_F(SettingsStoreTest, SecondCorruptedFileDoesNotOverwriteTheFirstOne)
+{
+    writeText(m_path, "first garbage");
+    SettingsStore first(m_path, 1, m_clock);
+    ASSERT_EQ(first.load(), LoadStatus::Corrupted);
+    writeText(m_path, "second garbage");
+
+    SettingsStore second(m_path, 1, m_clock);
+    ASSERT_EQ(second.load(), LoadStatus::Corrupted);
+
+    EXPECT_EQ(readText(quarantinedPath()), "first garbage");
+    EXPECT_EQ(readText(quarantinedPath("-2")), "second garbage");
 }
 
 TEST_F(SettingsStoreTest, NewerSchemaVersionIsReadAndPreserved)
