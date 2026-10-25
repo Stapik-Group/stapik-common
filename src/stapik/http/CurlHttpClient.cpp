@@ -10,11 +10,13 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <limits>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -76,6 +78,41 @@ namespace stapik::http
             return handle;
         }
 
+        struct MimeSource
+        {
+            std::span<const std::uint8_t> content;
+            std::size_t position = 0;
+        };
+
+        std::size_t readMimeSource(char *buffer, const std::size_t size, const std::size_t count, void *source)
+        {
+            auto &[content, position] = *static_cast<MimeSource *>(source);
+            const auto length = std::min(size * count, content.size() - position);
+            std::copy_n(content.begin() + static_cast<std::ptrdiff_t>(position), length, reinterpret_cast<std::uint8_t *>(buffer));
+            position += length;
+            return length;
+        }
+
+        int seekMimeSource(void *source, const curl_off_t offset, const int origin)
+        {
+            auto &[content, position] = *static_cast<MimeSource *>(source);
+
+            curl_off_t base = 0;
+            if (origin == SEEK_CUR)
+                base = static_cast<curl_off_t>(position);
+            else if (origin == SEEK_END)
+                base = static_cast<curl_off_t>(content.size());
+            else if (origin != SEEK_SET)
+                return CURL_SEEKFUNC_FAIL;
+
+            const auto target = base + offset;
+            if (target < 0 || static_cast<std::size_t>(target) > content.size())
+                return CURL_SEEKFUNC_FAIL;
+
+            position = static_cast<std::size_t>(target);
+            return CURL_SEEKFUNC_OK;
+        }
+
         class CurlTransfer
         {
         public:
@@ -121,10 +158,17 @@ namespace stapik::http
                 return m_mime;
             }
 
+            [[nodiscard]] MimeSource &holdMimeSource(const std::span<const std::uint8_t> content)
+            {
+                m_mimeSource = MimeSource{ .content = content };
+                return m_mimeSource;
+            }
+
         private:
             CURL *m_handle;
             curl_slist *m_headers = nullptr;
             curl_mime *m_mime = nullptr;
+            MimeSource m_mimeSource;
         };
 
         struct ResponseSink
@@ -287,7 +331,8 @@ namespace stapik::http
             curl_mime_name(part, file.fieldName.c_str());
             curl_mime_filename(part, file.filename.c_str());
             curl_mime_type(part, file.mimeType.c_str());
-            curl_mime_data(part, reinterpret_cast<const char *>(file.content.data()), file.content.size());
+            curl_mime_data_cb(part, static_cast<curl_off_t>(file.content.size()), readMimeSource, seekMimeSource, nullptr,
+                              &transfer.holdMimeSource(file.content));
             curl_easy_setopt(transfer.handle(), CURLOPT_MIMEPOST, mime);
         }
 

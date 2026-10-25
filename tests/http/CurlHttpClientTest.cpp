@@ -22,9 +22,11 @@ namespace
         };
     }
 
+    const Bytes SMALL_CONTENT{ 1, 2, 3 };
+
     MultipartFile smallFile()
     {
-        return MultipartFile{ .fieldName = "file", .filename = "a.bin", .mimeType = "application/octet-stream", .content = Bytes{ 1, 2, 3 } };
+        return MultipartFile{ .fieldName = "file", .filename = "a.bin", .mimeType = "application/octet-stream", .content = SMALL_CONTENT };
     }
 }
 

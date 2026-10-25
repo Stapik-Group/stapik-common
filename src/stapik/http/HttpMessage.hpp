@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -33,7 +34,7 @@ namespace stapik::http
         std::string fieldName;
         std::string filename;
         std::string mimeType;
-        Bytes content;
+        std::span<const std::uint8_t> content;
     };
 
     using RequestBody = std::variant<NoBody, Bytes, MultipartFile>;

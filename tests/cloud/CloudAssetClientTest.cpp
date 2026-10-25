@@ -9,6 +9,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <optional>
@@ -236,7 +237,7 @@ TEST_F(CloudAssetClientTest, UploadSendsTheFileAsMultipartPut)
     EXPECT_EQ(file->fieldName, "file");
     EXPECT_EQ(file->filename, "a.jpg");
     EXPECT_EQ(file->mimeType, "image/jpeg");
-    EXPECT_EQ(file->content, BINARY_CONTENT);
+    EXPECT_TRUE(std::ranges::equal(file->content, BINARY_CONTENT));
 }
 
 TEST_F(CloudAssetClientTest, UploadWithoutHooksInstallsNoProgressCallbackAndCancelsOnlyWithItsTask)
