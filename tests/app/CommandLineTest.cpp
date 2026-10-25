@@ -97,7 +97,7 @@ TEST(CommandLineTest, FilesAreMadeAbsoluteAndKeepTheirOrder)
     ASSERT_EQ(result.options.files.size(), 2U);
     EXPECT_TRUE(result.options.files[0].is_absolute());
     EXPECT_EQ(result.options.files[0].filename(), "first.txt");
-    EXPECT_EQ(result.options.files[1], fs::path("/tmp/second.txt"));
+    EXPECT_EQ(result.options.files[1], fs::absolute("/tmp/second.txt"));
 }
 
 TEST(CommandLineTest, ReadsLogLevel)

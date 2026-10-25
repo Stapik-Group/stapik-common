@@ -231,7 +231,7 @@ TEST_F(BundledRuntimeTest, WritesARebasedLoadersCacheAndSelectsIt)
     {
         return module.lexically_normal() == expectedModule;
     }));
-    EXPECT_EQ(readAll(cacheFile).find("msys64"), std::string::npos);
+    EXPECT_EQ(readAll(cacheFile).find("ucrt64"), std::string::npos);
 }
 
 TEST_F(BundledRuntimeTest, LoadersCacheOfAnotherVersionDirectoryIsFound)
