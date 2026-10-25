@@ -58,7 +58,7 @@ include(FetchContent)
 FetchContent_Declare(
     stapik-common
     GIT_REPOSITORY https://github.com/Stapik-Group/stapik-common.git
-    GIT_TAG        v1.1.6
+    GIT_TAG        v1.5.6
 )
 FetchContent_MakeAvailable(stapik-common)
 
@@ -78,7 +78,7 @@ Pin `GIT_TAG` to a release tag – never to a moving branch – so your app buil
 | What      | Version                     |
 |-----------|-----------------------------|
 | Compiler  | C++20 capable (GCC / Clang) |
-| CMake     | 3.x+                        |
+| CMake     | 4.2+                        |
 | gtkmm     | 4.x                         |
 | libsodium | 1.0.18+                     |
 | libsecret | 1.x (Linux, optional)       |
@@ -98,13 +98,13 @@ Sanitizers (ASan, UBSan, TSan) and code coverage are CMake options, see [docs/qu
 ## Workflow & releases
 
 ```
-features/xyz  ──►  develop  ──►  main  ──►  tag vX.Y.Z
+features/xyz  ──►  develop  ──►  master  ──►  tag vX.Y.Z
 ```
 
 - New work lives on `features/*` branches
 - `develop` is the integration branch
-- `main` receives pull requests only; a release is a tag like `v1.2.0`
-- CI runs only on pull requests from `develop` to `main` and on published releases (`.deb` packages and the Windows installer); pushes and merges trigger nothing, see [docs/ci.md](docs/ci.md)
+- `master` receives pull requests only; a release is a tag like `v1.2.0`
+- CI runs only on pull requests from `develop` to `master` and on published releases (`.deb` packages and the Windows installer); pushes and merges trigger nothing, see [docs/ci.md](docs/ci.md)
 
 ## Repository layout
 
