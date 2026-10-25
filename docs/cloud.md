@@ -49,7 +49,8 @@ an application that has to work with one stays on an older stapik-common.
 
 - Sync jobs, the fetch of the available years and every other `BackgroundTaskRunner` task run on one pool of at most
   four threads shared by the whole process. A scheduler per partition therefore does not mean a thread per partition:
-  an idle scheduler holds no thread, and jobs of many partitions wait for a free one.
+  an idle scheduler holds no thread, and jobs of many partitions wait for a free one. `CloudSession::forgetPartition()`
+  also releases the scheduler of the partition as soon as it has nothing left to send.
 - A `BackgroundTaskRunner` still runs its own tasks one after another, in the order they were submitted, and drops the
   ones that have not started when it is destroyed.
 - Destroying a `BackgroundTaskRunner`, and so an `AsyncSyncScheduler` or a `CloudSession`, also asks the running task

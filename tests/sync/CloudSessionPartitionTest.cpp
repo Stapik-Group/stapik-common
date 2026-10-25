@@ -142,6 +142,54 @@ TEST_F(CloudSessionPartitionTest, ForgetPartitionAllowsPullingItAgain)
     EXPECT_EQ(m_fake.partitionLoadCalls, 2);
 }
 
+TEST_F(CloudSessionPartitionTest, ForgottenPartitionReleasesItsSchedulerOnceItIsIdle)
+{
+    m_fake.partitions["2025"] = cloudDocument("year-2025", 500, 900);
+    CloudSession<Entry> session(m_hooks, m_options);
+    watch(session);
+    session.loadPartition("2025", local("stale", 100));
+    ASSERT_TRUE(pumpUntil([&] { return session.isPartitionLoaded("2025"); }));
+    EXPECT_EQ(session.trackedPartitionCount(), 1U);
+
+    session.forgetPartition("2025");
+
+    EXPECT_TRUE(pumpUntil([&] { return session.trackedPartitionCount() == 0; }));
+}
+
+TEST_F(CloudSessionPartitionTest, ForgottenPartitionKeepsItsSchedulerWhileChangesAreUnsent)
+{
+    CloudSession<Entry> session(m_hooks, m_options);
+    watch(session);
+    m_fake.unreachable = true;
+    session.pushPartitionChange("2026", local("offline edit", 100));
+    ASSERT_TRUE(pumpUntil([this] { return !m_events.empty(); }));
+
+    session.forgetPartition("2026");
+    pumpFor(100ms);
+    EXPECT_EQ(session.trackedPartitionCount(), 1U);
+
+    m_fake.unreachable = false;
+    EXPECT_TRUE(pumpUntil([&] { return session.trackedPartitionCount() == 0; }));
+    EXPECT_EQ(SyncEnvelope::fromJson(m_fake.partitions.at("2026").content).payload.at("text").get<std::string>(), "offline edit");
+}
+
+TEST_F(CloudSessionPartitionTest, PartitionUsedAgainAfterBeingForgottenKeepsItsScheduler)
+{
+    m_fake.partitions["2025"] = cloudDocument("year-2025", 500, 900);
+    CloudSession<Entry> session(m_hooks, m_options);
+    watch(session);
+    session.loadPartition("2025", local("stale", 100));
+    ASSERT_TRUE(pumpUntil([&] { return session.isPartitionLoaded("2025"); }));
+
+    session.forgetPartition("2025");
+    session.loadPartition("2025", local("stale", 100));
+    ASSERT_TRUE(pumpUntil([this] { return m_events.size() == 2; }));
+    pumpFor(50ms);
+
+    EXPECT_EQ(session.trackedPartitionCount(), 1U);
+    EXPECT_TRUE(session.isPartitionLoaded("2025"));
+}
+
 TEST_F(CloudSessionPartitionTest, OfflineLoadIsRetriedAndNotMarkedLoadedUntilItSucceeds)
 {
     m_fake.partitions["2024"] = cloudDocument("year-2024", 500, 900);
