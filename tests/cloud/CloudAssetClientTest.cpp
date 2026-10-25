@@ -1,5 +1,6 @@
 #include "stapik/cloud/CloudAssetClient.hpp"
 #include "stapik/cloud/CloudAssetProtocol.hpp"
+#include "stapik/task/Cancellation.hpp"
 
 #include "support/FakeHttpClient.hpp"
 #include "support/ThrownMessage.hpp"
@@ -11,6 +12,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -237,14 +239,26 @@ TEST_F(CloudAssetClientTest, UploadSendsTheFileAsMultipartPut)
     EXPECT_EQ(file->content, BINARY_CONTENT);
 }
 
-TEST_F(CloudAssetClientTest, UploadWithoutHooksInstallsNoCallbacks)
+TEST_F(CloudAssetClientTest, UploadWithoutHooksInstallsNoProgressCallbackAndCancelsOnlyWithItsTask)
 {
     m_http.respondWith(201, ASSET_METADATA);
 
     std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT);
 
-    EXPECT_FALSE(m_http.requests.front().onProgress);
-    EXPECT_FALSE(m_http.requests.front().isCancelled);
+    const auto& request = m_http.requests.front();
+    EXPECT_FALSE(request.onProgress);
+    ASSERT_TRUE(request.isCancelled);
+    EXPECT_FALSE(request.isCancelled());
+}
+
+TEST_F(CloudAssetClientTest, UploadIsCancelledWhenTheRunningTaskIsCancelled)
+{
+    m_http.progressReports.push_back({});
+    std::stop_source source;
+    source.request_stop();
+    const stapik::task::CancellationScope scope(source.get_token());
+
+    EXPECT_THROW(std::ignore = m_client.uploadAsset("a.jpg", "image/jpeg", BINARY_CONTENT), AssetTransferCancelledException);
 }
 
 TEST_F(CloudAssetClientTest, UploadProgressIsLimitedToTheSizeOfTheFile)

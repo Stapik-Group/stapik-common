@@ -52,6 +52,12 @@ an application that has to work with one stays on an older stapik-common.
   an idle scheduler holds no thread, and jobs of many partitions wait for a free one.
 - A `BackgroundTaskRunner` still runs its own tasks one after another, in the order they were submitted, and drops the
   ones that have not started when it is destroyed.
+- Destroying a `BackgroundTaskRunner`, and so an `AsyncSyncScheduler` or a `CloudSession`, also asks the running task
+  to stop instead of waiting for it. `CloudStorageClient` and `CloudAssetClient` poll `task::isCancellationRequested()`
+  during a request, so closing the application or connecting again does not wait for a request to time out: the request
+  ends with `CloudRequestCancelledException` (`AssetTransferCancelledException` for a file). A task of your own can poll
+  `task::isCancellationRequested()` the same way, and `task::CancellationScope` lets a thread that is not run by a
+  `BackgroundTaskRunner` hand it a `std::stop_token`.
 
 ## Change feed
 

@@ -20,6 +20,12 @@ public:
     using CloudStorageException::CloudStorageException;
 };
 
+class CloudRequestCancelledException : public CloudStorageException
+{
+public:
+    using CloudStorageException::CloudStorageException;
+};
+
 class CloudAuthRejectedException : public CloudStorageException
 {
 public:

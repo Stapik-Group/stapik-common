@@ -177,6 +177,7 @@ target_sources(stapikcommon PRIVATE
 
 target_sources(stapikcommon PRIVATE
         src/stapik/task/BackgroundTaskRunner.cpp
+        src/stapik/task/Cancellation.cpp
         src/stapik/task/DebouncedAction.cpp
         src/stapik/task/MainThread.cpp
         src/stapik/task/ThreadPool.cpp

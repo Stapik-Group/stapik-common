@@ -24,6 +24,8 @@ if (!response)
   not cut off.
 - `onProgress` receives the bytes sent and received so far, and `isCancelled` is polled during the transfer; returning
   `true` aborts it with a `TransportError` whose `cancelled` is set. Both run on the thread that called `send()`.
+  The cloud clients fill `isCancelled` themselves, so a request ends early when the `BackgroundTaskRunner` it runs on
+  is destroyed (see [cloud.md](cloud.md)).
 - `Response::retryAfter` is the parsed `Retry-After` header (seconds, or an HTTP date turned into a delay).
   `defaultHttpClient()` honours it: on 429 or 503 it waits for the requested time and sends the request again, at most
   twice and only when the wait is 30 s or less, otherwise the response is returned as it is. A `POST` or `PATCH` is

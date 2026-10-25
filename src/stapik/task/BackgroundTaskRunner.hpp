@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stop_token>
 #include <type_traits>
 #include <utility>
 
@@ -55,6 +56,7 @@ namespace stapik::task
             std::deque<Task> tasks;
             bool draining = false;
             std::atomic<bool> alive{ true };
+            std::stop_source stop;
         };
 
         static void drain(const std::shared_ptr<State>& state);

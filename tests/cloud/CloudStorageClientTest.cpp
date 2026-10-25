@@ -1,4 +1,5 @@
 #include "stapik/cloud/CloudStorageClient.hpp"
+#include "stapik/task/Cancellation.hpp"
 
 #include "support/FakeHttpClient.hpp"
 #include "support/ThrownMessage.hpp"
@@ -10,6 +11,7 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <tuple>
 #include <typeinfo>
@@ -195,6 +197,24 @@ TEST_F(CloudStorageClientTest, TransportFailureOnLoadIsReportedWithTheReason)
     m_http.failWith("Timeout was reached");
 
     EXPECT_EQ(thrownMessage<CloudStorageException>([&] { std::ignore = m_client.loadDocument(); }), "API read failed: Timeout was reached");
+}
+
+TEST_F(CloudStorageClientTest, RequestIsCancelledWhenTheRunningTaskIsCancelled)
+{
+    m_http.progressReports.push_back({});
+    std::stop_source source;
+    source.request_stop();
+    const stapik::task::CancellationScope scope(source.get_token());
+
+    EXPECT_THROW(std::ignore = m_client.loadDocument(), CloudRequestCancelledException);
+}
+
+TEST_F(CloudStorageClientTest, RequestIsNotCancelledOutsideACancelledTask)
+{
+    m_http.progressReports.push_back({});
+    m_http.respondWith(200, documentResponse(nlohmann::json::object()));
+
+    EXPECT_TRUE(m_client.loadDocument().has_value());
 }
 
 TEST_F(CloudStorageClientTest, MalformedResponseOnLoadIsReportedAsCloudError)

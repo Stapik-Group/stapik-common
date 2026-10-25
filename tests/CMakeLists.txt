@@ -90,6 +90,7 @@ add_executable(stapikcommon_tests
         sync/SyncStatusTest.cpp
         sync/TimestampTest.cpp
         task/BackgroundTaskRunnerTest.cpp
+        task/CancellationTest.cpp
         task/DebouncedActionTest.cpp
         task/ThreadPoolTest.cpp
         text/Base64Test.cpp

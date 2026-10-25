@@ -2,6 +2,7 @@
 #include "CloudAssetProtocol.hpp"
 
 #include "stapik/log/Log.hpp"
+#include "stapik/task/Cancellation.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -114,7 +115,7 @@ namespace stapik::cloud
             .timeout = http::NO_TIMEOUT,
             .maxResponseBytes = m_maxResponseBytes,
             .onProgress = std::move(onProgress),
-            .isCancelled = std::move(isCancelled)
+            .isCancelled = task::cancellationCheck(std::move(isCancelled))
         };
         request.headers.merge(std::move(extraHeaders));
 

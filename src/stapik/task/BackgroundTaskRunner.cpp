@@ -1,5 +1,6 @@
 #include "BackgroundTaskRunner.hpp"
 
+#include "Cancellation.hpp"
 #include "MainThread.hpp"
 #include "ThreadPool.hpp"
 
@@ -38,6 +39,7 @@ namespace stapik::task
         std::unique_lock lock(m_state->mutex);
         m_state->alive.store(false);
         m_state->tasks.clear();
+        m_state->stop.request_stop();
         m_state->idle.wait(lock, [this] { return !m_state->draining; });
     }
 
@@ -89,7 +91,10 @@ namespace stapik::task
                 state->tasks.pop_front();
             }
 
-            execute(task.work);
+            {
+                const CancellationScope scope(state->stop.get_token());
+                execute(task.work);
+            }
 
             if (task.onFinished)
             {
